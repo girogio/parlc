@@ -2,3 +2,9 @@
 name = "glang"
 version = "0.1.0"
 edition = "2021"
+
+[dev-dependencies]
+rstest = "0.18.2"
+
+[dependencies]
+clap = { version = "4.5.1", features = ["cargo"] }
