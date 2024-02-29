@@ -1,10 +1,11 @@
-mod ast;
+mod scanner;
+mod utils;
 
 use clap::{arg, command, value_parser, Command};
+use scanner::lexer::delta;
 use std::{io::Read, path::PathBuf};
 
-use ast::lexer::Lexer;
-use ast::token::Token;
+use crate::scanner::{Lexer, Token};
 
 fn main() {
     let matches = command!()
@@ -16,9 +17,7 @@ fn main() {
                         .value_parser(value_parser!(PathBuf))
                         .required(false),
                 )
-                .arg(arg!(-d --debug "Print debug information"))
-                .arg(arg!(-t --tokens "Print tokens"))
-                .arg(arg!(-a --ast "Print the AST")),
+                .arg(arg!(-t --tokens "Print tokens")),
         )
         .get_matches();
 
@@ -32,12 +31,13 @@ fn main() {
             std::io::stdin().read_to_string(&mut input).unwrap();
         }
 
-        let mut lexer = Lexer::new(&input);
-        let tokens = lexer.tokenize();
+        let mut lexer = Lexer::new(&input, delta, &[2, 3]);
+        let tokens = lexer.lex();
 
         print_tokens(tokens);
     }
 }
+
 fn print_tokens(tokens: Vec<Token>) {
     println!("Tokens:\n");
     for token in tokens {
