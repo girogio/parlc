@@ -46,6 +46,7 @@ pub enum TokenKind {
     Whitespace,
     Invalid,
     Register,
+    Eof,
 }
 
 #[derive(Debug, PartialEq, Clone)]
