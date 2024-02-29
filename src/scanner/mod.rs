@@ -1,4 +1,4 @@
-pub mod dfsa;
+// pub mod dfsa;
 pub mod lexer;
 pub mod token;
 

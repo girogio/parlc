@@ -10,11 +10,9 @@ pub enum Category {
     Digit,
 }
 
-/// Why is the lifetime parameter 'a necessary?
-///
-/// The lifetime parameter 'a is necessary because the Lexer struct contains a
-/// reference to the input string. The lifetime parameter 'a ensures that the
-/// input string outlives the Lexer instance.
+static ERR_STATE: i32 = -2;
+static BAD_STATE: i32 = -1;
+
 pub struct Lexer<'a, F: Fn(i32, &Category) -> i32> {
     input: &'a str,
     current_pos: usize,
@@ -37,48 +35,41 @@ impl<'a, F: Fn(i32, &Category) -> i32> Lexer<'a, F> {
     }
 
     fn next_token(&mut self) -> Option<Token> {
-        let state_0 = 0;
-        let mut state_stack = vec![state_0];
-        state_stack.push(-1);
-
+        let mut state = 0;
         let mut lexeme = String::new();
-        let mut current_state = state_0;
+        let mut stack = vec![BAD_STATE];
 
-        println!("lexing: {}", self.input);
-
-        println!("lexeme: {}, in state: {}", lexeme, current_state);
-
-        while current_state != -1 {
-            if self.accepted_states.contains(&current_state) {
-                state_stack.clear();
-            }
-            state_stack.push(current_state);
-
-            match self.get_current_char() {
-                Some(c) => {
-                    lexeme += &c.to_string();
-                    self.current_pos += 1;
-
-                    let cat = Category::from(c);
-                    current_state = (self.transition_table)(current_state, &cat);
+        while state != ERR_STATE {
+            if let Some(c) = self.get_current_char() {
+                self.current_pos += 1;
+                lexeme += &c.to_string();
+                if self.is_accepted(&state) {
+                    stack = vec![BAD_STATE];
                 }
-                None => break,
-            };
-        }
+                stack.push(state);
 
-        while !self.accepted_states.contains(&current_state) && !current_state == -1 {
-            if state_stack.last() == Some(&-2) {
-                current_state = state_stack.pop().unwrap();
-                // truncaet lexeme to the last accepted state
-                lexeme = lexeme.chars().take(self.current_pos - 1).collect();
+                let cat = Category::from(c);
+                state = (self.transition_table)(state, &cat);
+            } else {
+                // lexeme.pop();
+                break;
             }
         }
 
-        match self.accepted_states.contains(&current_state) {
+        while !self.is_accepted(&state) && state != BAD_STATE {
+            state = stack.pop().unwrap();
+            if state != BAD_STATE {
+                lexeme.pop();
+                self.rollback();
+            }
+        }
+
+        match self.is_accepted(&state) {
             true => {
-                let end = self.current_pos;
-                let span = TextSpan::new(end - lexeme.len(), end, &lexeme);
-                let token = Token::new(current_state.into(), span);
+                let token_kind = TokenKind::from(state);
+                let text_span =
+                    TextSpan::new(self.current_pos - lexeme.len(), self.current_pos, &&lexeme);
+                let token = Token::new(token_kind, text_span);
                 Some(token)
             }
             false => None,
@@ -89,11 +80,18 @@ impl<'a, F: Fn(i32, &Category) -> i32> Lexer<'a, F> {
         let mut tokens = Vec::new();
 
         while let Some(token) = self.next_token() {
-            println!("{:?}", token);
             tokens.push(token);
         }
 
         tokens
+    }
+
+    fn is_accepted(&self, state: &i32) -> bool {
+        self.accepted_states.contains(state)
+    }
+
+    fn rollback(&mut self) {
+        self.current_pos -= 1;
     }
 }
 
@@ -102,9 +100,10 @@ pub fn delta(state: i32, category: &Category) -> i32 {
         (0, Category::Register) => 1,
         (1, Category::Digit) => 2,
         (2, Category::Digit) => 2,
+        (2, Category::Whitespace) => 1,
         (0, Category::Whitespace) => 3,
-        (2, Category::Whitespace) => 3,
-        _ => -1,
+        (3, Category::Whitespace) => 3,
+        _ => ERR_STATE,
     }
 }
 
@@ -125,6 +124,24 @@ impl From<i32> for TokenKind {
             2 => TokenKind::Register,
             3 => TokenKind::Whitespace,
             _ => TokenKind::Invalid,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    fn test_lex() {
+        let input = "r0123  r223 bruh r123";
+        let accepted_states = vec![2, 3];
+        let mut lexer = Lexer::new(input, delta, &accepted_states);
+        let tokens = lexer.lex();
+
+        for token in tokens {
+            println!("{:?}", token)
         }
     }
 }
