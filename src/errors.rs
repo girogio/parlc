@@ -1,36 +1,29 @@
-pub enum ErrorKind {
-    UnexpectedToken,
-    UnexpectedEOF,
+use crate::scanner::token::TextSpan;
+
+#[derive(Debug)]
+pub enum LexicalErrorKind {
+    InvalidCharacter,
+    UnterminatedString,
+    UnterminatedComment,
+    UnterminatedBlockComment,
+    InvalidEscape,
     InvalidNumber,
-    InvalidAdditiveOp,
-    InvalidMultiplicativeOp,
-    InvalidRelationalOp,
-    InvalidEqualityOp,
-    InvalidAssignmentOp,
-    InvalidFunctionCall,
-    InvalidFunctionDecl,
-    InvalidFormalParam,
-    InvalidFormalParams,
-    InvalidStatement,
-    InvalidBlock,
-    InvalidProgram,
-    InvalidWhitespace,
-    InvalidEOF,
+    InvalidIdentifier,
 }
 
-pub struct SyntaxError {
-    kind: ErrorKind,
+pub struct LexicalError {
+    kind: LexicalErrorKind,
     span: TextSpan,
 }
 
-impl SyntaxError {
-    pub fn new(kind: ErrorKind, span: TextSpan) -> SyntaxError {
-        SyntaxError { kind, span }
+impl LexicalError {
+    pub fn new(kind: LexicalErrorKind, span: TextSpan) -> LexicalError {
+        LexicalError { kind, span }
     }
 
     pub fn report(&self) {
         // pritns error nicey
-        println!("Syntax Error: {:?}", self.kind);
+        println!("Error: {:?}", self.kind);
         println!("Span: {:?}", self.span);
     }
 }
