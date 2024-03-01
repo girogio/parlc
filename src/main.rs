@@ -1,9 +1,10 @@
+mod errors;
 mod scanner;
 mod utils;
 
 use clap::{arg, command, value_parser, Command};
-use scanner::lexer::delta;
 use std::{io::Read, path::PathBuf};
+use utils::SimpleBuffer;
 
 use crate::scanner::{Lexer, Token};
 
@@ -24,14 +25,30 @@ fn main() {
     if let Some(lexer_matches) = matches.subcommand_matches("lexer") {
         let mut input = String::new();
 
-        if let Some(file) = lexer_matches.get_one::<PathBuf>("file") {
-            let mut file = std::fs::File::open(file).unwrap();
-            file.read_to_string(&mut input).unwrap();
+        if let Some(file_path) = lexer_matches.get_one::<PathBuf>("file") {
+            let mut file = std::fs::File::open(file_path);
+
+            match file {
+                Ok(ref mut file) => file.read_to_string(&mut input).unwrap(),
+                Err(_) => {
+                    eprintln!(
+                        "Could not open file {}.",
+                        file_path.as_os_str().to_str().unwrap()
+                    );
+                    std::process::exit(1);
+                }
+            };
         } else {
-            std::io::stdin().read_to_string(&mut input).unwrap();
+            match std::io::stdin().read_to_string(&mut input) {
+                Ok(_) => {}
+                Err(_) => {
+                    eprintln!("Could not read from standard input.");
+                    std::process::exit(1);
+                }
+            }
         }
 
-        let mut lexer = Lexer::new(&input, delta, &[2, 3]);
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, &[2, 3]);
         let tokens = lexer.lex();
 
         print_tokens(tokens);
@@ -39,7 +56,6 @@ fn main() {
 }
 
 fn print_tokens(tokens: Vec<Token>) {
-    println!("Tokens:\n");
     for token in tokens {
         println!("{:?}", token);
     }
