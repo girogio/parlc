@@ -1,6 +1,6 @@
 use crate::{
     scanner::token::{Token, TokenKind},
-    utils::Stream,
+    utils::{Dfsa, Stream},
 };
 
 use super::token::TextSpan;
@@ -15,27 +15,30 @@ pub enum Category {
 
 const ERR_STATE: i32 = -2;
 const BAD_STATE: i32 = -1;
-const START_STATE: i32 = 0;
 
 pub struct Lexer<B: Stream> {
     buffer: B,
-    accepted_states: Vec<i32>,
+    dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
 }
 
 impl<B: Stream> Lexer<B> {
     pub fn new(input: &str) -> Self {
         Lexer {
             buffer: B::new(input),
-            accepted_states: vec![2, 3],
+            dfsa: Dfsa::new(vec![2, 3], 0, |state, category| match (state, category) {
+                (0, Category::Register) => 1,
+                (0, Category::Whitespace) => 3,
+                (1, Category::Digit) => 2,
+                (2, Category::Digit) => 2,
+                (3, Category::Whitespace) => 3,
+                (3, _) => 0,
+                _ => ERR_STATE,
+            }),
         }
     }
 
-    fn is_accepted(&self, state: &i32) -> bool {
-        self.accepted_states.contains(state)
-    }
-
     fn next_token(&mut self) -> Token {
-        let mut state = START_STATE;
+        let mut state = self.dfsa.start_state();
         let mut lexeme = String::new();
         let mut stack = vec![BAD_STATE];
         let start = self.buffer.get_input_pointer();
@@ -44,7 +47,7 @@ impl<B: Stream> Lexer<B> {
             let c = self.buffer.next_char();
             lexeme += &c.to_string();
 
-            if self.is_accepted(&state) {
+            if self.dfsa.is_accepting(&state) {
                 stack = vec![BAD_STATE];
             }
 
@@ -53,10 +56,10 @@ impl<B: Stream> Lexer<B> {
 
             // Perform the transition
             let cat = Category::from(c);
-            state = self.delta(state, &cat);
+            state = self.dfsa.delta(state, cat);
         }
 
-        while !self.is_accepted(&state) && state != BAD_STATE {
+        while !self.dfsa.is_accepting(&state) && state != BAD_STATE {
             state = stack.pop().unwrap();
             if state != BAD_STATE {
                 lexeme.pop();
@@ -67,24 +70,12 @@ impl<B: Stream> Lexer<B> {
         let text_span = TextSpan::new(start, self.buffer.get_input_pointer(), &lexeme);
 
         Token::new(
-            match self.is_accepted(&state) {
+            match self.dfsa.is_accepting(&state) {
                 true => TokenKind::from(state),
                 false => TokenKind::Invalid,
             },
             text_span,
         )
-    }
-
-    fn delta(&self, state: i32, category: &Category) -> i32 {
-        match (state, category) {
-            (0, Category::Register) => 1,
-            (0, Category::Whitespace) => 3,
-            (1, Category::Digit) => 2,
-            (2, Category::Digit) => 2,
-            (3, Category::Whitespace) => 3,
-            (3, _) => 0,
-            _ => ERR_STATE,
-        }
     }
 
     pub fn lex(&mut self) -> Vec<Token> {
@@ -134,7 +125,6 @@ mod tests {
     #[rstest]
     fn test_lex() {
         let input = "r0123 r2456 \n r1234";
-        let accepted_states = vec![2, 3];
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input);
         let tokens = lexer.lex();
 
