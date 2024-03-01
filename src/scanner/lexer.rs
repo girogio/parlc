@@ -1,9 +1,8 @@
 use crate::{
-    scanner::token::{Token, TokenKind},
+    errors::{LexicalError, LexicalErrorKind, Result},
+    scanner::token::{TextSpan, Token, TokenKind},
     utils::{Dfsa, Stream},
 };
-
-use super::token::TextSpan;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Category {
@@ -37,7 +36,7 @@ impl<B: Stream> Lexer<B> {
         }
     }
 
-    fn next_token(&mut self) -> Token {
+    fn next_token(&mut self) -> Result<Token> {
         let mut state = self.dfsa.start_state();
         let mut lexeme = String::new();
         let mut stack = vec![BAD_STATE];
@@ -69,25 +68,23 @@ impl<B: Stream> Lexer<B> {
 
         let text_span = TextSpan::new(start, self.buffer.get_input_pointer(), &lexeme);
 
-        Token::new(
-            match self.dfsa.is_accepting(&state) {
-                true => TokenKind::from(state),
-                false => TokenKind::Invalid,
-            },
-            text_span,
-        )
+        match self.dfsa.is_accepting(&state) {
+            true => Ok(Token::new(TokenKind::from(state), text_span)),
+            false => Err(LexicalError::new(LexicalErrorKind::InvalidCharacter, text_span).into()),
+        }
     }
 
     pub fn lex(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
+
         loop {
-            let token = self.next_token();
-
-            if token.kind == TokenKind::Invalid {
-                break;
+            match self.next_token() {
+                Ok(token) => tokens.push(token),
+                Err(e) => {
+                    e.report();
+                    break;
+                }
             }
-
-            tokens.push(token);
         }
 
         tokens
