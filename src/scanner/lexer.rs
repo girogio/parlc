@@ -23,10 +23,10 @@ pub struct Lexer<B: Stream> {
 }
 
 impl<B: Stream> Lexer<B> {
-    pub fn new(input: &str, accepted_states: &[i32]) -> Self {
+    pub fn new(input: &str) -> Self {
         Lexer {
             buffer: B::new(input),
-            accepted_states: accepted_states.to_vec(),
+            accepted_states: vec![2, 3],
         }
     }
 
@@ -135,7 +135,7 @@ mod tests {
     fn test_lex() {
         let input = "r0123 r2456 \n r1234";
         let accepted_states = vec![2, 3];
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, &accepted_states);
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input);
         let tokens = lexer.lex();
 
         for token in tokens {

@@ -48,7 +48,7 @@ fn main() {
             }
         }
 
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, &[2, 3]);
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input);
         let tokens = lexer.lex();
 
         print_tokens(tokens);
