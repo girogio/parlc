@@ -46,14 +46,13 @@ pub enum TokenKind {
     Whitespace,
     Invalid,
     Register,
-    Eof,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextSpan {
     start: usize,
     end: usize,
-    pub lexeme: String,
+    lexeme: String,
 }
 
 impl TextSpan {
