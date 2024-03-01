@@ -1,3 +1,5 @@
 pub mod buffer;
 
-pub use buffer::Buffer;
+// ub use buffer::Buffer;
+pub use buffer::SimpleBuffer;
+pub use buffer::Stream;
