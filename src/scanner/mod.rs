@@ -1,5 +1,7 @@
 // pub mod dfsa;
-pub mod lexer;
-pub mod token;
 
+mod dfsa;
+pub mod lexer;
+
+use dfsa::Dfsa;
 pub use lexer::Lexer;

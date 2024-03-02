@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-pub struct Dfsa<State, Alpha: Sized, Delta>
+pub struct Dfsa<State, Alpha, Delta>
 where
     State: PartialEq + Eq,
     Delta: Fn(State, Alpha) -> State,

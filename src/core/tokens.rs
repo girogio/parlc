@@ -1,25 +1,35 @@
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TokenKind {
     Whitespace,
     Invalid,
-    Register,
+    Newline,
+    LBrace,
+    RBrace,
+    LParen,
+    RParen,
+    LBracket,
+    RBracket,
+    DoubleQuote,
+    SingleQuote,
+    Semicolon,
     EndOfFile,
+    Identifier,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextSpan {
-    start: usize,
-    end: usize,
+    line: usize,
+    col: usize,
     lexeme: String,
 }
 
 impl TextSpan {
-    pub fn new(start: usize, end: usize, lexeme: &str) -> TextSpan {
+    pub fn new(line: usize, col: usize, lexeme: &str) -> TextSpan {
         TextSpan {
-            start,
-            end,
+            line,
+            col,
             lexeme: lexeme.to_string(),
         }
     }
@@ -44,9 +54,8 @@ impl Display for Token {
             "{:?}{}",
             self.kind,
             match self.kind {
-                TokenKind::EndOfFile => "".to_string(),
-                TokenKind::Whitespace => "".to_string(),
-                _ => format!("({})", self.span.lexeme.clone()),
+                TokenKind::Identifier => format!("({})", self.span.lexeme.clone()),
+                _ => "".to_string(),
             }
         )
     }

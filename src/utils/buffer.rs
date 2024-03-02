@@ -7,32 +7,59 @@ pub trait Stream {
     fn new(input: &str) -> Self
     where
         Self: Sized;
-
     fn rollback(&mut self);
     fn next_char(&mut self) -> char;
+    fn get_line(&self) -> usize;
+    fn get_col(&self) -> usize;
     fn get_input_pointer(&self) -> usize;
     fn is_eof(&self) -> bool;
 }
 
 pub struct SimpleBuffer {
-    pub input: String,
-    pub input_pointer: usize,
+    input: String,
+    input_pointer: usize,
+    line: usize,
+    col: usize,
 }
 
 impl Stream for SimpleBuffer {
     fn new(input: &str) -> SimpleBuffer {
         SimpleBuffer {
+            line: 1,
+            col: 1,
             input: input.to_string(),
             input_pointer: 0,
         }
     }
 
     fn rollback(&mut self) {
+        if self.input_pointer == 0 {
+            panic!("Cannot rollback past the beginning of the input");
+        }
+
+        if self
+            .input
+            .chars()
+            .nth(self.input_pointer - 1)
+            .unwrap_or(EOF)
+            == '\n'
+        {
+            self.line -= 1;
+        } else {
+            self.col -= 1;
+        }
+
         self.input_pointer -= 1;
     }
 
     fn next_char(&mut self) -> char {
         let char = self.input.chars().nth(self.input_pointer).unwrap_or(EOF);
+        if char == '\n' {
+            self.line += 1;
+            self.col = 1;
+        } else {
+            self.col += 1;
+        }
         self.input_pointer += 1;
         char
     }
@@ -43,6 +70,14 @@ impl Stream for SimpleBuffer {
 
     fn is_eof(&self) -> bool {
         self.input_pointer >= self.input.len()
+    }
+
+    fn get_col(&self) -> usize {
+        self.col
+    }
+
+    fn get_line(&self) -> usize {
+        self.line
     }
 }
 

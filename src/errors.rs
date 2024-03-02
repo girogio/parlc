@@ -1,15 +1,4 @@
-use crate::scanner::token::TextSpan;
-
-#[derive(Debug)]
-pub enum LexicalErrorKind {
-    InvalidCharacter,
-    UnterminatedString,
-    UnterminatedComment,
-    UnterminatedBlockComment,
-    InvalidEscape,
-    InvalidNumber,
-    InvalidIdentifier,
-}
+use crate::core::tokens::TextSpan;
 
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -22,19 +11,22 @@ pub struct Error {
     pub span: Option<TextSpan>,
 }
 
+#[derive(Debug)]
 pub struct LexicalError {
     kind: LexicalErrorKind,
     span: TextSpan,
 }
 
+#[derive(Debug)]
+pub enum LexicalErrorKind {
+    InvalidCharacter,
+    UnterminatedString,
+    UnterminatedComment,
+}
+
 impl LexicalError {
     pub fn new(kind: LexicalErrorKind, span: TextSpan) -> LexicalError {
         LexicalError { kind, span }
-    }
-
-    pub fn report(&self) {
-        println!("Error: {:?}", self.kind);
-        println!("Span: {:?}", self.span);
     }
 }
 

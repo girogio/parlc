@@ -1,13 +1,18 @@
 use crate::{
+    core::{TextSpan, Token, TokenKind},
     errors::{LexicalError, LexicalErrorKind, Result},
-    scanner::token::{TextSpan, Token, TokenKind},
-    utils::{Dfsa, Stream},
+    scanner::Dfsa,
+    utils::Stream,
 };
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Category {
     Other,
     Whitespace,
+    Letter,
+    Digit,
+    Underscore,
+    Newline,
     RBrace,
     LBrace,
     RParen,
@@ -16,16 +21,17 @@ pub enum Category {
     LBracket,
     DoubleQuote,
     SingleQuote,
-    Register,
-    Digit,
+    Semicolon,
 }
 
 impl From<char> for Category {
     fn from(c: char) -> Self {
         match c {
-            'r' => Category::Register,
+            'a'..='z' | 'A'..='Z' => Category::Letter,
             '0'..='9' => Category::Digit,
-            ' ' | '\n' | '\t' => Category::Whitespace,
+            '_' => Category::Underscore,
+            ' ' | '\t' => Category::Whitespace,
+            '\n' => Category::Newline,
             '{' => Category::LBrace,
             '}' => Category::RBrace,
             '(' => Category::LParen,
@@ -34,7 +40,33 @@ impl From<char> for Category {
             ']' => Category::RBracket,
             '"' => Category::DoubleQuote,
             '\'' => Category::SingleQuote,
+            ';' => Category::Semicolon,
             _ => Category::Other,
+        }
+    }
+}
+
+pub struct Lexer<B: Stream> {
+    buffer: B,
+    dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
+}
+
+impl From<i32> for TokenKind {
+    fn from(i: i32) -> Self {
+        match i {
+            1 => TokenKind::Whitespace,
+            2 => TokenKind::Newline,
+            3 => TokenKind::Identifier,
+            4 => TokenKind::LBrace,
+            5 => TokenKind::RBrace,
+            6 => TokenKind::LParen,
+            7 => TokenKind::RParen,
+            8 => TokenKind::LBracket,
+            9 => TokenKind::RBracket,
+            10 => TokenKind::DoubleQuote,
+            11 => TokenKind::SingleQuote,
+            12 => TokenKind::Semicolon,
+            _ => TokenKind::Invalid,
         }
     }
 }
@@ -42,33 +74,34 @@ impl From<char> for Category {
 const ERR_STATE: i32 = -2;
 const BAD_STATE: i32 = -1;
 
-pub struct Lexer<B: Stream> {
-    buffer: B,
-    dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
-}
-impl From<i32> for TokenKind {
-    fn from(i: i32) -> Self {
-        match i {
-            2 => TokenKind::Register,
-            3 => TokenKind::Whitespace,
-            _ => TokenKind::Invalid,
-        }
-    }
-}
-
 impl<B: Stream> Lexer<B> {
     pub fn new(input: &str) -> Self {
         Lexer {
             buffer: B::new(input),
-            dfsa: Dfsa::new(vec![2, 3], 0, |state, category| match (state, category) {
-                (0, Category::Register) => 1,
-                (0, Category::Whitespace) => 3,
-                (1, Category::Digit) => 2,
-                (2, Category::Digit) => 2,
-                (3, Category::Whitespace) => 3,
-                (3, _) => 0,
-                _ => ERR_STATE,
-            }),
+            dfsa: Dfsa::new(
+                vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+                0,
+                |state, category| match (state, category) {
+                    (0, Category::Whitespace) => 1,
+                    (0, Category::Newline) => 2,
+                    (0, Category::Letter) => 3,
+                    (0, Category::LBrace) => 4,
+                    (0, Category::RBrace) => 5,
+                    (0, Category::LParen) => 6,
+                    (0, Category::RParen) => 7,
+                    (0, Category::LBracket) => 8,
+                    (0, Category::RBracket) => 9,
+                    (0, Category::DoubleQuote) => 10,
+                    (0, Category::SingleQuote) => 11,
+                    (0, Category::Semicolon) => 12,
+                    (1, Category::Whitespace) => 1,
+                    (3, Category::Letter) => 3,
+                    (3, Category::Digit) => 3,
+                    (3, Category::Underscore) => 3,
+
+                    _ => ERR_STATE,
+                },
+            ),
         }
     }
 
@@ -76,10 +109,10 @@ impl<B: Stream> Lexer<B> {
         let mut state = self.dfsa.start_state();
         let mut lexeme = String::new();
         let mut stack = vec![BAD_STATE];
-        let start = self.buffer.get_input_pointer();
 
         while state != ERR_STATE {
             let c = self.buffer.next_char();
+
             lexeme += &c.to_string();
 
             if self.dfsa.is_accepting(&state) {
@@ -100,11 +133,16 @@ impl<B: Stream> Lexer<B> {
             }
         }
 
-        let text_span = TextSpan::new(start, self.buffer.get_input_pointer(), &lexeme);
+        let text_span = TextSpan::new(self.buffer.get_line(), self.buffer.get_col(), &lexeme);
 
         match self.dfsa.is_accepting(&state) {
             true => Ok(Token::new(TokenKind::from(state), text_span)),
-            false => Err(LexicalError::new(LexicalErrorKind::InvalidCharacter, text_span).into()),
+            false => Err(match state {
+                _ => {
+                    println!("{state}");
+                    LexicalError::new(LexicalErrorKind::InvalidCharacter, text_span).into()
+                }
+            }),
         }
     }
 
@@ -123,11 +161,7 @@ impl<B: Stream> Lexer<B> {
             if self.buffer.is_eof() {
                 tokens.push(Token::new(
                     TokenKind::EndOfFile,
-                    TextSpan::new(
-                        self.buffer.get_input_pointer(),
-                        self.buffer.get_input_pointer(),
-                        "",
-                    ),
+                    TextSpan::new(self.buffer.get_line(), self.buffer.get_col(), ""),
                 ));
 
                 return Ok(tokens);

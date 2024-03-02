@@ -1,8 +1,9 @@
+mod core;
 mod errors;
 mod scanner;
 mod utils;
 
-use clap::{arg, command, value_parser, Arg, Command};
+use clap::{command, value_parser, Arg, Command};
 use console::style;
 use console::Term;
 use std::{io::Read, path::PathBuf};
@@ -70,13 +71,16 @@ fn main() {
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input);
         let tokens = lexer.lex();
 
-        if let Ok(tokens) = tokens {
-            for token in tokens {
-                println!("{}", token);
+        match tokens {
+            Ok(tokens) => {
+                for token in tokens {
+                    println!("{}", token);
+                }
             }
-        } else {
-            eprintln!("Error: Could not lex input.");
-            std::process::exit(1);
+            Err(e) => {
+                e.report();
+                std::process::exit(1);
+            }
         }
     }
 }
