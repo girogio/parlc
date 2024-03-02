@@ -9,6 +9,7 @@ rstest = "0.18.2"
 
 [dependencies]
 clap = { version = "4.5.1", features = ["cargo"] }
+console = "0.15.8"
 toml = "0.8.10"
 
 [profile.release]
