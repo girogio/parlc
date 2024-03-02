@@ -137,11 +137,9 @@ impl<B: Stream> Lexer<B> {
 
         match self.dfsa.is_accepting(&state) {
             true => Ok(Token::new(TokenKind::from(state), text_span)),
-            false => Err(match state {
-                _ => {
-                    println!("{state}");
-                    LexicalError::new(LexicalErrorKind::InvalidCharacter, text_span).into()
-                }
+            false => Err({
+                println!("{state}");
+                LexicalError::new(LexicalErrorKind::InvalidCharacter, text_span).into()
             }),
         }
     }
