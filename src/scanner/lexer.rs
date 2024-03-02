@@ -12,12 +12,32 @@ pub enum Category {
     Digit,
 }
 
+impl From<char> for Category {
+    fn from(c: char) -> Self {
+        match c {
+            'r' => Category::Register,
+            '0'..='9' => Category::Digit,
+            ' ' | '\n' | '\t' => Category::Whitespace,
+            _ => Category::Other,
+        }
+    }
+}
+
 const ERR_STATE: i32 = -2;
 const BAD_STATE: i32 = -1;
 
 pub struct Lexer<B: Stream> {
     buffer: B,
     dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
+}
+impl From<i32> for TokenKind {
+    fn from(i: i32) -> Self {
+        match i {
+            2 => TokenKind::Register,
+            3 => TokenKind::Whitespace,
+            _ => TokenKind::Invalid,
+        }
+    }
 }
 
 impl<B: Stream> Lexer<B> {
@@ -50,10 +70,8 @@ impl<B: Stream> Lexer<B> {
                 stack = vec![BAD_STATE];
             }
 
-            // Save the current state
             stack.push(state);
 
-            // Perform the transition
             let cat = Category::from(c);
             state = self.dfsa.delta(state, cat);
         }
@@ -74,40 +92,30 @@ impl<B: Stream> Lexer<B> {
         }
     }
 
-    pub fn lex(&mut self) -> Vec<Token> {
+    pub fn lex(&mut self) -> Result<Vec<Token>> {
         let mut tokens = Vec::new();
 
         loop {
             match self.next_token() {
-                Ok(token) => tokens.push(token),
+                Ok(token) => {
+                    tokens.push(token);
+                }
                 Err(e) => {
-                    e.report();
-                    break;
+                    return Err(e);
                 }
             }
-        }
+            if self.buffer.is_eof() {
+                tokens.push(Token::new(
+                    TokenKind::EndOfFile,
+                    TextSpan::new(
+                        self.buffer.get_input_pointer(),
+                        self.buffer.get_input_pointer(),
+                        "",
+                    ),
+                ));
 
-        tokens
-    }
-}
-
-impl From<char> for Category {
-    fn from(c: char) -> Self {
-        match c {
-            'r' => Category::Register,
-            '0'..='9' => Category::Digit,
-            ' ' | '\n' | '\t' => Category::Whitespace,
-            _ => Category::Other,
-        }
-    }
-}
-
-impl From<i32> for TokenKind {
-    fn from(i: i32) -> Self {
-        match i {
-            2 => TokenKind::Register,
-            3 => TokenKind::Whitespace,
-            _ => TokenKind::Invalid,
+                return Ok(tokens);
+            }
         }
     }
 }
@@ -117,6 +125,7 @@ mod tests {
     use crate::utils::SimpleBuffer;
 
     use super::*;
+    use assert_matches::assert_matches;
     use rstest::rstest;
 
     #[rstest]
@@ -125,8 +134,12 @@ mod tests {
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input);
         let tokens = lexer.lex();
 
-        for token in tokens {
-            println!("{:?}", token)
+        let tokens = assert_matches!(tokens, Ok(tokens) => tokens);
+
+        for token in &tokens {
+            println!("{}", token);
         }
+
+        assert_eq!(tokens.len(), 6);
     }
 }

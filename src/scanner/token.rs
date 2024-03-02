@@ -1,51 +1,11 @@
+use std::fmt::Display;
+
 #[derive(Debug, PartialEq, Clone)]
-// pub enum TokenKind {
-//     Invalid,
-//     Whitespace,
-//     Letter,
-//     Digit,
-//     Hex,
-//     Type,
-//     BooleanLiteral,
-//     IntegerLiteral,
-//     FloatLiteral,
-//     ColourLiteral,
-//     PadWidth,
-//     PadHeight,
-//     PadRead,
-//     PadRandI,
-//     Literal,
-//     Identifier,
-//     MultOp,
-//     AddOp,
-//     RelationalOp,
-//     ActualParams,
-//     FunctionCall,
-//     SubExpr,
-//     Unary,
-//     Factor,
-//     Term,
-//     SimpleExpr,
-//     Expr,
-//     Assignment,
-//     PrintStatement,
-//     DelayStatement,
-//     PixelStatement,
-//     RtrnStatement,
-//     IfStatement,
-//     ForStatement,
-//     WhileStatement,
-//     FormalParam,
-//     FormalParams,
-//     FunctionDecl,
-//     Statement,
-//     Block,
-//     Program,
-// }
 pub enum TokenKind {
     Whitespace,
     Invalid,
     Register,
+    EndOfFile,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -74,5 +34,20 @@ pub struct Token {
 impl Token {
     pub fn new(kind: TokenKind, span: TextSpan) -> Token {
         Token { kind, span }
+    }
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}{}",
+            self.kind,
+            match self.kind {
+                TokenKind::EndOfFile => "".to_string(),
+                TokenKind::Whitespace => "".to_string(),
+                _ => format!("({})", self.span.lexeme.clone()),
+            }
+        )
     }
 }

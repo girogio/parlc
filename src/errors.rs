@@ -11,13 +11,15 @@ pub enum LexicalErrorKind {
     InvalidIdentifier,
 }
 
-enum ErrorKind {
+#[derive(Debug)]
+pub enum ErrorKind {
     Lexical(LexicalErrorKind),
 }
 
+#[derive(Debug)]
 pub struct Error {
-    kind: ErrorKind,
-    span: Option<TextSpan>,
+    pub kind: ErrorKind,
+    pub span: Option<TextSpan>,
 }
 
 pub struct LexicalError {

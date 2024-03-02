@@ -1,5 +1,7 @@
-const BUFFER_SIZE: usize = 4096;
+// const BUFFER_SIZE: usize = 4096;
 const EOF: char = 0 as char;
+// const N2: usize = BUFFER_SIZE;
+// const N: usize = N2 / 2;
 
 pub trait Stream {
     fn new(input: &str) -> Self
@@ -9,6 +11,7 @@ pub trait Stream {
     fn rollback(&mut self);
     fn next_char(&mut self) -> char;
     fn get_input_pointer(&self) -> usize;
+    fn is_eof(&self) -> bool;
 }
 
 pub struct SimpleBuffer {
@@ -37,25 +40,29 @@ impl Stream for SimpleBuffer {
     fn get_input_pointer(&self) -> usize {
         self.input_pointer
     }
+
+    fn is_eof(&self) -> bool {
+        self.input_pointer >= self.input.len()
+    }
 }
 
-// pub struct Buffer<'a> {
-//     pub input: &'a str,
-//     buffer: [char; BUFFER_SIZE],
+// pub struct Buffer {
+//     pub input: String,
+//     pub buffer: [char; N2],
 //     pub input_pointer: usize,
 //     pub fence: usize,
 // }
 
-// impl<'a> Stream<'a> for Buffer<'a> {
-//     fn new(input: &'a str) -> &'a Buffer<'a> {
-//         let mut buffer = [0 as char; BUFFER_SIZE];
+// impl Stream for Buffer {
+//     fn new(input: &str) -> Buffer {
+//         let mut buffer = [0 as char; N2];
 
-//         for (i, c) in buffer.iter_mut().enumerate() {
+//         for (i, c) in buffer.iter_mut().enumerate().take(N) {
 //             *c = input.chars().nth(i).unwrap_or(EOF);
 //         }
 
-//         &Buffer {
-//             input,
+//         Buffer {
+//             input: input.to_string(),
 //             buffer,
 //             input_pointer: 0,
 //             fence: 0,
@@ -67,21 +74,26 @@ impl Stream for SimpleBuffer {
 //             panic!("Cannot rollback past the fence");
 //         }
 
-//         self.input_pointer -= 1 % (2 * BUFFER_SIZE);
+//         self.input_pointer = (self.input_pointer - 1) % (N2);
 //     }
 
 //     fn next_char(&mut self) -> char {
 //         let char = self.buffer[self.input_pointer];
 
 //         if char != EOF {
-//             self.input_pointer += 1 % (2 * BUFFER_SIZE);
+//             self.input_pointer = (self.input_pointer + 1) % N2;
 
-//             if self.input_pointer % BUFFER_SIZE == 0 {
-//                 // fill buffer with next chunk of input
-//                 for (i, c) in self.buffer.iter_mut().enumerate() {
+//             if self.input_pointer % N == 0 {
+//                 for (i, c) in self
+//                     .buffer
+//                     .iter_mut()
+//                     .enumerate()
+//                     .skip(self.input_pointer)
+//                     .take(self.input_pointer + N2)
+//                 {
 //                     *c = self.input.chars().nth(i).unwrap_or(EOF);
 //                 }
-//                 self.fence = (self.input_pointer + BUFFER_SIZE) % (2 * BUFFER_SIZE);
+//                 self.fence = (self.input_pointer + N) % N2;
 //             }
 //         }
 
@@ -90,5 +102,16 @@ impl Stream for SimpleBuffer {
 
 //     fn get_input_pointer(&self) -> usize {
 //         self.input_pointer
+//     }
+// }
+
+// impl Default for Buffer {
+//     fn default() -> Self {
+//         Buffer {
+//             input: String::new(),
+//             buffer: [0 as char; BUFFER_SIZE],
+//             input_pointer: 0,
+//             fence: 0,
+//         }
 //     }
 // }
