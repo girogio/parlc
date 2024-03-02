@@ -8,6 +8,14 @@ use crate::{
 pub enum Category {
     Other,
     Whitespace,
+    RBrace,
+    LBrace,
+    RParen,
+    LParen,
+    RBracket,
+    LBracket,
+    DoubleQuote,
+    SingleQuote,
     Register,
     Digit,
 }
@@ -18,6 +26,14 @@ impl From<char> for Category {
             'r' => Category::Register,
             '0'..='9' => Category::Digit,
             ' ' | '\n' | '\t' => Category::Whitespace,
+            '{' => Category::LBrace,
+            '}' => Category::RBrace,
+            '(' => Category::LParen,
+            ')' => Category::RParen,
+            '[' => Category::LBracket,
+            ']' => Category::RBracket,
+            '"' => Category::DoubleQuote,
+            '\'' => Category::SingleQuote,
             _ => Category::Other,
         }
     }
