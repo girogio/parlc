@@ -13,6 +13,7 @@ pub trait Stream {
     fn get_col(&self) -> usize;
     fn get_input_pointer(&self) -> usize;
     fn is_eof(&self) -> bool;
+    fn current_char(&self) -> char;
 }
 
 pub struct SimpleBuffer {
@@ -78,6 +79,10 @@ impl Stream for SimpleBuffer {
 
     fn get_line(&self) -> usize {
         self.line
+    }
+
+    fn current_char(&self) -> char {
+        self.input.chars().nth(self.input_pointer).unwrap_or(EOF)
     }
 }
 
