@@ -1,1 +1,3 @@
-fn( Bruh ) { return test; }
+fn something(test: int) {
+    println("Hello, world!");
+}

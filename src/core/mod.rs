@@ -1,3 +1,3 @@
-pub mod tokens;
+mod token_type;
 
-pub use tokens::{TextSpan, Token, TokenKind};
+pub use token_type::TokenKind;

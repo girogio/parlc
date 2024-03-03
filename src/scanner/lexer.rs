@@ -1,9 +1,13 @@
 use crate::{
-    core::{TextSpan, Token, TokenKind},
-    errors::{LexicalError, LexicalErrorKind, Result},
-    scanner::Dfsa,
-    utils::Stream,
+    core::TokenKind,
+    models::{TextSpan, Token},
+    utils::{
+        errors::{LexicalError, Result},
+        Stream,
+    },
 };
+
+use super::dfsa::Dfsa;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Category {
@@ -21,6 +25,7 @@ pub enum Category {
     DoubleQuote,
     SingleQuote,
     Semicolon,
+    Colon,
     Backslash,
     Eof,
     Other,
@@ -38,6 +43,7 @@ impl From<char> for Category {
             '}' => Category::RBrace,
             '(' => Category::LParen,
             ')' => Category::RParen,
+            ':' => Category::Colon,
             '\\' => Category::Backslash,
             '[' => Category::LBracket,
             ']' => Category::RBracket,
@@ -70,6 +76,7 @@ impl From<i32> for TokenKind {
             101 => TokenKind::StringLiteral(String::new()),
             110 => TokenKind::SingleQuote,
             120 => TokenKind::Semicolon,
+            130 => TokenKind::Colon,
             _ => TokenKind::Invalid,
         }
     }
@@ -98,6 +105,7 @@ impl<B: Stream> Lexer<B> {
                     (0, Category::RBracket) => 90,
                     (0, Category::SingleQuote) => 110,
                     (0, Category::Semicolon) => 120,
+                    (0, Category::Colon) => 130,
                     (10, Category::Whitespace) => 10,
                     // String literal logic
                     (0, Category::DoubleQuote) => 100,
@@ -128,7 +136,11 @@ impl<B: Stream> Lexer<B> {
             prev_state = state;
             let c = self.buffer.next_char();
 
-            lexeme += &c.to_string();
+            lexeme.push(c);
+
+            if state == 100 && c == '\\' {
+                lexeme.pop();
+            }
 
             if self.dfsa.is_accepting(&state) {
                 stack = vec![BAD_STATE];
@@ -140,13 +152,11 @@ impl<B: Stream> Lexer<B> {
             state = self.dfsa.delta(state, cat);
 
             // If we just starded parsing a string literal
-            if state == 100 && prev_state == 0 {
+            if (prev_state, state) == (0, 100) {
                 lexeme.pop();
             }
 
-            // If we are in the middle of parsing a string literal and we caught
-            // an escape character
-            if state == 101 && prev_state == 100 {
+            if (prev_state, state) == (100, 101) {
                 lexeme.pop();
             }
         }
@@ -172,16 +182,17 @@ impl<B: Stream> Lexer<B> {
                 },
                 text_span,
             )),
-            false => Err({
-                LexicalError::new(
-                    match prev_state {
-                        100 => LexicalErrorKind::UnterminatedString,
-                        _ => LexicalErrorKind::InvalidCharacter,
-                    },
-                    text_span,
-                )
-                .into()
-            }),
+            false => Err(match prev_state {
+                100 => LexicalError::UnterminatedString(text_span),
+                _ => LexicalError::InvalidCharacter(TextSpan::new(
+                    start_line,
+                    end_line,
+                    start_col,
+                    end_col,
+                    &self.buffer.current_char().to_string(),
+                )),
+            }
+            .into()),
         }
     }
 
