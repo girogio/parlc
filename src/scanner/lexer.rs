@@ -44,6 +44,7 @@ impl From<char> for Category {
             '"' => Category::DoubleQuote,
             '\'' => Category::SingleQuote,
             ';' => Category::Semicolon,
+            '\0' => Category::Eof,
             _ => Category::Other,
         }
     }
