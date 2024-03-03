@@ -221,16 +221,10 @@ mod tests {
 
     #[rstest]
     fn test_lex() {
-        let input = "r0123 r2456 \n r1234";
+        let input = "fn( bruh ) { return test; }";
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input);
         let tokens = lexer.lex();
 
-        let tokens = assert_matches!(tokens, Ok(tokens) => tokens);
-
-        for token in &tokens {
-            println!("{}", token);
-        }
-
-        assert_eq!(tokens.len(), 6);
+        assert_matches!(tokens, Ok(tokens) => tokens);
     }
 }

@@ -1,5 +1,3 @@
-// pub mod dfsa;
-
 mod dfsa;
 pub mod lexer;
 
