@@ -1,38 +1,17 @@
 mod core;
-mod errors;
+mod models;
 mod scanner;
 mod utils;
 
 use clap::{command, value_parser, Arg, Command};
 use console::style;
-use console::Term;
 use std::{io::Read, path::PathBuf};
 use utils::SimpleBuffer;
 
 use crate::scanner::Lexer;
 
-const BANNER: &str = r#"
- _____                                         _____
-( ___ )                                       ( ___ )
- |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   |
- |   |                    _                    |   |
- |   |                   | |                   |   |
- |   |   __ _ _ __   __ _| | __ _ _ __   __ _  |   |
- |   |  / _` | '_ \ / _` | |/ _` | '_ \ / _` | |   |
- |   | | (_| | | | | (_| | | (_| | | | | (_| | |   |
- |   |  \__, |_| |_|\__,_|_|\__,_|_| |_|\__, | |   |
- |   |   __/ |                           __/ | |   |
- |   |  |___/                           |___/  |   |
- |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___|
-(_____)                                       (_____)
-
-"#;
-
 fn main() {
-    println!("{}", BANNER);
-
-    let _term = Term::stdout();
-    let _err = Term::stderr();
+    print!("\t");
 
     let matches = command!()
         .subcommand(
@@ -52,11 +31,7 @@ fn main() {
                 Ok(ref mut file) => file.read_to_string(&mut input).unwrap(),
                 Err(_) => {
                     let msg = style("File not found:").red().bold().for_stderr();
-                    eprintln!(
-                        "{} `{}`...",
-                        msg,
-                        style(file_path.display()).cyan().italic()
-                    );
+                    eprintln!("{} `{}`...", msg, style(file_path.display()).cyan());
                     std::process::exit(1);
                 }
             };
@@ -65,7 +40,7 @@ fn main() {
         println!(
             "{} `{}`\n\n",
             style("Lexing").green().bold(),
-            style(lexer_matches.get_one::<PathBuf>("file").unwrap().display()).italic(),
+            style(lexer_matches.get_one::<PathBuf>("file").unwrap().display()),
         );
 
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input);
@@ -78,7 +53,7 @@ fn main() {
                 }
             }
             Err(e) => {
-                e.report();
+                eprintln!("{}", e);
                 std::process::exit(1);
             }
         }
