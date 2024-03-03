@@ -21,7 +21,6 @@ pub struct LexicalError {
 pub enum LexicalErrorKind {
     InvalidCharacter,
     UnterminatedString,
-    UnterminatedComment,
 }
 
 impl LexicalError {
@@ -35,7 +34,12 @@ impl Error {
         match &self.kind {
             ErrorKind::Lexical(kind) => {
                 println!("Error: {:?}", kind);
-                println!("Span: {:?}", self.span);
+                match &self.span {
+                    Some(span) => {
+                        println!("Location: {}", span);
+                    }
+                    None => {}
+                }
             }
         }
     }
