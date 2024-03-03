@@ -2,7 +2,7 @@ use crate::{
     core::TokenKind,
     models::{TextSpan, Token},
     utils::{
-        errors::{LexicalError, Result},
+        errors::{Error, LexicalError},
         Stream,
     },
 };
@@ -56,11 +56,6 @@ impl From<char> for Category {
     }
 }
 
-pub struct Lexer<B: Stream> {
-    buffer: B,
-    dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
-}
-
 impl From<i32> for TokenKind {
     fn from(i: i32) -> Self {
         match i {
@@ -80,6 +75,10 @@ impl From<i32> for TokenKind {
             _ => TokenKind::Invalid,
         }
     }
+}
+pub struct Lexer<B: Stream> {
+    buffer: B,
+    dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
 }
 
 const ERR_STATE: i32 = -2;
@@ -125,7 +124,7 @@ impl<B: Stream> Lexer<B> {
         }
     }
 
-    fn next_token(&mut self) -> Result<Token> {
+    fn next_token(&mut self) -> Result<Token, Error> {
         let mut state = *self.dfsa.start_state();
         let mut lexeme = String::new();
         let mut stack = vec![BAD_STATE];
@@ -182,27 +181,34 @@ impl<B: Stream> Lexer<B> {
                 },
                 text_span,
             )),
-            false => Err(match prev_state {
-                100 => LexicalError::UnterminatedString(text_span),
-                _ => LexicalError::InvalidCharacter(TextSpan::new(
-                    start_line,
-                    end_line,
-                    start_col,
-                    end_col,
-                    &self.buffer.current_char().to_string(),
-                )),
+            false => {
+                let error = match prev_state {
+                    100 => LexicalError::UnterminatedString(text_span),
+                    _ => LexicalError::InvalidCharacter(TextSpan::new(
+                        start_line,
+                        end_line,
+                        start_col,
+                        end_col,
+                        &self.buffer.current_char().to_string(),
+                    )),
+                };
+                self.buffer.next_char();
+                Err(error.into())
             }
-            .into()),
         }
     }
 
-    pub fn lex(&mut self) -> Result<Vec<Token>> {
+    pub fn lex(&mut self) -> Result<Vec<Token>, Vec<Error>> {
         let mut tokens = Vec::new();
+        let mut errors = Vec::new();
 
         loop {
-            let token = self.next_token()?;
+            let token = self.next_token();
 
-            tokens.push(token);
+            match token {
+                Ok(token) => tokens.push(token),
+                Err(err) => errors.push(err),
+            }
 
             if self.buffer.is_eof() {
                 tokens.push(Token::new(
@@ -216,7 +222,11 @@ impl<B: Stream> Lexer<B> {
                     ),
                 ));
 
-                return Ok(tokens);
+                if errors.is_empty() {
+                    return Ok(tokens);
+                } else {
+                    return Err(errors);
+                }
             }
         }
     }

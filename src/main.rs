@@ -11,8 +11,6 @@ use utils::SimpleBuffer;
 use crate::scanner::Lexer;
 
 fn main() {
-    print!("\t");
-
     let matches = command!()
         .subcommand(
             Command::new("lex")
@@ -38,7 +36,7 @@ fn main() {
         }
 
         println!(
-            "{} `{}`\n\n",
+            "\n{} `{}`\n",
             style("Lexing").green().bold(),
             style(lexer_matches.get_one::<PathBuf>("file").unwrap().display()),
         );
@@ -49,11 +47,13 @@ fn main() {
         match tokens {
             Ok(tokens) => {
                 for token in tokens {
-                    println!("{}", token);
+                    println!("  {}", token);
                 }
             }
             Err(e) => {
-                eprintln!("{}", e);
+                for err in e {
+                    eprintln!("{}", err);
+                }
                 std::process::exit(1);
             }
         }

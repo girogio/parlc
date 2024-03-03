@@ -10,10 +10,10 @@ pub enum Error {
 
 #[derive(Debug, Error)]
 pub enum LexicalError {
-    #[error("Invalid character '{}' found at position {}:{}", .0.lexeme, .0.from_line, .0.from_col)]
+    #[error("Unrecognized character '{}' found at {}:{}", .0.lexeme, .0.from_line, .0.from_col)]
     InvalidCharacter(TextSpan),
     #[error("Unterminated string.")]
     UnterminatedString(TextSpan),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+// pub type Result<T> = std::result::Result<T, Error>;
