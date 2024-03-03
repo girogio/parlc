@@ -7,7 +7,6 @@ use crate::{
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Category {
-    Other,
     Whitespace,
     Letter,
     Digit,
@@ -22,6 +21,9 @@ pub enum Category {
     DoubleQuote,
     SingleQuote,
     Semicolon,
+    Backslash,
+    Eof,
+    Other,
 }
 
 impl From<char> for Category {
@@ -36,6 +38,7 @@ impl From<char> for Category {
             '}' => Category::RBrace,
             '(' => Category::LParen,
             ')' => Category::RParen,
+            '\\' => Category::Backslash,
             '[' => Category::LBracket,
             ']' => Category::RBracket,
             '"' => Category::DoubleQuote,
@@ -54,18 +57,18 @@ pub struct Lexer<B: Stream> {
 impl From<i32> for TokenKind {
     fn from(i: i32) -> Self {
         match i {
-            1 => TokenKind::Whitespace,
-            2 => TokenKind::Newline,
-            3 => TokenKind::Identifier,
-            4 => TokenKind::LBrace,
-            5 => TokenKind::RBrace,
-            6 => TokenKind::LParen,
-            7 => TokenKind::RParen,
-            8 => TokenKind::LBracket,
-            9 => TokenKind::RBracket,
-            10 => TokenKind::DoubleQuote,
-            11 => TokenKind::SingleQuote,
-            12 => TokenKind::Semicolon,
+            10 => TokenKind::Whitespace,
+            20 => TokenKind::Newline,
+            30 => TokenKind::Identifier(String::new()),
+            40 => TokenKind::LBrace,
+            50 => TokenKind::RBrace,
+            60 => TokenKind::LParen,
+            70 => TokenKind::RParen,
+            80 => TokenKind::LBracket,
+            90 => TokenKind::RBracket,
+            101 => TokenKind::StringLiteral(String::new()),
+            110 => TokenKind::SingleQuote,
+            120 => TokenKind::Semicolon,
             _ => TokenKind::Invalid,
         }
     }
@@ -79,26 +82,34 @@ impl<B: Stream> Lexer<B> {
         Lexer {
             buffer: B::new(input),
             dfsa: Dfsa::new(
-                vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+                vec![10, 20, 30, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130],
                 0,
                 |state, category| match (state, category) {
-                    (0, Category::Whitespace) => 1,
-                    (0, Category::Newline) => 2,
-                    (0, Category::Letter) => 3,
-                    (0, Category::LBrace) => 4,
-                    (0, Category::RBrace) => 5,
-                    (0, Category::LParen) => 6,
-                    (0, Category::RParen) => 7,
-                    (0, Category::LBracket) => 8,
-                    (0, Category::RBracket) => 9,
-                    (0, Category::DoubleQuote) => 10,
-                    (0, Category::SingleQuote) => 11,
-                    (0, Category::Semicolon) => 12,
-                    (1, Category::Whitespace) => 1,
-                    (3, Category::Letter) => 3,
-                    (3, Category::Digit) => 3,
-                    (3, Category::Underscore) => 3,
-
+                    (0, Category::Whitespace) => 10,
+                    (0, Category::Newline) => 20,
+                    // Single character tokens
+                    (0, Category::Letter) => 30,
+                    (0, Category::LBrace) => 40,
+                    (0, Category::RBrace) => 50,
+                    (0, Category::LParen) => 60,
+                    (0, Category::RParen) => 70,
+                    (0, Category::LBracket) => 80,
+                    (0, Category::RBracket) => 90,
+                    (0, Category::SingleQuote) => 110,
+                    (0, Category::Semicolon) => 120,
+                    (10, Category::Whitespace) => 10,
+                    // String literal logic
+                    (0, Category::DoubleQuote) => 100,
+                    (100, Category::DoubleQuote) => 101,
+                    (100, Category::Backslash) => 102,
+                    (102, Category::DoubleQuote) => 100,
+                    (100, Category::Eof) => ERR_STATE,
+                    (100, _) => 100,
+                    // Identifier logic
+                    (30, Category::Letter) => 30,
+                    (30, Category::Digit) => 30,
+                    (30, Category::Underscore) => 30,
+                    // Map all other characters to the error state
                     _ => ERR_STATE,
                 },
             ),
@@ -106,11 +117,14 @@ impl<B: Stream> Lexer<B> {
     }
 
     fn next_token(&mut self) -> Result<Token> {
-        let mut state = self.dfsa.start_state();
+        let mut state = *self.dfsa.start_state();
         let mut lexeme = String::new();
         let mut stack = vec![BAD_STATE];
+        let mut prev_state = state;
+        let (start_line, start_col) = (self.buffer.get_line(), self.buffer.get_col());
 
         while state != ERR_STATE {
+            prev_state = state;
             let c = self.buffer.next_char();
 
             lexeme += &c.to_string();
@@ -123,6 +137,17 @@ impl<B: Stream> Lexer<B> {
 
             let cat = Category::from(c);
             state = self.dfsa.delta(state, cat);
+
+            // If we just starded parsing a string literal
+            if state == 100 && prev_state == 0 {
+                lexeme.pop();
+            }
+
+            // If we are in the middle of parsing a string literal and we caught
+            // an escape character
+            if state == 101 && prev_state == 100 {
+                lexeme.pop();
+            }
         }
 
         while !self.dfsa.is_accepting(&state) && state != BAD_STATE {
@@ -133,13 +158,28 @@ impl<B: Stream> Lexer<B> {
             }
         }
 
-        let text_span = TextSpan::new(self.buffer.get_line(), self.buffer.get_col(), &lexeme);
+        let (end_line, end_col) = (self.buffer.get_line(), self.buffer.get_col());
+
+        let text_span = TextSpan::new(start_line, end_line, start_col, end_col, &lexeme);
 
         match self.dfsa.is_accepting(&state) {
-            true => Ok(Token::new(TokenKind::from(state), text_span)),
+            true => Ok(Token::new(
+                match TokenKind::from(state) {
+                    TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
+                    TokenKind::Identifier(_) => TokenKind::Identifier(lexeme),
+                    _ => TokenKind::from(state),
+                },
+                text_span,
+            )),
             false => Err({
-                println!("{state}");
-                LexicalError::new(LexicalErrorKind::InvalidCharacter, text_span).into()
+                LexicalError::new(
+                    match prev_state {
+                        100 => LexicalErrorKind::UnterminatedString,
+                        _ => LexicalErrorKind::InvalidCharacter,
+                    },
+                    text_span,
+                )
+                .into()
             }),
         }
     }
@@ -148,18 +188,20 @@ impl<B: Stream> Lexer<B> {
         let mut tokens = Vec::new();
 
         loop {
-            match self.next_token() {
-                Ok(token) => {
-                    tokens.push(token);
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+            let token = self.next_token()?;
+
+            tokens.push(token);
+
             if self.buffer.is_eof() {
                 tokens.push(Token::new(
                     TokenKind::EndOfFile,
-                    TextSpan::new(self.buffer.get_line(), self.buffer.get_col(), ""),
+                    TextSpan::new(
+                        self.buffer.get_line(),
+                        self.buffer.get_line(),
+                        self.buffer.get_col(),
+                        self.buffer.get_col(),
+                        "\0",
+                    ),
                 ));
 
                 return Ok(tokens);
