@@ -23,6 +23,7 @@ pub enum Category {
     RBracket,
     LBracket,
     DoubleQuote,
+    Period,
     SingleQuote,
     Semicolon,
     Colon,
@@ -41,6 +42,7 @@ impl From<char> for Category {
             '\n' => Category::Newline,
             '{' => Category::LBrace,
             '}' => Category::RBrace,
+            '.' => Category::Period,
             '(' => Category::LParen,
             ')' => Category::RParen,
             ':' => Category::Colon,
@@ -72,10 +74,30 @@ impl From<i32> for TokenKind {
             110 => TokenKind::SingleQuote,
             120 => TokenKind::Semicolon,
             130 => TokenKind::Colon,
+            140 => TokenKind::IntLiteral(0),
+            151 => TokenKind::FloatLiteral(String::new()),
             _ => TokenKind::Invalid,
         }
     }
 }
+
+fn handle_keywords(lexeme: &str) -> TokenKind {
+    match lexeme {
+        "for" => TokenKind::For,
+        "if" => TokenKind::If,
+        "fn" => TokenKind::Function,
+        "else" => TokenKind::Else,
+        "while" => TokenKind::While,
+        "int" => TokenKind::IntType,
+        "float" => TokenKind::FloatType,
+        "true" => TokenKind::BoolLiteral(true),
+        "false" => TokenKind::BoolLiteral(false),
+        "bool" => TokenKind::BoolType,
+        "colour" => TokenKind::ColourType,
+        _ => TokenKind::Identifier(lexeme.to_string()),
+    }
+}
+
 pub struct Lexer<B: Stream> {
     buffer: B,
     dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
@@ -89,7 +111,9 @@ impl<B: Stream> Lexer<B> {
         Lexer {
             buffer: B::new(input),
             dfsa: Dfsa::new(
-                vec![10, 20, 30, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130],
+                vec![
+                    10, 20, 30, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130, 140, 151,
+                ],
                 0,
                 |state, category| match (state, category) {
                     (0, Category::Whitespace) => 10,
@@ -117,6 +141,14 @@ impl<B: Stream> Lexer<B> {
                     (30, Category::Letter) => 30,
                     (30, Category::Digit) => 30,
                     (30, Category::Underscore) => 30,
+                    // Integers
+                    (0, Category::Digit) => 140,
+                    (140, Category::Period) => 150,
+                    (141, Category::Period) => 150,
+                    // Float
+                    (150, Category::Digit) => 151,
+                    (151, Category::Digit) => 151,
+                    (140, Category::Digit) => 140,
                     // Map all other characters to the error state
                     _ => ERR_STATE,
                 },
@@ -124,7 +156,7 @@ impl<B: Stream> Lexer<B> {
         }
     }
 
-    fn next_token(&mut self) -> Result<Token, Error> {
+    pub fn next_token(&mut self) -> Result<Token, Error> {
         let mut state = *self.dfsa.start_state();
         let mut lexeme = String::new();
         let mut stack = vec![BAD_STATE];
@@ -152,10 +184,12 @@ impl<B: Stream> Lexer<B> {
 
             // If we just starded parsing a string literal
             if (prev_state, state) == (0, 100) {
+                println!("pooped");
                 lexeme.pop();
             }
 
             if (prev_state, state) == (100, 101) {
+                println!("pooped");
                 lexeme.pop();
             }
         }
@@ -176,7 +210,9 @@ impl<B: Stream> Lexer<B> {
             true => Ok(Token::new(
                 match TokenKind::from(state) {
                     TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
-                    TokenKind::Identifier(_) => TokenKind::Identifier(lexeme),
+                    TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
+                    TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
+                    TokenKind::Identifier(_) => handle_keywords(&lexeme),
                     _ => TokenKind::from(state),
                 },
                 text_span,
@@ -231,6 +267,8 @@ impl<B: Stream> Lexer<B> {
         }
     }
 }
+
+// example usage
 
 #[cfg(test)]
 mod tests {
