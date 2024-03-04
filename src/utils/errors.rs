@@ -14,6 +14,10 @@ pub enum LexicalError {
     InvalidCharacter(TextSpan),
     #[error("Unterminated string.")]
     UnterminatedString(TextSpan),
+    #[error("Invalid float literal ending at {}:{}", .0.to_line, .0.to_col)]
+    InvalidFloatLiteral(TextSpan),
+    #[error("Unterminated block comment.")]
+    UnterminatedBlockComment(TextSpan),
 }
 
 // pub type Result<T> = std::result::Result<T, Error>;

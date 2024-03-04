@@ -7,6 +7,7 @@ pub enum TokenKind {
     Newline,
     LBrace,
     RBrace,
+    Equals,
     LParen,
     RParen,
     LBracket,
@@ -32,14 +33,18 @@ pub enum TokenKind {
     ColourLiteral([u8; 3]),
     EndOfFile,
     Colon,
+    Comment,
 }
 
+// macro that takes in a lis tof tokens and returns the below match statement
 impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             TokenKind::Whitespace => write!(f, "Whitespace"),
             TokenKind::Invalid => write!(f, "Invalid"),
             TokenKind::Newline => write!(f, "Newline"),
+            TokenKind::Comment => write!(f, "Comment"),
+            TokenKind::Equals => write!(f, "Equals"),
             TokenKind::LBrace => write!(f, "LBrace"),
             TokenKind::RBrace => write!(f, "RBrace"),
             TokenKind::LParen => write!(f, "LParen"),
@@ -60,7 +65,7 @@ impl Display for TokenKind {
             TokenKind::BoolType => write!(f, "BoolType"),
             TokenKind::ColourType => write!(f, "ColourType"),
             TokenKind::IntLiteral(i) => write!(f, "Int({})", i),
-            TokenKind::FloatLiteral(fl) => write!(f, "Float({})", fl.parse::<f32>().unwrap()),
+            TokenKind::FloatLiteral(fl) => write!(f, "Float({})", fl),
             TokenKind::BoolLiteral(b) => write!(f, "Bool({})", b),
             TokenKind::ColourLiteral(c) => write!(f, "Colour({:?})", c),
             TokenKind::EndOfFile => write!(f, "EndOfFile"),

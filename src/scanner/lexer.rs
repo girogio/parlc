@@ -27,6 +27,9 @@ pub enum Category {
     SingleQuote,
     Semicolon,
     Colon,
+    Equals,
+    Slash,
+    Asterisk,
     Backslash,
     Eof,
     Other,
@@ -41,8 +44,11 @@ impl From<char> for Category {
             ' ' | '\t' => Category::Whitespace,
             '\n' => Category::Newline,
             '{' => Category::LBrace,
+            '/' => Category::Slash,
             '}' => Category::RBrace,
             '.' => Category::Period,
+            '=' => Category::Equals,
+            '*' => Category::Asterisk,
             '(' => Category::LParen,
             ')' => Category::RParen,
             ':' => Category::Colon,
@@ -64,6 +70,9 @@ impl From<i32> for TokenKind {
             10 => TokenKind::Whitespace,
             20 => TokenKind::Newline,
             30 => TokenKind::Identifier(String::new()),
+            31 => TokenKind::Equals,
+            34 => TokenKind::Comment,
+            37 => TokenKind::Comment,
             40 => TokenKind::LBrace,
             50 => TokenKind::RBrace,
             60 => TokenKind::LParen,
@@ -112,7 +121,7 @@ impl<B: Stream> Lexer<B> {
             buffer: B::new(input),
             dfsa: Dfsa::new(
                 vec![
-                    10, 20, 30, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130, 140, 151,
+                    10, 20, 30, 31, 34, 37, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130, 140, 151,
                 ],
                 0,
                 |state, category| match (state, category) {
@@ -120,6 +129,7 @@ impl<B: Stream> Lexer<B> {
                     (0, Category::Newline) => 20,
                     // Single character tokens
                     (0, Category::Letter) => 30,
+                    (0, Category::Equals) => 31,
                     (0, Category::LBrace) => 40,
                     (0, Category::RBrace) => 50,
                     (0, Category::LParen) => 60,
@@ -130,6 +140,19 @@ impl<B: Stream> Lexer<B> {
                     (0, Category::Semicolon) => 120,
                     (0, Category::Colon) => 130,
                     (10, Category::Whitespace) => 10,
+                    // Line comment
+                    (0, Category::Slash) => 32,
+                    (32, Category::Asterisk) => 35,
+                    (35, Category::Asterisk) => 36,
+                    (35, Category::Eof) => ERR_STATE,
+                    (36, Category::Slash) => 37,
+                    (36, Category::Eof) => ERR_STATE,
+                    (35, _) => 35,
+                    (32, Category::Slash) => 33,
+                    (33, Category::Newline) => 34,
+                    (33, Category::Eof) => ERR_STATE,
+                    (33, _) => 33,
+                    // Block Comment
                     // String literal logic
                     (0, Category::DoubleQuote) => 100,
                     (100, Category::DoubleQuote) => 101,
@@ -143,12 +166,11 @@ impl<B: Stream> Lexer<B> {
                     (30, Category::Underscore) => 30,
                     // Integers
                     (0, Category::Digit) => 140,
-                    (140, Category::Period) => 150,
-                    (141, Category::Period) => 150,
+                    (140, Category::Digit) => 140,
                     // Float
+                    (140, Category::Period) => 150,
                     (150, Category::Digit) => 151,
                     (151, Category::Digit) => 151,
-                    (140, Category::Digit) => 140,
                     // Map all other characters to the error state
                     _ => ERR_STATE,
                 },
@@ -184,12 +206,10 @@ impl<B: Stream> Lexer<B> {
 
             // If we just starded parsing a string literal
             if (prev_state, state) == (0, 100) {
-                println!("pooped");
                 lexeme.pop();
             }
 
             if (prev_state, state) == (100, 101) {
-                println!("pooped");
                 lexeme.pop();
             }
         }
@@ -209,16 +229,25 @@ impl<B: Stream> Lexer<B> {
         match self.dfsa.is_accepting(&state) {
             true => Ok(Token::new(
                 match TokenKind::from(state) {
-                    TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
-                    TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
                     TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
+                    TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
+                    TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
                     TokenKind::Identifier(_) => handle_keywords(&lexeme),
                     _ => TokenKind::from(state),
                 },
                 text_span,
             )),
             false => {
+                println!("prev_state: {}", prev_state);
                 let error = match prev_state {
+                    35 => LexicalError::UnterminatedBlockComment(text_span),
+                    150 => LexicalError::InvalidFloatLiteral(TextSpan::new(
+                        start_line,
+                        end_line,
+                        start_col,
+                        end_col,
+                        &self.buffer.current_char().to_string(),
+                    )),
                     100 => LexicalError::UnterminatedString(text_span),
                     _ => LexicalError::InvalidCharacter(TextSpan::new(
                         start_line,
@@ -242,7 +271,11 @@ impl<B: Stream> Lexer<B> {
             let token = self.next_token();
 
             match token {
-                Ok(token) => tokens.push(token),
+                Ok(token) => {
+                    if token.kind != TokenKind::Whitespace && token.kind != TokenKind::Comment {
+                        tokens.push(token);
+                    }
+                }
                 Err(err) => errors.push(err),
             }
 
@@ -258,10 +291,9 @@ impl<B: Stream> Lexer<B> {
                     ),
                 ));
 
-                if errors.is_empty() {
-                    return Ok(tokens);
-                } else {
-                    return Err(errors);
+                match errors.is_empty() {
+                    true => return Ok(tokens),
+                    false => return Err(errors),
                 }
             }
         }

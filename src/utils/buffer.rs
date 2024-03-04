@@ -46,8 +46,11 @@ impl Stream for SimpleBuffer {
             == '\n'
         {
             self.line -= 1;
-        } else {
+        } else if self.col > 1 {
             self.col -= 1;
+        } else {
+            self.line -= 1;
+            self.col = 1;
         }
 
         self.input_pointer -= 1;
