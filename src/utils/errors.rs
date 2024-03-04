@@ -1,11 +1,13 @@
 use thiserror::Error;
 
-use crate::core::TextSpan;
+use crate::core::{TextSpan, Token};
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Lexical error: {0}")]
     Lexical(#[from] LexicalError),
+    #[error("Parse error: {0}")]
+    Parse(#[from] ParseError),
 }
 
 #[derive(Debug, Error)]
@@ -18,6 +20,12 @@ pub enum LexicalError {
     InvalidFloatLiteral(TextSpan),
     #[error("Unterminated block comment.")]
     UnterminatedBlockComment(TextSpan),
+}
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Unexpected token: {0:?}")]
+    UnexpectedToken(Token),
 }
 
 // pub type Result<T> = std::result::Result<T, Error>;
