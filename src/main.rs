@@ -1,5 +1,5 @@
 mod core;
-mod scanner;
+mod lexing;
 mod utils;
 
 use clap::{command, value_parser, Arg, Command};
@@ -7,7 +7,7 @@ use console::style;
 use std::{io::Read, path::PathBuf};
 use utils::SimpleBuffer;
 
-use crate::scanner::Lexer;
+use crate::lexing::Lexer;
 
 fn main() {
     let matches = command!()
