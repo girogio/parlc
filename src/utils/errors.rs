@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::models::TextSpan;
+use crate::core::TextSpan;
 
 #[derive(Debug, Error)]
 pub enum Error {

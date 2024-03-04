@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
-use crate::{core::TokenKind, models::TextSpan};
+use crate::core::TextSpan;
+use crate::core::TokenKind;
 
 #[derive(Debug)]
 pub struct Token {

@@ -1,5 +1,4 @@
 mod core;
-mod models;
 mod scanner;
 mod utils;
 

@@ -1,6 +1,5 @@
 use crate::{
-    core::TokenKind,
-    models::{TextSpan, Token},
+    core::{TextSpan, Token, TokenKind},
     utils::{
         errors::{Error, LexicalError},
         Stream,
