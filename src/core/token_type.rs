@@ -1,6 +1,14 @@
 use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub enum DataTypes {
+    Int,
+    Float,
+    Bool,
+    Colour,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TokenKind {
     Whitespace,
     Invalid,
@@ -21,11 +29,22 @@ pub enum TokenKind {
     While,
     Function,
     Semicolon,
+    // Binary operators
+    Multiply,
+    Divide,
+    And,
+    Plus,
+    Minus,
+    Or,
+    // Relational operators
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+    Equal,
+    NotEqual,
     // Types
-    IntType,
-    FloatType,
-    BoolType,
-    ColourType,
+    Type(DataTypes),
     // Type literals
     IntLiteral(i32),
     FloatLiteral(String),
@@ -53,6 +72,18 @@ impl Display for TokenKind {
             TokenKind::RBracket => write!(f, "RBracket"),
             TokenKind::SingleQuote => write!(f, "SingleQuote"),
             TokenKind::StringLiteral(s) => write!(f, "StringLiteral({s})"),
+            TokenKind::Multiply => write!(f, "Multiply"),
+            TokenKind::Divide => write!(f, "Divide"),
+            TokenKind::And => write!(f, "And"),
+            TokenKind::Plus => write!(f, "Plus"),
+            TokenKind::Minus => write!(f, "Minus"),
+            TokenKind::Or => write!(f, "Or"),
+            TokenKind::LessThan => write!(f, "LessThan"),
+            TokenKind::LessThanEqual => write!(f, "LessThanEqual"),
+            TokenKind::GreaterThan => write!(f, "GreaterThan"),
+            TokenKind::GreaterThanEqual => write!(f, "GreaterThanEqual"),
+            TokenKind::Equal => write!(f, "Equal"),
+            TokenKind::NotEqual => write!(f, "NotEqual"),
             TokenKind::Semicolon => write!(f, "Semicolon"),
             TokenKind::Colon => write!(f, "Colon"),
             TokenKind::For => write!(f, "For"),
@@ -60,10 +91,10 @@ impl Display for TokenKind {
             TokenKind::Else => write!(f, "Else"),
             TokenKind::While => write!(f, "While"),
             TokenKind::Function => write!(f, "Function"),
-            TokenKind::IntType => write!(f, "IntType"),
-            TokenKind::FloatType => write!(f, "FloatType"),
-            TokenKind::BoolType => write!(f, "BoolType"),
-            TokenKind::ColourType => write!(f, "ColourType"),
+            TokenKind::Type(DataTypes::Int) => write!(f, "IntType"),
+            TokenKind::Type(DataTypes::Float) => write!(f, "FloatType"),
+            TokenKind::Type(DataTypes::Bool) => write!(f, "BoolType"),
+            TokenKind::Type(DataTypes::Colour) => write!(f, "ColourType"),
             TokenKind::IntLiteral(i) => write!(f, "Int({})", i),
             TokenKind::FloatLiteral(fl) => write!(f, "Float({})", fl),
             TokenKind::BoolLiteral(b) => write!(f, "Bool({})", b),
