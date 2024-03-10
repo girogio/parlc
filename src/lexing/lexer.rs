@@ -1,5 +1,5 @@
 use crate::{
-    core::{TextSpan, Token, TokenKind},
+    core::{DataTypes, TextSpan, Token, TokenKind},
     utils::{
         errors::{Error, LexicalError},
         Stream,
@@ -25,10 +25,14 @@ pub enum Category {
     Period,
     SingleQuote,
     Semicolon,
+    Asterisk,
     Colon,
     Equals,
     Slash,
-    Asterisk,
+    Plus,
+    CrocLeft,
+    CrocRight,
+    Minus,
     Backslash,
     Eof,
     Other,
@@ -47,6 +51,10 @@ impl From<char> for Category {
             '}' => Category::RBrace,
             '.' => Category::Period,
             '=' => Category::Equals,
+            '+' => Category::Plus,
+            '-' => Category::Minus,
+            '<' => Category::CrocLeft,
+            '>' => Category::CrocRight,
             '*' => Category::Asterisk,
             '(' => Category::LParen,
             ')' => Category::RParen,
@@ -69,7 +77,7 @@ impl From<i32> for TokenKind {
             10 => TokenKind::Whitespace,
             20 => TokenKind::Newline,
             30 => TokenKind::Identifier(String::new()),
-            31 => TokenKind::Equals,
+            32 => TokenKind::Equals,
             34 => TokenKind::Comment,
             37 => TokenKind::Comment,
             40 => TokenKind::LBrace,
@@ -89,26 +97,9 @@ impl From<i32> for TokenKind {
     }
 }
 
-fn handle_keywords(lexeme: &str) -> TokenKind {
-    match lexeme {
-        "for" => TokenKind::For,
-        "if" => TokenKind::If,
-        "fn" => TokenKind::Function,
-        "else" => TokenKind::Else,
-        "while" => TokenKind::While,
-        "int" => TokenKind::IntType,
-        "float" => TokenKind::FloatType,
-        "true" => TokenKind::BoolLiteral(true),
-        "false" => TokenKind::BoolLiteral(false),
-        "bool" => TokenKind::BoolType,
-        "colour" => TokenKind::ColourType,
-        _ => TokenKind::Identifier(lexeme.to_string()),
-    }
-}
-
 pub struct Lexer<B: Stream> {
     buffer: B,
-    dfsa: Dfsa<i32, Category, fn(i32, Category) -> i32>,
+    dfsa: Dfsa<i32, Category>,
 }
 
 const ERR_STATE: i32 = -2;
@@ -120,7 +111,7 @@ impl<B: Stream> Lexer<B> {
             buffer: B::new(input),
             dfsa: Dfsa::new(
                 vec![
-                    10, 20, 30, 31, 34, 37, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130, 140, 151,
+                    10, 20, 30, 32, 34, 37, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130, 140, 151,
                 ],
                 0,
                 |state, category| match (state, category) {
@@ -129,6 +120,7 @@ impl<B: Stream> Lexer<B> {
                     // Single character tokens
                     (0, Category::Letter) => 30,
                     (0, Category::Equals) => 31,
+                    (31, Category::Equals) => 32,
                     (0, Category::LBrace) => 40,
                     (0, Category::RBrace) => 50,
                     (0, Category::LParen) => 60,
@@ -231,7 +223,7 @@ impl<B: Stream> Lexer<B> {
                     TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
                     TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
                     TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
-                    TokenKind::Identifier(_) => handle_keywords(&lexeme),
+                    TokenKind::Identifier(_) => self.handle_keyword(&lexeme),
                     _ => TokenKind::from(state),
                 },
                 text_span,
@@ -259,6 +251,25 @@ impl<B: Stream> Lexer<B> {
                 self.buffer.next_char();
                 Err(error.into())
             }
+        }
+    }
+
+    fn handle_keyword(&self, lexeme: &str) -> TokenKind {
+        match lexeme {
+            "for" => TokenKind::For,
+            "if" => TokenKind::If,
+            "fn" => TokenKind::Function,
+            "else" => TokenKind::Else,
+            "while" => TokenKind::While,
+            "or" => TokenKind::Or,
+            "and" => TokenKind::And,
+            "int" => TokenKind::Type(DataTypes::Int),
+            "float" => TokenKind::Type(DataTypes::Float),
+            "true" => TokenKind::BoolLiteral(true),
+            "false" => TokenKind::BoolLiteral(false),
+            "bool" => TokenKind::Type(DataTypes::Bool),
+            "colour" => TokenKind::Type(DataTypes::Colour),
+            _ => TokenKind::Identifier(lexeme.to_string()),
         }
     }
 

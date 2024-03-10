@@ -1,20 +1,21 @@
 use std::marker::PhantomData;
 
-pub struct Dfsa<State, Alpha, Delta>
+pub struct Dfsa<State, Alpha>
 where
     State: PartialEq + Eq,
-    Delta: Fn(State, Alpha) -> State,
 {
     accepted_states: Vec<State>,
     alpha: PhantomData<Alpha>,
     start_state: State,
-    delta: Delta,
+    delta: fn(State, Alpha) -> State,
 }
 
-impl<State: PartialEq + Eq + Copy, Alpha, Delta: Fn(State, Alpha) -> State>
-    Dfsa<State, Alpha, Delta>
-{
-    pub fn new(accepted_states: Vec<State>, start_state: State, delta: Delta) -> Self {
+impl<State: PartialEq + Eq + Copy, Alpha> Dfsa<State, Alpha> {
+    pub fn new(
+        accepted_states: Vec<State>,
+        start_state: State,
+        delta: fn(State, Alpha) -> State,
+    ) -> Self {
         Dfsa {
             accepted_states,
             alpha: PhantomData,

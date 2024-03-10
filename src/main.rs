@@ -1,5 +1,6 @@
 mod core;
 mod lexing;
+mod parsing;
 mod utils;
 
 use clap::{command, value_parser, Arg, Command};
@@ -7,13 +8,24 @@ use console::style;
 use std::{io::Read, path::PathBuf};
 use utils::SimpleBuffer;
 
-use crate::lexing::Lexer;
+use crate::{
+    lexing::Lexer,
+    parsing::{
+        ast::{AstPrinter, Visitor},
+        Parser,
+    },
+};
 
 fn main() {
     let matches = command!()
         .subcommand(
             Command::new("lex")
                 .about("Run the lexer on a file")
+                .arg(Arg::new("file").value_parser(value_parser!(PathBuf))),
+        )
+        .subcommand(
+            Command::new("parse")
+                .about("Run the parser on a file")
                 .arg(Arg::new("file").value_parser(value_parser!(PathBuf))),
         )
         .get_matches();
@@ -48,6 +60,48 @@ fn main() {
                 for token in tokens {
                     println!("  {}", token);
                 }
+            }
+            Err(e) => {
+                for err in e {
+                    eprintln!("{}", err);
+                }
+                std::process::exit(1);
+            }
+        }
+    }
+
+    if let Some(parser_matches) = matches.subcommand_matches("parse") {
+        let mut input = String::new();
+
+        if let Some(file_path) = parser_matches.get_one::<PathBuf>("file") {
+            let mut file = std::fs::File::open(file_path);
+
+            match file {
+                Ok(ref mut file) => file.read_to_string(&mut input).unwrap(),
+                Err(_) => {
+                    let msg = style("File not found:").red().bold().for_stderr();
+                    eprintln!("{} `{}`...", msg, style(file_path.display()).cyan());
+                    std::process::exit(1);
+                }
+            };
+        }
+
+        println!(
+            "\n{} `{}`\n",
+            style("Parsing").green().bold(),
+            style(parser_matches.get_one::<PathBuf>("file").unwrap().display()),
+        );
+
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input);
+        let tokens = lexer.lex();
+
+        match tokens {
+            Ok(tokens) => {
+                let mut parser = Parser::new(tokens);
+                let ast = parser.parse();
+
+                let mut printer = AstPrinter;
+                printer.visit_program(ast);
             }
             Err(e) => {
                 for err in e {
