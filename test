@@ -1,3 +1,6 @@
-fn something(test: int) {
-    let /* test */ x = 16.012;
+{
+
+let x: int;
+let y: bool;
+
 }

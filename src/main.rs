@@ -93,20 +93,27 @@ fn main() {
         );
 
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input);
-        let tokens = lexer.lex();
 
-        match tokens {
-            Ok(tokens) => {
-                let mut parser = Parser::new(tokens);
-                let ast = parser.parse();
-
-                let mut printer = AstPrinter;
-                printer.visit_program(ast);
-            }
+        let tokens = match lexer.lex() {
+            Ok(tokens) => tokens,
             Err(e) => {
                 for err in e {
                     eprintln!("{}", err);
                 }
+                std::process::exit(1);
+            }
+        };
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse();
+
+        match ast {
+            Ok(ast) => {
+                let printer = AstPrinter;
+                printer.visit_program(ast);
+            }
+            Err(e) => {
+                eprintln!("{}", e);
                 std::process::exit(1);
             }
         }

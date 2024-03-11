@@ -1,45 +1,97 @@
-use crate::{core::Token, lexing::Lexer};
+use crate::{
+    core::{Token, TokenKind},
+    utils::{errors::ParseError, Result},
+};
 
 use super::ast::AstNode;
 
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    next: usize,
     root: AstNode,
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: &[Token]) -> Self {
         Parser {
-            tokens,
+            tokens: tokens.to_vec(),
             current: 0,
-            next: 0,
             root: AstNode::Program { statements: vec![] },
         }
     }
 
-    pub fn parse(&mut self) -> &AstNode {
-        self.root = self.parse_program();
-        &self.root
+    fn current_token(&self) -> &Token {
+        &self.tokens[self.current]
     }
 
-    fn parse_program(&mut self) -> AstNode {
+    pub fn parse(&mut self) -> Result<&AstNode> {
+        for token in &self.tokens {
+            println!("{:?}", token);
+        }
+        println!();
+
+        self.root = self.parse_program()?;
+        Ok(&self.root)
+    }
+
+    fn parse_program(&mut self) -> Result<AstNode> {
         let mut statements = vec![];
         while self.current < self.tokens.len() {
-            statements.push(self.parse_statement());
+            statements.push(self.parse_statement()?);
         }
-        AstNode::Program { statements }
+        Ok(AstNode::Program { statements })
     }
 
-
-    fn parse_statement(&mut self) -> AstNode {
-        let kind = self.tokens[self.current].kind.clone();
+    fn parse_statement(&mut self) -> Result<AstNode> {
+        let current_token_kind = self.current_token().kind.clone();
         self.current += 1;
 
-        AstNode::Statement {
-            kind,
+        match current_token_kind {
+            TokenKind::Let => self.parse_variable_declaration(),
+            TokenKind::LBrace => self.parse_block(),
+            _ => Ok(AstNode::Empty),
+        }
+    }
+
+    fn parse_variable_declaration(&mut self) -> Result<AstNode> {
+        let identifier = self.consume().clone();
+        self.consume_if(TokenKind::Colon)?;
+        let var_type = self.consume().clone();
+        // let expression = self.parse_expression()?;
+        self.consume_if(TokenKind::Semicolon)?;
+        Ok(AstNode::VarDec {
+            identifier,
+            var_type,
             expression: Box::new(AstNode::Empty),
+        })
+    }
+
+    fn parse_block(&mut self) -> Result<AstNode> {
+        let mut statements = vec![];
+        while self.current_token().kind != TokenKind::RBrace {
+            if self.current_token().kind == TokenKind::EndOfFile {
+                return Err(ParseError::UnclosedBlock.into());
+            }
+            statements.push(self.parse_statement()?);
+        }
+        self.current += 1;
+        Ok(AstNode::Block { statements })
+    }
+
+    fn consume(&mut self) -> &Token {
+        self.current += 1;
+        &self.tokens[self.current - 1]
+    }
+
+    fn consume_if(&mut self, kind: TokenKind) -> Result<&Token> {
+        if self.current_token().kind == kind {
+            Ok(self.consume())
+        } else {
+            Err(ParseError::UnexpectedToken {
+                expected: kind,
+                found: self.current_token().clone(),
+            }
+            .into())
         }
     }
 }

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::core::{TextSpan, Token};
+use crate::core::{TextSpan, Token, TokenKind};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -24,8 +24,10 @@ pub enum LexicalError {
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("Unexpected token: {0:?}")]
-    UnexpectedToken(Token),
+    #[error("Unexpected token: expected {expected:?}, found {found:?}")]
+    UnexpectedToken { expected: TokenKind, found: Token },
+    #[error("Unclosed block.")]
+    UnclosedBlock,
 }
 
-// pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;

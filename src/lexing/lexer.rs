@@ -97,7 +97,7 @@ impl From<i32> for TokenKind {
     }
 }
 
-pub struct Lexer<B: Stream> {
+pub struct Lexer<B: Stream + Clone> {
     buffer: B,
     dfsa: Dfsa<i32, Category>,
 }
@@ -105,7 +105,7 @@ pub struct Lexer<B: Stream> {
 const ERR_STATE: i32 = -2;
 const BAD_STATE: i32 = -1;
 
-impl<B: Stream> Lexer<B> {
+impl<B: Stream + Clone> Lexer<B> {
     pub fn new(input: &str) -> Self {
         Lexer {
             buffer: B::new(input),
@@ -254,12 +254,20 @@ impl<B: Stream> Lexer<B> {
         }
     }
 
+    pub fn peek_token(&mut self) -> Result<Token, Error> {
+        let buffer = self.buffer.clone();
+        let token = self.next_token();
+        self.buffer = buffer;
+        token
+    }
+
     fn handle_keyword(&self, lexeme: &str) -> TokenKind {
         match lexeme {
             "for" => TokenKind::For,
             "if" => TokenKind::If,
             "fn" => TokenKind::Function,
             "else" => TokenKind::Else,
+            "let" => TokenKind::Let,
             "while" => TokenKind::While,
             "or" => TokenKind::Or,
             "and" => TokenKind::And,
@@ -282,7 +290,10 @@ impl<B: Stream> Lexer<B> {
 
             match token {
                 Ok(token) => {
-                    if token.kind != TokenKind::Whitespace && token.kind != TokenKind::Comment {
+                    if token.kind != TokenKind::Whitespace
+                        && token.kind != TokenKind::Comment
+                        && token.kind != TokenKind::Newline
+                    {
                         tokens.push(token);
                     }
                 }

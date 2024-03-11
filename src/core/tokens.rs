@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::core::TextSpan;
 use crate::core::TokenKind;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: TextSpan,

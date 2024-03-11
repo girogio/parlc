@@ -16,6 +16,7 @@ pub trait Stream {
     fn current_char(&self) -> char;
 }
 
+#[derive(Clone)]
 pub struct SimpleBuffer {
     input: String,
     input_pointer: usize,
