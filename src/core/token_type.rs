@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum DataTypes {
     Int,
     Float,
@@ -8,7 +8,7 @@ pub enum DataTypes {
     Colour,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub enum TokenKind {
     Whitespace,
     Invalid,
@@ -16,6 +16,7 @@ pub enum TokenKind {
     LBrace,
     RBrace,
     Equals,
+    EqEq,
     LParen,
     RParen,
     LBracket,
@@ -31,6 +32,15 @@ pub enum TokenKind {
     While,
     Function,
     Let,
+    PadWidth,
+    PadHeight,
+    PadRead,
+    PadRandI,
+    Print,
+    Delay,
+    PixelR,
+    Pixel,
+    Return,
     // Binary operators
     Multiply,
     Divide,
@@ -55,6 +65,8 @@ pub enum TokenKind {
     EndOfFile,
     Colon,
     Comment,
+    Asterisk,
+    DoubleQuote,
 }
 
 // macro that takes in a lis tof tokens and returns the below match statement
@@ -86,8 +98,18 @@ impl Display for TokenKind {
             TokenKind::GreaterThanEqual => write!(f, "GreaterThanEqual"),
             TokenKind::Equal => write!(f, "Equal"),
             TokenKind::NotEqual => write!(f, "NotEqual"),
+            TokenKind::EqEq => write!(f, "EqEq"),
             TokenKind::Semicolon => write!(f, "Semicolon"),
             TokenKind::Colon => write!(f, "Colon"),
+            TokenKind::PadWidth => write!(f, "__width"),
+            TokenKind::PadHeight => write!(f, "__height"),
+            TokenKind::PadRead => write!(f, "__read"),
+            TokenKind::PadRandI => write!(f, "__randi"),
+            TokenKind::Print => write!(f, "__"),
+            TokenKind::Delay => write!(f, "__delay"),
+            TokenKind::PixelR => write!(f, "__pixelr"),
+            TokenKind::Pixel => write!(f, "__pixel"),
+            TokenKind::Return => write!(f, "Return"),
             TokenKind::Let => write!(f, "Let"),
             TokenKind::For => write!(f, "For"),
             TokenKind::If => write!(f, "If"),
@@ -104,6 +126,8 @@ impl Display for TokenKind {
             TokenKind::ColourLiteral(c) => write!(f, "Colour({:?})", c),
             TokenKind::EndOfFile => write!(f, "EndOfFile"),
             TokenKind::Identifier(s) => write!(f, "Identifier({s})"),
+            TokenKind::Asterisk => write!(f, "Asterisk"),
+            TokenKind::DoubleQuote => write!(f, "DoubleQuote"),
         }
     }
 }

@@ -1,5 +1,18 @@
 use crate::core::{DataTypes, Token};
 
+#[derive(Debug)]
+pub enum StatementType {
+    Let,
+    If,
+    While,
+    Function,
+    Return,
+    Print { expression: Ast },
+    Delay,
+    PixelR,
+    Pixel,
+}
+
 #[warn(clippy::enum_variant_names)]
 #[derive(Debug)]
 pub enum AstNode {
@@ -7,16 +20,42 @@ pub enum AstNode {
         statements: Vec<AstNode>,
     },
     VarDec {
-        identifier: Token,
+        identifier: Ast,
         var_type: Token,
         expression: Ast,
+    },
+    DelayStatement {
+        expression: Ast,
+    },
+    PixelStatement {
+        expression: Ast,
+    },
+    ReturnStatement {
+        expression: Ast,
+    },
+    IfStatement {
+        condition: Ast,
+        then_branch: Ast,
+        else_branch: Ast,
+    },
+    ForStatement {
+        initializer: Ast,
+        condition: Ast,
+        increment: Ast,
+        body: Ast,
+    },
+    WhileStatement {
+        condition: Ast,
+        body: Ast,
+    },
+    Identifier {
+        kind: Token,
     },
     Block {
         statements: Vec<AstNode>,
     },
     Statement {
-        kind: Token,
-        expression: Ast,
+        kind: StatementType,
     },
     Expression {
         left: Ast,
@@ -43,100 +82,99 @@ pub enum AstNode {
 pub type Ast = Box<AstNode>;
 
 pub trait Visitor {
-    fn visit_program(&self, program: &AstNode);
-    fn visit_variable_declaration(&self, variable_declaration: &AstNode);
-    fn visit_statement(&self, statement: &AstNode);
-    fn visit_block(&self, block: &AstNode);
-    fn visit_expression(&self, expression: &AstNode);
-    fn visit_simple_expression(&self, simple_expression: &AstNode);
-    fn visit_term(&self, term: &AstNode);
-    fn visit_factor(&self, factor: &AstNode);
-    fn visit_empty(&self, empty: &AstNode);
+    fn visit(&self, node: &AstNode);
 }
 
 pub struct AstPrinter;
 
+fn print_node(node: &AstNode) {
+    println!("{:?}", node);
+}
+
 impl Visitor for AstPrinter {
-    fn visit_program(&self, program: &AstNode) {
-        println!("Program");
-        match program {
+    fn visit(&self, node: &AstNode) {
+        match node {
             AstNode::Program { statements } => {
                 for statement in statements {
-                    self.visit_statement(statement);
+                    self.visit(statement);
                 }
             }
-            _ => panic!("Expected Program node"),
-        }
-    }
-
-    fn visit_statement(&self, statement: &AstNode) {
-        match statement {
-            AstNode::Statement { kind, expression } => {
-                println!("Statement: {:?}", kind);
-                self.visit_expression(expression);
+            AstNode::Identifier { kind } => {
+                println!("Identifier: {}", kind.kind);
+            }
+            AstNode::VarDec {
+                identifier,
+                var_type,
+                expression,
+            } => {
+                self.visit(identifier);
+                println!("Type: {}", var_type.kind);
+                // self.visit(expression);
             }
             AstNode::Block { statements } => {
                 println!("Block");
                 for statement in statements {
-                    self.visit_statement(statement);
+                    self.visit(statement);
                 }
-                println!("EndBlock");
             }
-            AstNode::VarDec {
-                identifier,
-                var_type,
-                expression,
+            AstNode::Statement { kind } => {
+                // print_node(node);
+                match kind {
+                    StatementType::Let => println!("Let"),
+                    StatementType::If => println!("If"),
+                    StatementType::While => println!("While"),
+                    StatementType::Function => println!("Function"),
+                    StatementType::Return => println!("Return"),
+                    StatementType::Print { expression } => {
+                        // Remove the println! statement for the StatementType::Print variant
+                        // println!("Print"),
+                        println!("Print");
+                        self.visit(expression);
+                    }
+                    StatementType::Delay => println!("Delay"),
+                    StatementType::PixelR => println!("PixelR"),
+                    StatementType::Pixel => {
+                        println!("Pixel");
+                        // self.visit(expression);
+                    }
+                }
+            }
+            AstNode::Expression {
+                left,
+                operator,
+                right,
             } => {
-                println!("VariableDeclaration");
-                println!("\t {:?}", identifier.kind);
-                println!("\t Type: {:?}", var_type);
-                self.visit_expression(expression);
+                self.visit(left);
+                print_node(node);
+                self.visit(right);
+            }
+            AstNode::SimpleExpression {
+                left,
+                operator,
+                right,
+            } => {
+                self.visit(left);
+                print_node(node);
+                self.visit(right);
+            }
+            AstNode::Term {
+                left,
+                operator,
+                right,
+            } => {
+                self.visit(left);
+                print_node(node);
+                self.visit(right);
+            }
+            AstNode::Factor { kind, value } => {
+                print_node(node);
             }
             AstNode::Empty => {
-                println!("Empty");
+                print_node(node);
             }
-            _ => panic!("Expected Statement or Block node"),
-        }
-    }
-
-    fn visit_variable_declaration(&self, variable_declaration: &AstNode) {
-        match variable_declaration {
-            AstNode::VarDec {
-                identifier,
-                var_type,
-                expression,
-            } => {
-                println!("VariableDeclaration: {:?}", identifier);
-                println!("Type: {:?}", var_type);
-                self.visit_expression(expression);
+            _ => {
+                print_node(node);
             }
-            _ => panic!("Expected VariableDeclaration node"),
         }
-    }
-
-    fn visit_block(&self, block: &AstNode) {
-        match block {
-            AstNode::Block { statements } => {
-                for statement in statements {
-                    self.visit_statement(statement);
-                }
-            }
-            _ => panic!("Expected Block node"),
-        }
-    }
-    fn visit_expression(&self, expression: &AstNode) {
-        println!("Expression: {:?}", expression);
-    }
-    fn visit_simple_expression(&self, simple_expression: &AstNode) {
-        println!("SimpleExpression: {:?}", simple_expression);
-    }
-    fn visit_term(&self, term: &AstNode) {
-        println!("Term: {:?}", term);
-    }
-    fn visit_factor(&self, factor: &AstNode) {
-        println!("Factor: {:?}", factor);
-    }
-    fn visit_empty(&self, empty: &AstNode) {
-        println!("Empty: {:?}", empty);
     }
 }

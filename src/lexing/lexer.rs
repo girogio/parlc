@@ -6,100 +6,11 @@ use crate::{
     },
 };
 
-use super::dfsa::Dfsa;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Category {
-    Whitespace,
-    Letter,
-    Digit,
-    Underscore,
-    Newline,
-    RBrace,
-    LBrace,
-    RParen,
-    LParen,
-    RBracket,
-    LBracket,
-    DoubleQuote,
-    Period,
-    SingleQuote,
-    Semicolon,
-    Asterisk,
-    Colon,
-    Equals,
-    Slash,
-    Plus,
-    CrocLeft,
-    CrocRight,
-    Minus,
-    Backslash,
-    Eof,
-    Other,
-}
-
-impl From<char> for Category {
-    fn from(c: char) -> Self {
-        match c {
-            'a'..='z' | 'A'..='Z' => Category::Letter,
-            '0'..='9' => Category::Digit,
-            '_' => Category::Underscore,
-            ' ' | '\t' => Category::Whitespace,
-            '\n' => Category::Newline,
-            '{' => Category::LBrace,
-            '/' => Category::Slash,
-            '}' => Category::RBrace,
-            '.' => Category::Period,
-            '=' => Category::Equals,
-            '+' => Category::Plus,
-            '-' => Category::Minus,
-            '<' => Category::CrocLeft,
-            '>' => Category::CrocRight,
-            '*' => Category::Asterisk,
-            '(' => Category::LParen,
-            ')' => Category::RParen,
-            ':' => Category::Colon,
-            '\\' => Category::Backslash,
-            '[' => Category::LBracket,
-            ']' => Category::RBracket,
-            '"' => Category::DoubleQuote,
-            '\'' => Category::SingleQuote,
-            ';' => Category::Semicolon,
-            '\0' => Category::Eof,
-            _ => Category::Other,
-        }
-    }
-}
-
-impl From<i32> for TokenKind {
-    fn from(i: i32) -> Self {
-        match i {
-            10 => TokenKind::Whitespace,
-            20 => TokenKind::Newline,
-            30 => TokenKind::Identifier(String::new()),
-            32 => TokenKind::Equals,
-            34 => TokenKind::Comment,
-            37 => TokenKind::Comment,
-            40 => TokenKind::LBrace,
-            50 => TokenKind::RBrace,
-            60 => TokenKind::LParen,
-            70 => TokenKind::RParen,
-            80 => TokenKind::LBracket,
-            90 => TokenKind::RBracket,
-            101 => TokenKind::StringLiteral(String::new()),
-            110 => TokenKind::SingleQuote,
-            120 => TokenKind::Semicolon,
-            130 => TokenKind::Colon,
-            140 => TokenKind::IntLiteral(0),
-            151 => TokenKind::FloatLiteral(String::new()),
-            _ => TokenKind::Invalid,
-        }
-    }
-}
+use super::dfsa::{Category, Dfsa, DfsaBuilder};
 
 pub struct Lexer<B: Stream + Clone> {
     buffer: B,
-    dfsa: Dfsa<i32, Category>,
+    dfsa: Dfsa,
 }
 
 const ERR_STATE: i32 = -2;
@@ -107,70 +18,44 @@ const BAD_STATE: i32 = -1;
 
 impl<B: Stream + Clone> Lexer<B> {
     pub fn new(input: &str) -> Self {
+        let dfsa_builder = DfsaBuilder::new();
+
+        let dfsa = dfsa_builder
+            .add_repeatable_final_character_symbol(' ', Category::Whitespace, TokenKind::Whitespace)
+            .add_category(['/'], Category::Slash)
+            .add_category(['.'], Category::Period)
+            .add_category(['_'], Category::Underscore)
+            .add_category(['\''], Category::SingleQuote)
+            .add_category(['"'], Category::DoubleQuote)
+            .add_single_final_character_symbol('\n', Category::Newline, TokenKind::Newline)
+            .add_single_final_character_symbol('{', Category::LBrace, TokenKind::LBrace)
+            .add_single_final_character_symbol('}', Category::RBrace, TokenKind::RBrace)
+            .add_single_final_character_symbol('(', Category::LParen, TokenKind::LParen)
+            .add_single_final_character_symbol(')', Category::RParen, TokenKind::RParen)
+            .add_single_final_character_symbol('[', Category::LBracket, TokenKind::LBracket)
+            .add_single_final_character_symbol(']', Category::RBracket, TokenKind::RBracket)
+            .add_single_final_character_symbol(';', Category::Semicolon, TokenKind::Semicolon)
+            .add_single_final_character_symbol(':', Category::Colon, TokenKind::Colon)
+            .add_single_final_character_symbol('=', Category::Equals, TokenKind::Equals)
+            .add_single_final_character_symbol('+', Category::Plus, TokenKind::Plus)
+            .add_single_final_character_symbol('-', Category::Minus, TokenKind::Minus)
+            .add_single_final_character_symbol('*', Category::Asterisk, TokenKind::Asterisk)
+            .add_single_final_character_symbol('\0', Category::Eof, TokenKind::EndOfFile)
+            .build();
+        
+
+        // let literal_state = lexer_builder
+        //     .auto_add_transition(0, [Category::Letter, Category::Underscore])
+        //     .add_transition(literal_state, [Category::Letter], literal_state);
+
         Lexer {
             buffer: B::new(input),
-            dfsa: Dfsa::new(
-                vec![
-                    10, 20, 30, 32, 34, 37, 40, 50, 60, 70, 80, 90, 101, 110, 120, 130, 140, 151,
-                ],
-                0,
-                |state, category| match (state, category) {
-                    (0, Category::Whitespace) => 10,
-                    (0, Category::Newline) => 20,
-                    // Single character tokens
-                    (0, Category::Letter) => 30,
-                    (0, Category::Equals) => 31,
-                    (31, Category::Equals) => 32,
-                    (0, Category::LBrace) => 40,
-                    (0, Category::RBrace) => 50,
-                    (0, Category::LParen) => 60,
-                    (0, Category::RParen) => 70,
-                    (0, Category::LBracket) => 80,
-                    (0, Category::RBracket) => 90,
-                    (0, Category::SingleQuote) => 110,
-                    (0, Category::Semicolon) => 120,
-                    (0, Category::Colon) => 130,
-                    (10, Category::Whitespace) => 10,
-                    // Line comment
-                    (0, Category::Slash) => 32,
-                    (32, Category::Asterisk) => 35,
-                    (35, Category::Asterisk) => 36,
-                    (35, Category::Eof) => ERR_STATE,
-                    (36, Category::Slash) => 37,
-                    (36, Category::Eof) => ERR_STATE,
-                    (35, _) => 35,
-                    (32, Category::Slash) => 33,
-                    (33, Category::Newline) => 34,
-                    (33, Category::Eof) => ERR_STATE,
-                    (33, _) => 33,
-                    // Block Comment
-                    // String literal logic
-                    (0, Category::DoubleQuote) => 100,
-                    (100, Category::DoubleQuote) => 101,
-                    (100, Category::Backslash) => 102,
-                    (102, Category::DoubleQuote) => 100,
-                    (100, Category::Eof) => ERR_STATE,
-                    (100, _) => 100,
-                    // Identifier logic
-                    (30, Category::Letter) => 30,
-                    (30, Category::Digit) => 30,
-                    (30, Category::Underscore) => 30,
-                    // Integers
-                    (0, Category::Digit) => 140,
-                    (140, Category::Digit) => 140,
-                    // Float
-                    (140, Category::Period) => 150,
-                    (150, Category::Digit) => 151,
-                    (151, Category::Digit) => 151,
-                    // Map all other characters to the error state
-                    _ => ERR_STATE,
-                },
-            ),
+            dfsa,
         }
     }
 
     pub fn next_token(&mut self) -> Result<Token, Error> {
-        let mut state = *self.dfsa.start_state();
+        let mut state = self.dfsa.start_state();
         let mut lexeme = String::new();
         let mut stack = vec![BAD_STATE];
         let mut prev_state = state;
@@ -192,7 +77,7 @@ impl<B: Stream + Clone> Lexer<B> {
 
             stack.push(state);
 
-            let cat = Category::from(c);
+            let cat = self.dfsa.get_category(c);
             state = self.dfsa.delta(state, cat);
 
             // If we just starded parsing a string literal
@@ -219,17 +104,16 @@ impl<B: Stream + Clone> Lexer<B> {
 
         match self.dfsa.is_accepting(&state) {
             true => Ok(Token::new(
-                match TokenKind::from(state) {
+                match self.dfsa.get_token_kind(state) {
                     TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
                     TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
                     TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
                     TokenKind::Identifier(_) => self.handle_keyword(&lexeme),
-                    _ => TokenKind::from(state),
+                    _ => self.dfsa.get_token_kind(state),
                 },
                 text_span,
             )),
             false => {
-                println!("prev_state: {}", prev_state);
                 let error = match prev_state {
                     35 => LexicalError::UnterminatedBlockComment(text_span),
                     150 => LexicalError::InvalidFloatLiteral(TextSpan::new(
@@ -277,6 +161,11 @@ impl<B: Stream + Clone> Lexer<B> {
             "false" => TokenKind::BoolLiteral(false),
             "bool" => TokenKind::Type(DataTypes::Bool),
             "colour" => TokenKind::Type(DataTypes::Colour),
+            "__width" => TokenKind::PadWidth,
+            "__height" => TokenKind::PadHeight,
+            "__read" => TokenKind::PadRead,
+            "__print" => TokenKind::Print,
+            "__randi" => TokenKind::PadRandI,
             _ => TokenKind::Identifier(lexeme.to_string()),
         }
     }

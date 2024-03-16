@@ -3,7 +3,7 @@ use crate::{
     utils::{errors::ParseError, Result},
 };
 
-use super::ast::AstNode;
+use super::ast::{AstNode, StatementType};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -47,22 +47,47 @@ impl Parser {
         self.current += 1;
 
         match current_token_kind {
-            TokenKind::Let => self.parse_variable_declaration(),
+            TokenKind::Let => self.parse_assignment(),
             TokenKind::LBrace => self.parse_block(),
+            TokenKind::Print => self.parse_print_statement(),
             _ => Ok(AstNode::Empty),
         }
     }
 
-    fn parse_variable_declaration(&mut self) -> Result<AstNode> {
-        let identifier = self.consume().clone();
+    fn parse_identifier(&mut self) -> Result<AstNode> {
+        if matches!(self.current_token().kind, TokenKind::Identifier(_)) {
+            Ok(AstNode::Identifier {
+                kind: self.consume().clone(),
+            })
+        } else {
+            Err(ParseError::UnexpectedToken {
+                expected: TokenKind::Identifier("".to_string()),
+                found: self.current_token().clone(),
+            }
+            .into())
+        }
+    }
+
+    fn parse_assignment(&mut self) -> Result<AstNode> {
+        let identifier = self.parse_identifier()?;
         self.consume_if(TokenKind::Colon)?;
         let var_type = self.consume().clone();
+        self.consume_if(TokenKind::Equals)?;
         // let expression = self.parse_expression()?;
         self.consume_if(TokenKind::Semicolon)?;
         Ok(AstNode::VarDec {
-            identifier,
+            identifier: Box::from(identifier),
             var_type,
             expression: Box::new(AstNode::Empty),
+        })
+    }
+
+    fn parse_print_statement(&mut self) -> Result<AstNode> {
+        // let expression = self.parse_expression()?;
+        Ok(AstNode::Statement {
+            kind: StatementType::Print {
+                expression: Box::new(AstNode::Empty),
+            },
         })
     }
 

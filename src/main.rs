@@ -1,6 +1,7 @@
 mod core;
 mod lexing;
 mod parsing;
+mod semantics;
 mod utils;
 
 use clap::{command, value_parser, Arg, Command};
@@ -110,7 +111,7 @@ fn main() {
         match ast {
             Ok(ast) => {
                 let printer = AstPrinter;
-                printer.visit_program(ast);
+                printer.visit(ast);
             }
             Err(e) => {
                 eprintln!("{}", e);
