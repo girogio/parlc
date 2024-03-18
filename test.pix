@@ -1,4 +1,63 @@
-{
-
-    
+fun XGreaterY(x: int, y: int) -> bool {
+    let ans: bool = true;
+    if (y >= x) { ans = false; }
+    return ans;
 }
+
+fun XGreaterY2(x: int, y: int) -> bool {
+    return x > y;
+}
+
+fun AverageOfTwo(x: int, y: int) -> float {
+    let t0: int = x + y;
+    let t1: float = t0 / 2 as float;
+    return t1;
+}
+
+fun AverageOfTwo2(x: int, y: int) -> float {
+    return (x + y) / 2 as float;
+}
+
+fun Max(x: int, y: int) -> int {
+    let m: int = x;
+    if (y > m) { m = y; }
+    return m;
+}
+
+__write 10, 14, #00ff00;
+__delay 100;
+
+write box 10, 14, 2, 2, #0000ff;
+for (let i: int = 0; i < 10; i = i + 1) {
+    print i;
+    delay 1000;
+}
+
+fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
+    let p1score: int = 0;
+    let p2score: int = 0;
+    while ((p1score < scoremax) and (p2score < scoremax)) {
+        let p1toss: int = randi 1000;
+        let p2toss: int = randi 1000;
+        if (p1toss > p2toss) {
+            p1score = p1score + 1;
+            write 1, p1score, p1c;
+        } else {
+            p2score = p2score + 1;
+            write 2, p2score, p2c;
+        }
+        delay 100;
+    }
+    if (p2score > p1score) {
+        return 2;
+    }
+    return 1;
+}
+
+let c1: colour = #00ff00;
+let c2: colour = #0000ff;
+let m: int = height;
+let w: int = Race(c1, c2, m);
+print w;
+
+/* test */

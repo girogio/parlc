@@ -53,7 +53,7 @@ fn main() {
             style(lexer_matches.get_one::<PathBuf>("file").unwrap().display()),
         );
 
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input);
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, None);
         let tokens = lexer.lex();
 
         match tokens {
@@ -93,7 +93,7 @@ fn main() {
             style(parser_matches.get_one::<PathBuf>("file").unwrap().display()),
         );
 
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input);
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, None);
 
         let tokens = match lexer.lex() {
             Ok(tokens) => tokens,

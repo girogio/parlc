@@ -100,7 +100,7 @@ impl Visitor for AstPrinter {
                 }
             }
             AstNode::Identifier { kind } => {
-                println!("Identifier: {}", kind.kind);
+                println!("Identifier: {:?}", kind.kind);
             }
             AstNode::VarDec {
                 identifier,
@@ -108,7 +108,7 @@ impl Visitor for AstPrinter {
                 expression,
             } => {
                 self.visit(identifier);
-                println!("Type: {}", var_type.kind);
+                println!("Type: {:?}", var_type.kind);
                 // self.visit(expression);
             }
             AstNode::Block { statements } => {
