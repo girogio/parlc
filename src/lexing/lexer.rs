@@ -13,9 +13,6 @@ pub struct Lexer<B: Stream + Clone> {
     dfsa: Dfsa,
 }
 
-const ERR_STATE: i32 = -2;
-const BAD_STATE: i32 = -1;
-
 impl<B: Stream + Clone> Lexer<B> {
     pub fn new(input: &str, dfsa: Option<Dfsa>) -> Self {
         let mut dfsa_builder = DfsaBuilder::new();
@@ -27,15 +24,11 @@ impl<B: Stream + Clone> Lexer<B> {
             },
             None => {
                 let dfsa = dfsa_builder
-                    .add_category(['.'], Category::Period)
                     .add_category('a'..='f', Category::HexAndLetter)
                     .add_category('g'..='z', Category::Letter)
                     .add_category('A'..='F', Category::HexAndLetter)
                     .add_category('G'..='Z', Category::Letter)
                     .add_category('0'..='9', Category::Digit)
-                    .add_category(['_'], Category::Underscore)
-                    .add_category(['\''], Category::SingleQuote)
-                    .add_category(['"'], Category::DoubleQuote)
                     .add_multiple_single_final_character_symbols(vec![
                         ('\n', Category::Newline, TokenKind::Newline),
                         ('{', Category::LBrace, TokenKind::LBrace),
@@ -51,7 +44,6 @@ impl<B: Stream + Clone> Lexer<B> {
                         ('*', Category::Asterisk, TokenKind::Asterisk),
                         (',', Category::Comma, TokenKind::Comma),
                         ('\0', Category::Eof, TokenKind::EndOfFile),
-                        ('/', Category::Slash, TokenKind::Invalid),
                     ])
                     .add_whitespace_logic()
                     .add_comment_functionality()
@@ -68,45 +60,63 @@ impl<B: Stream + Clone> Lexer<B> {
         }
     }
 
+    /// These are the reserved keywords in the language. Note that these must be
+    /// valid identifiers, otherwise they won't be caught.
+    fn handle_keyword(&self, lexeme: &str) -> TokenKind {
+        match lexeme {
+            "for" => TokenKind::For,
+            "if" => TokenKind::If,
+            "fun" => TokenKind::Function,
+            "else" => TokenKind::Else,
+            "let" => TokenKind::Let,
+            "while" => TokenKind::While,
+            "or" => TokenKind::Or,
+            "and" => TokenKind::And,
+            "int" => TokenKind::Type(DataTypes::Int),
+            "float" => TokenKind::Type(DataTypes::Float),
+            "true" => TokenKind::BoolLiteral(true),
+            "false" => TokenKind::BoolLiteral(false),
+            "bool" => TokenKind::Type(DataTypes::Bool),
+            "colour" => TokenKind::Type(DataTypes::Colour),
+            "return" => TokenKind::Return,
+            "__write" => TokenKind::PadWrite,
+            "__write_box" => TokenKind::PadWriteBox,
+            "__delay" => TokenKind::Delay,
+            "__width" => TokenKind::PadWidth,
+            "__height" => TokenKind::PadHeight,
+            "__read" => TokenKind::PadRead,
+            "__print" => TokenKind::Print,
+            "__randi" => TokenKind::PadRandI,
+            _ => TokenKind::Identifier(lexeme.to_string()),
+        }
+    }
+
     pub fn next_token(&mut self) -> Result<Token, Error> {
         let mut state = self.dfsa.start_state();
         let mut lexeme = String::new();
-        let mut stack = vec![BAD_STATE];
+        let mut stack = vec![self.dfsa.bad_state()];
         let mut prev_state = state;
         let (start_line, start_col) = (self.buffer.get_line(), self.buffer.get_col());
 
-        while state != ERR_STATE {
+        while state != self.dfsa.error_state() {
             prev_state = state;
             let c = self.buffer.next_char();
 
             lexeme.push(c);
 
-            if state == 100 && c == '\\' {
-                lexeme.pop();
-            }
-
             if self.dfsa.is_accepting(&state) {
-                stack = vec![BAD_STATE];
+                stack = vec![self.dfsa.bad_state()];
             }
 
             stack.push(state);
 
             let cat = self.dfsa.get_category(c);
             state = self.dfsa.delta(state, cat);
-
-            // If we just starded parsing a string literal
-            if (prev_state, state) == (0, 100) {
-                lexeme.pop();
-            }
-
-            if (prev_state, state) == (100, 101) {
-                lexeme.pop();
-            }
         }
 
-        while !self.dfsa.is_accepting(&state) && state != BAD_STATE {
+        while !self.dfsa.is_accepting(&state) && state != self.dfsa.bad_state() {
             state = stack.pop().unwrap();
-            if state != BAD_STATE {
+            if state != self.dfsa.bad_state() {
                 lexeme.pop();
                 self.buffer.rollback();
             }
@@ -154,35 +164,6 @@ impl<B: Stream + Clone> Lexer<B> {
         }
     }
 
-    fn handle_keyword(&self, lexeme: &str) -> TokenKind {
-        match lexeme {
-            "for" => TokenKind::For,
-            "if" => TokenKind::If,
-            "fun" => TokenKind::Function,
-            "else" => TokenKind::Else,
-            "let" => TokenKind::Let,
-            "while" => TokenKind::While,
-            "or" => TokenKind::Or,
-            "and" => TokenKind::And,
-            "int" => TokenKind::Type(DataTypes::Int),
-            "float" => TokenKind::Type(DataTypes::Float),
-            "true" => TokenKind::BoolLiteral(true),
-            "false" => TokenKind::BoolLiteral(false),
-            "bool" => TokenKind::Type(DataTypes::Bool),
-            "colour" => TokenKind::Type(DataTypes::Colour),
-            "return" => TokenKind::Return,
-            "__write" => TokenKind::PadWrite,
-            "__write_box" => TokenKind::PadWriteBox,
-            "__delay" => TokenKind::Delay,
-            "__width" => TokenKind::PadWidth,
-            "__height" => TokenKind::PadHeight,
-            "__read" => TokenKind::PadRead,
-            "__print" => TokenKind::Print,
-            "__randi" => TokenKind::PadRandI,
-            _ => TokenKind::Identifier(lexeme.to_string()),
-        }
-    }
-
     pub fn lex(&mut self) -> Result<Vec<Token>, Vec<Error>> {
         let mut tokens = Vec::new();
         let mut errors = Vec::new();
@@ -222,8 +203,6 @@ impl<B: Stream + Clone> Lexer<B> {
         }
     }
 }
-
-// example usage
 
 #[cfg(test)]
 mod tests {

@@ -66,6 +66,14 @@ impl Dfsa {
         0
     }
 
+    pub fn error_state(&self) -> i32 {
+        -2
+    }
+
+    pub fn bad_state(&self) -> i32 {
+        -1
+    }
+
     pub fn get_token_kind(&self, state: i32) -> TokenKind {
         self.state_to_token
             .get(&state)
@@ -254,7 +262,8 @@ impl DfsaBuilder {
     }
 
     pub fn add_identifier_logic(&mut self) -> &mut Self {
-        self.transition()
+        self.add_category(['_'], Category::Underscore)
+            .transition()
             .to([
                 Category::Letter,
                 Category::HexAndLetter,
@@ -391,11 +400,6 @@ mod tests {
     fn test_dfsa_builder() {
         let mut dfsa_builder = DfsaBuilder::new();
 
-        // dfsa_builder.add_delimited_symbol(
-        //     &[('a', Category::Letter), ('b', Category::Letter)],
-        //     TokenKind::Identifier(String::new()),
-        // );
-
         let _dfsa = dfsa_builder.build();
     }
 
@@ -441,7 +445,6 @@ mod tests {
                 (',', Category::Comma, TokenKind::Comma),
                 ('#', Category::Hashtag, TokenKind::Hashtag),
                 ('\0', Category::Eof, TokenKind::EndOfFile),
-                ('/', Category::Slash, TokenKind::Invalid),
             ])
             .add_whitespace_logic()
             .add_comment_functionality()
