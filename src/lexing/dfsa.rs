@@ -436,9 +436,8 @@ mod tests {
                 (':', Category::Colon, TokenKind::Colon),
                 ('+', Category::Plus, TokenKind::Plus),
                 ('-', Category::Minus, TokenKind::Minus),
-                ('*', Category::Asterisk, TokenKind::Asterisk),
+                ('*', Category::Asterisk, TokenKind::Multiply),
                 (',', Category::Comma, TokenKind::Comma),
-                ('#', Category::Hashtag, TokenKind::Hashtag),
                 ('\0', Category::Eof, TokenKind::EndOfFile),
             ])
             .add_whitespace_logic()

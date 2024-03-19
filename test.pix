@@ -60,7 +60,7 @@ fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
             p2score = p2score + 1;
             __write 2, p2score, p2c;
         }
-        delay 100;
+        __delay 100;
     }
     if (p2score > p1score) {
         return 2;
