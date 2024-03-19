@@ -17,14 +17,11 @@ pub enum Category {
     LParen,
     RBracket,
     LBracket,
-    DoubleQuote,
     Period,
-    SingleQuote,
     Semicolon,
     Asterisk,
     Colon,
     Equals,
-    EqEq,
     Slash,
     Plus,
     LessThan,
@@ -427,8 +424,6 @@ mod tests {
             .add_category('A'..='Z', Category::Letter)
             .add_category('0'..='9', Category::Digit)
             .add_category(['_'], Category::Underscore)
-            .add_category(['\''], Category::SingleQuote)
-            .add_category(['"'], Category::DoubleQuote)
             .add_multiple_single_final_character_symbols(vec![
                 ('\n', Category::Newline, TokenKind::Newline),
                 ('{', Category::LBrace, TokenKind::LBrace),
