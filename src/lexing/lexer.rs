@@ -25,8 +25,8 @@ impl<B: Stream + Clone> Lexer<B> {
             None => {
                 let dfsa = dfsa_builder
                     .add_category('a'..='f', Category::HexAndLetter)
-                    .add_category('g'..='z', Category::Letter)
                     .add_category('A'..='F', Category::HexAndLetter)
+                    .add_category('g'..='z', Category::Letter)
                     .add_category('G'..='Z', Category::Letter)
                     .add_category('0'..='9', Category::Digit)
                     .add_multiple_single_final_character_symbols(vec![
@@ -41,7 +41,7 @@ impl<B: Stream + Clone> Lexer<B> {
                         (':', Category::Colon, TokenKind::Colon),
                         ('+', Category::Plus, TokenKind::Plus),
                         ('-', Category::Minus, TokenKind::Minus),
-                        ('*', Category::Asterisk, TokenKind::Asterisk),
+                        ('*', Category::Asterisk, TokenKind::Multiply),
                         (',', Category::Comma, TokenKind::Comma),
                         ('\0', Category::Eof, TokenKind::EndOfFile),
                     ])
@@ -87,6 +87,7 @@ impl<B: Stream + Clone> Lexer<B> {
             "__read" => TokenKind::PadRead,
             "__print" => TokenKind::Print,
             "__randi" => TokenKind::PadRandI,
+            "as" => TokenKind::As,
             _ => TokenKind::Identifier(lexeme.to_string()),
         }
     }
@@ -131,7 +132,6 @@ impl<B: Stream + Clone> Lexer<B> {
                 match self.dfsa.get_token_kind(state) {
                     TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
                     TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
-                    TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
                     TokenKind::ColourLiteral(_) => TokenKind::ColourLiteral(lexeme),
                     TokenKind::Identifier(_) => self.handle_keyword(&lexeme),
                     _ => self.dfsa.get_token_kind(state),
