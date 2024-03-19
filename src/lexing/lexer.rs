@@ -28,73 +28,37 @@ impl<B: Stream + Clone> Lexer<B> {
             None => {
                 let dfsa = dfsa_builder
                     .add_category(['.'], Category::Period)
+                    .add_category('a'..='f', Category::HexAndLetter)
+                    .add_category('g'..='z', Category::Letter)
+                    .add_category('A'..='F', Category::HexAndLetter)
+                    .add_category('G'..='Z', Category::Letter)
+                    .add_category('0'..='9', Category::Digit)
                     .add_category(['_'], Category::Underscore)
                     .add_category(['\''], Category::SingleQuote)
                     .add_category(['"'], Category::DoubleQuote)
-                    .add_single_final_character_symbol('\n', Category::Newline, TokenKind::Newline)
-                    .add_single_final_character_symbol('{', Category::LBrace, TokenKind::LBrace)
-                    .add_single_final_character_symbol('}', Category::RBrace, TokenKind::RBrace)
-                    .add_single_final_character_symbol('(', Category::LParen, TokenKind::LParen)
-                    .add_single_final_character_symbol(')', Category::RParen, TokenKind::RParen)
-                    .add_single_final_character_symbol('[', Category::LBracket, TokenKind::LBracket)
-                    .add_single_final_character_symbol(']', Category::RBracket, TokenKind::RBracket)
-                    .add_single_final_character_symbol(
-                        ';',
-                        Category::Semicolon,
-                        TokenKind::Semicolon,
-                    )
-                    .add_single_final_character_symbol(':', Category::Colon, TokenKind::Colon)
-                    .add_single_final_character_symbol('=', Category::Equals, TokenKind::Equals)
-                    .add_single_final_character_symbol('<', Category::LessThan, TokenKind::LessThan)
-                    .add_single_final_character_symbol(
-                        '>',
-                        Category::GreaterThan,
-                        TokenKind::GreaterThan,
-                    )
-                    .add_single_final_character_symbol('+', Category::Plus, TokenKind::Plus)
-                    .add_single_final_character_symbol('-', Category::Minus, TokenKind::Minus)
-                    .add_single_final_character_symbol('*', Category::Asterisk, TokenKind::Asterisk)
-                    .add_single_final_character_symbol(',', Category::Comma, TokenKind::Comma)
-                    .add_single_final_character_symbol('#', Category::Hashtag, TokenKind::Hashtag)
-                    .add_single_final_character_symbol('\0', Category::Eof, TokenKind::EndOfFile)
-                    .add_single_final_character_symbol('/', Category::Slash, TokenKind::Invalid)
-                    .add_category([' ', '\t'], Category::Whitespace) // Whitespace logic
-                    .transition()
-                    .to([Category::Whitespace])
-                    .repeated()
-                    .goes_to(TokenKind::Whitespace)
-                    .done() // Identifier logi
-                    .add_category('a'..='z', Category::Letter)
-                    .add_category('A'..='Z', Category::Letter)
-                    .add_category('0'..='9', Category::Digit)
-                    .transition()
-                    .to([Category::Letter, Category::Underscore])
-                    .goes_to(TokenKind::Identifier(String::new()))
-                    .to([Category::Letter, Category::Underscore, Category::Digit])
-                    .repeated()
-                    .goes_to(TokenKind::Identifier(String::new()))
-                    .done()
-                    .transition()
-                    .to([Category::Digit])
-                    .repeated()
-                    .goes_to(TokenKind::IntLiteral(0))
-                    .to([Category::Period])
-                    .to([Category::Digit])
-                    .repeated()
-                    .goes_to(TokenKind::FloatLiteral(String::new()))
-                    .done()
+                    .add_multiple_single_final_character_symbols(vec![
+                        ('\n', Category::Newline, TokenKind::Newline),
+                        ('{', Category::LBrace, TokenKind::LBrace),
+                        ('}', Category::RBrace, TokenKind::RBrace),
+                        ('(', Category::LParen, TokenKind::LParen),
+                        (')', Category::RParen, TokenKind::RParen),
+                        ('[', Category::LBracket, TokenKind::LBracket),
+                        (']', Category::RBracket, TokenKind::RBracket),
+                        (';', Category::Semicolon, TokenKind::Semicolon),
+                        (':', Category::Colon, TokenKind::Colon),
+                        ('+', Category::Plus, TokenKind::Plus),
+                        ('-', Category::Minus, TokenKind::Minus),
+                        ('*', Category::Asterisk, TokenKind::Asterisk),
+                        (',', Category::Comma, TokenKind::Comma),
+                        ('\0', Category::Eof, TokenKind::EndOfFile),
+                        ('/', Category::Slash, TokenKind::Invalid),
+                    ])
+                    .add_whitespace_logic()
+                    .add_comment_functionality()
+                    .add_multi_char_rel_ops()
+                    .add_identifier_logic()
+                    .add_number_logic()
                     .build();
-
-                // let comment_transition = dfsa
-                //     .add_category(['/'], Category::Slash)
-                //     .add_category(['*'], Category::Asterisk)
-                //     .transition()
-                //     .to([Category::Slash])
-                //     .to([Category::Slash])
-                //     .to([Category::Any])
-                //     .repeated()
-                //     .goes_to(TokenKind::Comment)
-                //     .done();
 
                 Lexer {
                     buffer: B::new(input),
@@ -158,6 +122,7 @@ impl<B: Stream + Clone> Lexer<B> {
                     TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
                     TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
                     TokenKind::StringLiteral(_) => TokenKind::StringLiteral(lexeme),
+                    TokenKind::ColourLiteral(_) => TokenKind::ColourLiteral(lexeme),
                     TokenKind::Identifier(_) => self.handle_keyword(&lexeme),
                     _ => self.dfsa.get_token_kind(state),
                 },
@@ -207,6 +172,7 @@ impl<B: Stream + Clone> Lexer<B> {
             "colour" => TokenKind::Type(DataTypes::Colour),
             "return" => TokenKind::Return,
             "__write" => TokenKind::PadWrite,
+            "__write_box" => TokenKind::PadWriteBox,
             "__delay" => TokenKind::Delay,
             "__width" => TokenKind::PadWidth,
             "__height" => TokenKind::PadHeight,

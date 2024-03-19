@@ -1,4 +1,4 @@
-use std::fmt::Display;
+
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum DataTypes {
@@ -61,7 +61,7 @@ pub enum TokenKind {
     IntLiteral(i32),
     FloatLiteral(String),
     BoolLiteral(bool),
-    ColourLiteral([u8; 3]),
+    ColourLiteral(String),
     EndOfFile,
     Colon,
     Comment,
@@ -70,6 +70,7 @@ pub enum TokenKind {
     Comma,
     Hashtag,
     PadWrite,
+    PadWriteBox,
 }
 
 // // macro that takes in a lis tof tokens and returns the below match statement
