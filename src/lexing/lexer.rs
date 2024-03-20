@@ -1,5 +1,7 @@
+use std::path::Path;
+
 use crate::{
-    core::{DataTypes, TextSpan, Token, TokenKind},
+    core::{TextSpan, Token, TokenKind},
     utils::{
         errors::{Error, LexicalError},
         Stream,
@@ -14,12 +16,12 @@ pub struct Lexer<B: Stream + Clone> {
 }
 
 impl<B: Stream + Clone> Lexer<B> {
-    pub fn new(input: &str, dfsa: Option<Dfsa>) -> Self {
+    pub fn new(input: &str, file: &Path, dfsa: Option<Dfsa>) -> Self {
         let mut dfsa_builder = DfsaBuilder::new();
 
         match dfsa {
             Some(dfsa) => Lexer {
-                buffer: B::new(input),
+                buffer: B::new(input, file),
                 dfsa,
             },
             None => {
@@ -40,7 +42,6 @@ impl<B: Stream + Clone> Lexer<B> {
                         (';', Category::Semicolon, TokenKind::Semicolon),
                         (':', Category::Colon, TokenKind::Colon),
                         ('+', Category::Plus, TokenKind::Plus),
-                        ('-', Category::Minus, TokenKind::Minus),
                         ('*', Category::Asterisk, TokenKind::Multiply),
                         (',', Category::Comma, TokenKind::Comma),
                         ('\0', Category::Eof, TokenKind::EndOfFile),
@@ -53,7 +54,7 @@ impl<B: Stream + Clone> Lexer<B> {
                     .build();
 
                 Lexer {
-                    buffer: B::new(input),
+                    buffer: B::new(input, file),
                     dfsa,
                 }
             }
@@ -132,7 +133,6 @@ impl<B: Stream + Clone> Lexer<B> {
             true => Ok(Token::new(
                 match self.dfsa.get_token_kind(state) {
                     TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
-                    TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
                     TokenKind::ColourLiteral(_) => TokenKind::ColourLiteral(lexeme),
                     TokenKind::Identifier => self.handle_keyword(&lexeme),
                     _ => self.dfsa.get_token_kind(state),
@@ -140,7 +140,6 @@ impl<B: Stream + Clone> Lexer<B> {
                 text_span,
             )),
             false => {
-                println!("Prev state: {}", prev_state);
                 let error = match prev_state {
                     35 => LexicalError::UnterminatedBlockComment(text_span),
                     150 => LexicalError::InvalidFloatLiteral(TextSpan::new(
@@ -216,7 +215,8 @@ mod tests {
     #[rstest]
     fn test_lex() {
         let input = "fn( bruh ) { return test; }";
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, None);
+        let fake_path = PathBuf::from("fake_path");
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, &fake_path, None);
         let tokens = lexer.lex();
 
         assert_matches!(tokens, Ok(tokens) => tokens);

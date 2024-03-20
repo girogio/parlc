@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use crate::{
     core::{TextSpan, Token, TokenKind},
     utils::{
@@ -6,19 +8,21 @@ use crate::{
     },
 };
 
-use super::ast::{AstNode, StatementType};
+use super::ast::{Ast, AstNode, StatementType};
 
 pub struct Parser {
     tokens: Vec<Token>,
+    source_file: PathBuf,
     current: usize,
     root: AstNode,
 }
 
 impl Parser {
-    pub fn new(tokens: &[Token]) -> Self {
+    pub fn new(tokens: &[Token], source_file: &Path) -> Self {
         Parser {
             tokens: tokens.to_vec(),
             current: 0,
+            source_file: source_file.to_path_buf(),
             root: AstNode::Program { statements: vec![] },
         }
     }
@@ -29,7 +33,7 @@ impl Parser {
     }
 
     fn peek_token(&self) -> Option<&Token> {
-        self.tokens.get(self.current)
+        self.tokens.get(self.current + 1)
     }
 
     pub fn parse(&mut self) -> Result<&AstNode> {
@@ -56,16 +60,29 @@ impl Parser {
 
         match &current_token.kind {
             TokenKind::Let => self.parse_var_decl(),
-            TokenKind::Identifier => self.parse_identifier(),
+            TokenKind::Identifier => {
+                let next_tok = self.peek_token();
+                match next_tok {
+                    Some(tok) => match tok.kind {
+                        TokenKind::Equals => {
+                            let a = self.parse_assignment_statement();
+                            self.consume_if(TokenKind::Semicolon)?;
+                            a
+                        }
+                        _ => self.parse_identifier(),
+                    },
+                    None => self.parse_identifier(),
+                }
+            }
             TokenKind::Print => self.parse_print_statement(),
-            TokenKind::Delay => todo!(),
-            TokenKind::PadWrite => todo!(),
-            TokenKind::PadWriteBox => todo!(),
-            TokenKind::If => todo!(),
-            TokenKind::For => todo!(),
-            TokenKind::While => todo!(),
-            TokenKind::Return => todo!(),
-            TokenKind::Function => todo!(),
+            TokenKind::Delay => self.parse_delay(),
+            TokenKind::PadWrite => self.parse_write(),
+            TokenKind::PadWriteBox => self.parse_write_box(),
+            TokenKind::If => self.parse_if(),
+            TokenKind::For => self.parse_for(),
+            TokenKind::While => self.parse_while(),
+            TokenKind::Function => self.parse_function_decl(),
+            TokenKind::Return => self.parse_return(),
             TokenKind::LBrace => self.parse_block(),
             TokenKind::EndOfFile => Ok(AstNode::Empty),
             _ => Err(Error::Parse(ParseError::UnexpectedToken {
@@ -73,9 +90,225 @@ impl Parser {
                 file: file!(),
                 line: line!(),
                 col: column!(),
+                source_file: self.source_file.clone(),
                 found: current_token.clone(),
             })),
         }
+    }
+
+    fn parse_function_decl(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::Function)?;
+        let identifier = self.parse_identifier()?;
+        self.consume_if(TokenKind::LParen)?;
+
+        let mut params = vec![];
+        if let TokenKind::Identifier = self.current_token().kind {
+            params.extend(self.parse_formal_params()?);
+        }
+
+        self.consume_if(TokenKind::RParen)?;
+
+        self.consume_if(TokenKind::Arrow)?;
+
+        let return_type = self.consume_if(TokenKind::Type)?.clone();
+
+        // TODO: Add array like function array_list() -> int[] {}
+        let block = self.parse_block()?;
+
+        Ok(AstNode::FunctionDecl {
+            identifier: Box::new(identifier),
+            params,
+            return_type,
+            block: Box::new(block),
+        })
+    }
+
+    fn parse_formal_params(&mut self) -> Result<Vec<AstNode>> {
+        let mut params = vec![];
+
+        let first_param = self.parse_formal_param()?;
+        params.push(first_param);
+
+        if let TokenKind::Comma = self.current_token().kind {
+            self.consume();
+            params.extend(self.parse_formal_params()?);
+        }
+
+        Ok(params)
+    }
+
+    fn parse_formal_param(&mut self) -> Result<AstNode> {
+        let identifier = self.parse_identifier()?;
+        self.consume_if(TokenKind::Colon)?;
+        let param_type = self.consume_if(TokenKind::Type)?.clone();
+        Ok(AstNode::FormalParam {
+            identifier: Box::new(identifier),
+            param_type,
+        })
+    }
+
+    fn parse_while(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::While)?;
+        self.consume_if(TokenKind::LParen)?;
+        let condition = self.parse_expression()?;
+        self.consume_if(TokenKind::RParen)?;
+        let block = self.parse_block()?;
+        Ok(AstNode::While {
+            condition: Box::new(condition),
+            body: Box::new(block),
+        })
+    }
+
+    fn parse_for(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::For)?;
+        self.consume_if(TokenKind::LParen)?;
+
+        let initializer = match self.current_token().kind {
+            TokenKind::Semicolon => {
+                self.consume_if(TokenKind::Semicolon)?;
+                None
+            }
+            TokenKind::Let => Some(self.parse_var_decl()?),
+            _ => Err(Error::Parse(ParseError::UnexpectedToken {
+                expected: TokenKind::Let,
+                found: self.current_token().clone(),
+                source_file: self.source_file.clone(),
+                file: file!(),
+                line: line!(),
+                col: column!(),
+            }))?,
+        };
+
+        let condition = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Semicolon)?;
+
+        let increment = match self.current_token().kind {
+            TokenKind::RParen => {
+                self.consume_if(TokenKind::RParen)?;
+                None
+            }
+            TokenKind::Identifier => Some(self.parse_assignment_statement()?),
+            _ => Err(Error::Parse(ParseError::UnexpectedToken {
+                expected: TokenKind::Identifier,
+                found: self.current_token().clone(),
+                source_file: self.source_file.clone(),
+                file: file!(),
+                line: line!(),
+                col: column!(),
+            }))?,
+        };
+
+        let a = match increment {
+            Some(_) => Some(self.consume_if(TokenKind::RParen)?),
+            None => None,
+        };
+
+        let body = self.parse_block()?;
+
+        Ok(AstNode::For {
+            initializer: Box::new(initializer),
+            condition: Box::new(condition),
+            increment: Box::new(increment),
+            body: Box::new(body),
+        })
+    }
+
+    fn parse_if(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::If)?;
+        self.consume_if(TokenKind::LParen)?;
+        let condition = self.parse_expression()?;
+        self.consume_if(TokenKind::RParen)?;
+        let block = self.parse_block()?;
+
+        if self.current_token().kind == TokenKind::Else {
+            self.consume();
+            let else_block = self.parse_block()?;
+            return Ok(AstNode::If {
+                condition: Box::new(condition),
+                if_true: Box::new(block),
+                if_false: Some(Box::new(else_block)),
+            });
+        }
+
+        Ok(AstNode::If {
+            condition: Box::new(condition),
+            if_true: Box::new(block),
+            if_false: None,
+        })
+    }
+
+    fn parse_write_box(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::PadWriteBox)?;
+        let loc_x = self.parse_expression()?;
+        self.consume_if(TokenKind::Comma)?;
+        let loc_y = self.parse_expression()?;
+        self.consume_if(TokenKind::Comma)?;
+        let width = self.parse_expression()?;
+        self.consume_if(TokenKind::Comma)?;
+        let height = self.parse_expression()?;
+        self.consume_if(TokenKind::Comma)?;
+        let colour = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Semicolon)?;
+
+        Ok(AstNode::PadWriteBox {
+            loc_x: Box::new(loc_x),
+            loc_y: Box::new(loc_y),
+            width: Box::new(width),
+            height: Box::new(height),
+            colour: Box::new(colour),
+        })
+    }
+
+    fn parse_write(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::PadWrite)?;
+
+        let loc_x = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Comma)?;
+
+        let loc_y = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Comma)?;
+
+        let colour = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Semicolon)?;
+
+        Ok(AstNode::Statement {
+            kind: StatementType::Write {
+                expression: Box::new(AstNode::PadWrite {
+                    loc_x: Box::new(loc_x),
+                    loc_y: Box::new(loc_y),
+                    colour: Box::new(colour),
+                }),
+            },
+        })
+    }
+
+    fn parse_delay(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::Delay)?;
+
+        let expr = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Semicolon)?;
+
+        Ok(AstNode::Delay {
+            expression: Box::new(expr),
+        })
+    }
+
+    fn parse_return(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::Return)?;
+
+        let expr = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Semicolon)?;
+
+        Ok(AstNode::Return {
+            expression: Box::new(expr),
+        })
     }
 
     fn parse_expression(&mut self) -> Result<AstNode> {
@@ -175,14 +408,14 @@ impl Parser {
                         self.consume();
                         Ok(AstNode::FunctionCall {
                             identifier: Box::new(ident),
-                            args: Box::new(AstNode::ActualParams { params: vec![] }),
+                            args: vec![],
                         })
                     } else {
                         let args = self.parse_actual_params()?;
                         self.consume_if(TokenKind::RParen)?;
                         Ok(AstNode::FunctionCall {
                             identifier: Box::new(ident),
-                            args: Box::new(args),
+                            args,
                         })
                     }
                 } else {
@@ -193,7 +426,7 @@ impl Parser {
             TokenKind::LParen => self.parse_sub_expr(),
             TokenKind::Minus | TokenKind::Not => self.parse_unary_expr(),
             TokenKind::PadRandI => self.parse_pad_rand_i(),
-            TokenKind::IntLiteral(_)
+            TokenKind::IntLiteral
             | TokenKind::FloatLiteral(_)
             | TokenKind::BoolLiteral(_)
             | TokenKind::ColourLiteral(_) => self.parse_literal(),
@@ -202,6 +435,7 @@ impl Parser {
             _ => Err(Error::Parse(ParseError::UnexpectedTokenList {
                 expected: vec![TokenKind::Identifier],
                 found: next_token.clone(),
+                source_file: self.source_file.clone(),
                 file: file!(),
                 line: line!(),
                 col: column!(),
@@ -210,21 +444,13 @@ impl Parser {
     }
 
     fn parse_identifier(&mut self) -> Result<AstNode> {
-        let ident = self.consume_if(TokenKind::Identifier)?;
-
-        Ok(AstNode::Identifier {
-            token: ident.clone(),
-        })
+        let token = self.consume_if(TokenKind::Identifier)?.clone();
+        Ok(AstNode::Identifier { token })
     }
 
     fn parse_pad_width(&mut self) -> Result<AstNode> {
         self.consume_if(TokenKind::PadWidth)?;
         Ok(AstNode::PadWidth)
-    }
-
-    fn parse_pad_rand_i(&mut self) -> Result<AstNode> {
-        self.consume_if(TokenKind::PadRandI)?;
-        Ok(AstNode::PadRandI)
     }
 
     fn parse_pad_height(&mut self) -> Result<AstNode> {
@@ -234,19 +460,43 @@ impl Parser {
 
     fn parse_pad_read(&mut self) -> Result<AstNode> {
         self.consume_if(TokenKind::PadRead)?;
-        Ok(AstNode::PadRead)
+
+        let first = self.parse_expression()?;
+
+        self.consume_if(TokenKind::Comma)?;
+
+        let second = self.parse_expression()?;
+
+        Ok(AstNode::PadRead {
+            first: Box::new(first),
+            second: Box::new(second),
+        })
     }
 
+    fn parse_pad_rand_i(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::PadRandI)?;
+
+        let upper_bound = self.parse_expression()?;
+
+        // self.consume_if(TokenKind::Semicolon)?;
+
+        Ok(AstNode::PadRandI {
+            upper_bound: Box::new(upper_bound),
+        })
+    }
+
+    // TODO: Add array functionality
     fn parse_var_decl(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::Let)?;
         let identifier = self.parse_identifier()?;
         self.consume_if(TokenKind::Colon)?;
-        let var_type = self.consume().clone();
+        let kind = self.consume_if(TokenKind::Type)?.clone();
         self.consume_if(TokenKind::Equals)?;
         let expression = self.parse_expression()?;
         self.consume_if(TokenKind::Semicolon)?;
         Ok(AstNode::VarDec {
-            identifier: Box::from(identifier),
-            var_type,
+            identifier: Box::new(identifier),
+            var_type: Some(kind),
             expression: Box::new(expression),
         })
     }
@@ -254,6 +504,7 @@ impl Parser {
     fn parse_print_statement(&mut self) -> Result<AstNode> {
         self.consume_if(TokenKind::Print)?;
         let expression = self.parse_expression()?;
+        self.consume_if(TokenKind::Semicolon)?;
         Ok(AstNode::Statement {
             kind: StatementType::Print {
                 expression: Box::new(expression),
@@ -263,6 +514,7 @@ impl Parser {
 
     fn parse_block(&mut self) -> Result<AstNode> {
         let mut statements = vec![];
+        self.consume_if(TokenKind::LBrace)?;
         while self.current_token().kind != TokenKind::RBrace {
             if self.current_token().kind == TokenKind::EndOfFile {
                 return Err(ParseError::UnclosedBlock.into());
@@ -284,6 +536,7 @@ impl Parser {
         } else {
             Err(ParseError::UnexpectedToken {
                 expected: kind,
+                source_file: self.source_file.clone(),
                 found: self.current_token().clone(),
                 file: file!(),
                 line: line!(),
@@ -307,6 +560,7 @@ impl Parser {
             Err(ParseError::UnexpectedTokenList {
                 expected: kinds.into_iter().collect(),
                 found: self.current_token().clone(),
+                source_file: self.source_file.clone(),
                 file: file!(),
                 line: line!(),
                 col: column!(),
@@ -328,12 +582,16 @@ impl Parser {
         let token = self.consume().clone();
 
         match token.kind {
-            TokenKind::IntLiteral(s) => Ok(AstNode::IntLiteral(s)),
+            TokenKind::IntLiteral => Ok(AstNode::IntLiteral(token.span.lexeme.parse().unwrap())),
             TokenKind::FloatLiteral(s) => Ok(AstNode::FloatLiteral(s)),
             TokenKind::BoolLiteral(s) => Ok(AstNode::BoolLiteral(s)),
             TokenKind::ColourLiteral(s) => Ok(AstNode::ColourLiteral(s)),
+            TokenKind::PadHeight => Ok(AstNode::PadHeight),
+            TokenKind::PadWidth => Ok(AstNode::PadWidth),
+            TokenKind::PadRead => self.parse_pad_read(),
             _ => Err(ParseError::UnexpectedToken {
                 expected: TokenKind::Invalid,
+                source_file: self.source_file.clone(),
                 found: token.clone(),
                 file: file!(),
                 line: line!(),
@@ -343,25 +601,30 @@ impl Parser {
         }
     }
 
-    fn parse_actual_params(&mut self) -> Result<AstNode> {
+    fn parse_assignment_statement(&mut self) -> Result<AstNode> {
+        let identifier = self.parse_identifier()?;
+        self.consume_if(TokenKind::Equals)?;
+        let expression = self.parse_expression()?;
+        Ok(AstNode::Statement {
+            kind: StatementType::Assignment {
+                identifier: Box::new(identifier),
+                expression: Box::new(expression),
+            },
+        })
+    }
+
+    fn parse_actual_params(&mut self) -> Result<Vec<Ast>> {
         let mut params = vec![Box::from(self.parse_expression()?)];
 
         if let TokenKind::Comma = self.current_token().kind {
             self.consume();
-            while self.current_token().kind != TokenKind::RParen {
-                params.push(Box::from(self.parse_expression()?));
-                if let TokenKind::Comma = self.current_token().kind {
-                    self.consume();
-                    self.parse_actual_params()?;
-                }
+
+            match self.current_token().kind {
+                TokenKind::RParen => return Ok(params),
+                _ => params.extend(self.parse_actual_params()?),
             }
-            self.consume();
         }
 
-        Ok(AstNode::ActualParams { params })
+        Ok(params)
     }
-
-    // fn parse_literal(&mut self) -> Result<AstNode> {
-    //     let token = self.consume_
-    // }
 }
