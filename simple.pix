@@ -1,1 +1,3 @@
-__print #000000 + 3 as colour
+fun some_function(a: int, b: int) -> int {
+    return 1;
+}
