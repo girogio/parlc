@@ -72,10 +72,10 @@ impl Dfsa {
     }
 
     pub fn get_token_kind(&self, state: i32) -> TokenKind {
-        self.state_to_token
+        *self
+            .state_to_token
             .get(&state)
             .unwrap_or(&TokenKind::Invalid)
-            .clone()
     }
 
     pub fn is_accepting(&self, state: &i32) -> bool {

@@ -76,7 +76,7 @@ impl<'a> Transition<'a> {
         for (state, token) in &self.final_state_token {
             self.dfsa_builder
                 .state_to_token
-                .insert(*state, token.clone());
+                .insert(*state, *token);
             self.dfsa_builder.accepted_states.push(*state);
         }
 
