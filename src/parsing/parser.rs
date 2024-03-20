@@ -37,12 +37,6 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<&AstNode> {
-        println!("Tokens: \n");
-        for token in &self.tokens {
-            println!("{}", token);
-        }
-        println!("\nParsing...\n ");
-
         self.root = self.parse_program()?;
         Ok(&self.root)
     }
@@ -87,9 +81,6 @@ impl Parser {
             TokenKind::EndOfFile => Ok(AstNode::Empty),
             _ => Err(Error::Parse(ParseError::UnexpectedToken {
                 expected: TokenKind::Invalid,
-                file: file!(),
-                line: line!(),
-                col: column!(),
                 source_file: self.source_file.clone(),
                 found: current_token.clone(),
             })),
@@ -173,9 +164,6 @@ impl Parser {
                 expected: TokenKind::Let,
                 found: self.current_token().clone(),
                 source_file: self.source_file.clone(),
-                file: file!(),
-                line: line!(),
-                col: column!(),
             }))?,
         };
 
@@ -193,9 +181,6 @@ impl Parser {
                 expected: TokenKind::Identifier,
                 found: self.current_token().clone(),
                 source_file: self.source_file.clone(),
-                file: file!(),
-                line: line!(),
-                col: column!(),
             }))?,
         };
 
@@ -432,9 +417,6 @@ impl Parser {
                 expected: vec![TokenKind::Identifier],
                 found: next_token.clone(),
                 source_file: self.source_file.clone(),
-                file: file!(),
-                line: line!(),
-                col: column!(),
             })),
         }
     }
@@ -532,9 +514,6 @@ impl Parser {
                 expected: kind,
                 source_file: self.source_file.clone(),
                 found: self.current_token().clone(),
-                file: file!(),
-                line: line!(),
-                col: column!(),
             }
             .into())
         }
@@ -555,9 +534,6 @@ impl Parser {
                 expected: kinds.into_iter().collect(),
                 found: self.current_token().clone(),
                 source_file: self.source_file.clone(),
-                file: file!(),
-                line: line!(),
-                col: column!(),
             }
             .into())
         }
@@ -587,9 +563,6 @@ impl Parser {
                 expected: TokenKind::Invalid,
                 source_file: self.source_file.clone(),
                 found: token.clone(),
-                file: file!(),
-                line: line!(),
-                col: column!(),
             }
             .into()),
         }

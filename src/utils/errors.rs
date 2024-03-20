@@ -26,20 +26,14 @@ pub enum LexicalError {
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("Parse error in file: {file}:{line}:{col}\nUnexpected token found at {}:{}:{} \nExpected {expected:?}, found {found}", .source_file.display(), .found.span.from_line, .found.span.from_col)]
+    #[error("Unexpected token found at {}:{}:{} \nExpected {expected:?}, found {found}", .source_file.display(), .found.span.from_line, .found.span.from_col)]
     UnexpectedToken {
         expected: TokenKind,
         found: Token,
         source_file: PathBuf,
-        file: &'static str,
-        line: u32,
-        col: u32,
     },
-    #[error("Parser error in file: {}:{}:{}\nUnexpected token found at {}:{}:{} \nExpected one of these types: {:?}",.file, .line, .col, .source_file.display(), .found.span.from_line, .found.span.from_col, .expected)]
+    #[error("Unexpected token found at {}:{}:{} \nExpected one of these types: {:?}", .source_file.display(), .found.span.from_line, .found.span.from_col, .expected)]
     UnexpectedTokenList {
-        file: &'static str,
-        line: u32,
-        col: u32,
         source_file: PathBuf,
         found: Token,
         expected: Vec<TokenKind>,
