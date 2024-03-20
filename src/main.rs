@@ -38,85 +38,90 @@ fn main() {
             let mut file = std::fs::File::open(file_path);
 
             match file {
-                Ok(ref mut file) => file.read_to_string(&mut input).unwrap(),
+                Ok(ref mut file) => {
+                    file.read_to_string(&mut input).unwrap();
+
+                    println!(
+                        "{} `{}`\n",
+                        style("Lexing").green().bold(),
+                        style(file_path.display())
+                    );
+
+                    let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, file_path, None);
+                    let tokens = lexer.lex();
+
+                    match tokens {
+                        Ok(tokens) => {
+                            for token in tokens {
+                                println!("  {}", token);
+                            }
+                        }
+                        Err(e) => {
+                            for err in e {
+                                eprintln!("{}", err);
+                            }
+                            std::process::exit(1);
+                        }
+                    }
+                }
                 Err(_) => {
                     let msg = style("File not found:").red().bold().for_stderr();
                     eprintln!("{} `{}`...", msg, style(file_path.display()).cyan());
                     std::process::exit(1);
                 }
             };
-        }
-
-        println!(
-            "\n{} `{}`\n",
-            style("Lexing").green().bold(),
-            style(lexer_matches.get_one::<PathBuf>("file").unwrap().display()),
-        );
-
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, None);
-        let tokens = lexer.lex();
-
-        match tokens {
-            Ok(tokens) => {
-                for token in tokens {
-                    println!("  {}", token);
-                }
-            }
-            Err(e) => {
-                for err in e {
-                    eprintln!("{}", err);
-                }
-                std::process::exit(1);
-            }
         }
     }
 
     if let Some(parser_matches) = matches.subcommand_matches("parse") {
+        let file = parser_matches.get_one::<PathBuf>("file");
         let mut input = String::new();
 
-        if let Some(file_path) = parser_matches.get_one::<PathBuf>("file") {
+        if let Some(file_path) = file {
             let mut file = std::fs::File::open(file_path);
 
             match file {
-                Ok(ref mut file) => file.read_to_string(&mut input).unwrap(),
+                Ok(ref mut file) => {
+                    file.read_to_string(&mut input).unwrap();
+
+                    println!(
+                        "\n{} `{}`\n",
+                        style("Parsing").green().bold(),
+                        style(file_path.display())
+                    );
+
+                    let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, file_path, None);
+
+                    let tokens = match lexer.lex() {
+                        Ok(tokens) => tokens,
+                        Err(e) => {
+                            for err in e {
+                                eprintln!("{}", err);
+                            }
+                            std::process::exit(1);
+                        }
+                    };
+
+                    let mut parser = Parser::new(&tokens, file_path);
+                    let ast = parser.parse();
+
+                    match ast {
+                        Ok(ast) => {
+                            let mut printer = AstPrinter::new();
+                            printer.visit(ast);
+                        }
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
                 Err(_) => {
                     let msg = style("File not found:").red().bold().for_stderr();
                     eprintln!("{} `{}`...", msg, style(file_path.display()).cyan());
                     std::process::exit(1);
                 }
             };
-        }
-
-        println!(
-            "\n{} `{}`\n",
-            style("Parsing").green().bold(),
-            style(parser_matches.get_one::<PathBuf>("file").unwrap().display()),
-        );
-
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, None);
-
-        let tokens = match lexer.lex() {
-            Ok(tokens) => tokens,
-            Err(e) => {
-                for err in e {
-                    eprintln!("{}", err);
-                }
-                std::process::exit(1);
-            }
-        };
-
-        let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
-
-        match ast {
-            Ok(ast) => {
-                let mut printer = AstPrinter::new();
-                printer.visit(ast);
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
         }
     }
 }
