@@ -1,29 +1,6 @@
 use crate::core::Token;
 
 #[derive(Debug)]
-pub enum StatementType {
-    Let,
-    If,
-    While,
-    Function,
-    Return,
-    Print {
-        expression: Ast,
-    },
-    Delay,
-    PixelR,
-    Pixel,
-    Write {
-        expression: Ast,
-    },
-    Assignment {
-        identifier: Box<AstNode>,
-        expression: Box<AstNode>,
-    },
-}
-
-#[warn(clippy::enum_variant_names)]
-#[derive(Debug)]
 pub enum AstNode {
     Program {
         statements: Vec<AstNode>,
@@ -31,9 +8,6 @@ pub enum AstNode {
     VarDec {
         identifier: Ast,
         var_type: Option<Token>,
-        expression: Ast,
-    },
-    DelayStatement {
         expression: Ast,
     },
     PixelStatement {
@@ -53,18 +27,11 @@ pub enum AstNode {
         increment: Ast,
         body: Ast,
     },
-    WhileStatement {
-        condition: Ast,
-        body: Ast,
-    },
     Identifier {
         token: Token,
     },
     Block {
         statements: Vec<AstNode>,
-    },
-    Statement {
-        kind: StatementType,
     },
     Expression {
         casted_type: Option<Token>,
@@ -143,6 +110,13 @@ pub enum AstNode {
         return_type: Token,
         block: Box<AstNode>,
     },
+    Print {
+        expression: Box<AstNode>,
+    },
+    Assignment {
+        identifier: Box<AstNode>,
+        expression: Box<AstNode>,
+    },
 }
 
 pub type Ast = Box<AstNode>;
@@ -154,10 +128,6 @@ pub trait Visitor {
 pub struct AstPrinter {
     tab_level: usize,
     reset: bool,
-}
-
-fn print_node(node: &AstNode) {
-    print!("{:?}", node);
 }
 
 impl AstPrinter {
@@ -181,20 +151,12 @@ impl AstPrinter {
 
 impl Visitor for AstPrinter {
     fn visit(&mut self, node: &AstNode) {
-        if !self.reset {
-            print!("{}", "  ".repeat(self.tab_level));
-        } else {
-            self.reset = false;
-        }
         match node {
             AstNode::Program { statements } => {
                 for statement in statements {
                     self.visit(statement);
+                    println!("\n");
                 }
-            }
-
-            AstNode::Identifier { token } => {
-                print!("{}", token.span.lexeme);
             }
 
             AstNode::VarDec {
@@ -209,16 +171,96 @@ impl Visitor for AstPrinter {
                     None => println!(": n/a"),
                 }
                 self.visit(expression);
+                print!(";");
+            }
+
+            AstNode::Delay { expression } => {
+                print!("__delay ");
+                self.visit(expression);
+                print!(";");
+            }
+
+            AstNode::Print { expression } => {
+                print!("__print ");
+                self.visit(expression);
+                print!(";");
+            }
+
+            AstNode::If {
+                condition,
+                if_true,
+                if_false,
+            } => {
+                print!("if (");
+                self.visit(condition);
+                print!(") ");
+                self.visit(if_true);
+            }
+
+            AstNode::Assignment {
+                identifier,
+                expression,
+            } => {
+                self.visit(identifier);
+                print!(" = ");
+                self.visit(expression);
+                print!(";");
+            }
+
+            AstNode::For {
+                initializer,
+                condition,
+                increment,
+                body,
+            } => {
+                print!("for (");
+
+                // This is to avoid printing newline after the variable declaration in a for loop
+                if let Some(AstNode::VarDec {
+                    identifier,
+                    var_type,
+                    expression,
+                }) = initializer.as_ref()
+                {
+                    print!("let ");
+                    self.visit(identifier);
+                    if let Some(var_type) = var_type {
+                        print!(": {} = ", var_type.span.lexeme);
+                    }
+                    self.visit(expression);
+                }
+
+                print!("; ");
+
+                self.visit(condition);
+
+                print!("; ");
+                match increment.as_ref() {
+                    Some(increment) => {
+                        self.visit(increment);
+                    }
+                    None => {}
+                }
+                print!(") ");
+                self.visit(body);
+            }
+
+            AstNode::Return { expression } => {
+                print!("return ");
+                self.visit(expression);
+                print!(";");
             }
 
             AstNode::Block { statements } => {
-                println!("{}{{", "  ".repeat(self.tab_level));
+                println!("\n{}{{", "  ".repeat(self.tab_level));
                 self.tab_level += 1;
                 for statement in statements {
+                    print!("{}", "  ".repeat(self.tab_level));
                     self.visit(statement);
+                    println!();
                 }
                 self.tab_level -= 1;
-                println!("\n{}}}", "  ".repeat(self.tab_level));
+                print!("{}}}", "  ".repeat(self.tab_level));
             }
 
             AstNode::Expression {
@@ -250,71 +292,14 @@ impl Visitor for AstPrinter {
                 self.visit(block);
             }
 
-            AstNode::For {
-                initializer,
-                condition,
-                increment,
-                body,
-            } => {
-                print!("for (");
-                match initializer.as_ref() {
-                    Some(initializer) => {
-                        self.visit(initializer);
-                    }
-                    None => {}
-                }
-                print!("; ");
-                self.visit(condition);
-                print!("; ");
-                match increment.as_ref() {
-                    Some(increment) => {
-                        self.visit(increment);
-                    }
-                    None => {}
-                }
-                println!(") ");
-                self.visit(body);
-            }
-
             AstNode::While { condition, body } => {
                 print!("while (");
                 let prev_tab_level = self.tab_level;
                 self.tab_level = 0;
                 self.visit(condition);
                 self.tab_level = prev_tab_level;
-                println!(") ");
+                print!(") ");
                 self.visit(body);
-            }
-
-            AstNode::Statement { kind } => {
-                self.tab_level += 1;
-                match kind {
-                    StatementType::Write { expression } => {
-                        print!("__write ");
-                        self.visit(expression);
-                    }
-                    StatementType::Assignment {
-                        identifier,
-                        expression,
-                    } => {
-                        self.visit(identifier);
-                        print!(" = ");
-                        let prev_tab_level = self.tab_level;
-                        self.tab_level = 0;
-                        self.visit(expression);
-                        print!("; ");
-                        self.tab_level = prev_tab_level;
-                    }
-                    StatementType::Print { expression } => {
-                        print!("__print ");
-                        let prev_tab_level = self.tab_level;
-                        self.tab_level = 0;
-                        self.visit(expression);
-                        self.tab_level = prev_tab_level;
-                    }
-                    _ => print_node(node),
-                }
-                self.tab_level -= 1;
             }
 
             AstNode::PadWrite {
@@ -328,6 +313,7 @@ impl Visitor for AstPrinter {
                 self.visit(loc_y);
                 print!(", ");
                 self.visit(colour);
+                print!(";")
             }
 
             AstNode::PadWriteBox {
@@ -347,6 +333,7 @@ impl Visitor for AstPrinter {
                 self.visit(height);
                 print!(", ");
                 self.visit(colour);
+                print!(";")
             }
 
             AstNode::BinOp {
@@ -365,23 +352,10 @@ impl Visitor for AstPrinter {
             }
 
             AstNode::PadRead { first, second } => {
-                println!("Read: ");
+                print!("__read ");
                 self.visit(first);
+                print!(", ");
                 self.visit(second);
-            }
-
-            AstNode::If {
-                condition,
-                if_true,
-                if_false,
-            } => {
-                print!("if (");
-                let prev_tab_level = self.tab_level;
-                self.tab_level = 0;
-                self.visit(condition);
-                self.tab_level = prev_tab_level;
-                println!(") ");
-                self.visit(if_true);
             }
 
             AstNode::FormalParam {
@@ -389,65 +363,42 @@ impl Visitor for AstPrinter {
                 param_type,
             } => {
                 self.visit(identifier);
-                print!(": {}, ", param_type.span.lexeme);
+                print!(": {}", param_type.span.lexeme);
             }
 
             AstNode::PadRandI { upper_bound } => {
-                println!("Random Int: ");
-                self.tab_level += 1;
-                println!("{}Upper Bound: ", "  ".repeat(self.tab_level));
-                self.tab_level += 1;
+                print!("__randi ");
+
                 self.visit(upper_bound);
-                self.tab_level -= 2;
             }
 
             AstNode::FunctionCall { identifier, args } => {
-                println!("Function Call: ");
                 self.visit(identifier);
-                println!("{}Arguments: ", "  ".repeat(self.tab_level));
-                self.tab_level += 1;
+                print!("(");
+
+                let (args, last) = args.split_at(args.len() - 1);
+
                 for arg in args {
                     self.visit(arg);
+                    print!(", ");
                 }
-                self.tab_level -= 1;
+
+                if let Some(last) = last.first() {
+                    self.visit(last);
+                }
+
+                print!(")");
             }
 
-            AstNode::Empty => {
-                print_node(node);
+            AstNode::Identifier { token } => {
+                print!("{}", token.span.lexeme);
             }
-            AstNode::DelayStatement { expression } => {
-                println!("Delay: ");
-                self.visit(expression);
-            }
-            AstNode::PixelStatement { expression } => todo!(),
-            AstNode::ReturnStatement { expression } => todo!(),
-            AstNode::IfStatement {
-                condition,
-                then_branch,
-                else_branch,
-            } => todo!(),
-            AstNode::ForStatement {
-                initializer,
-                condition,
-                increment,
-                body,
-            } => todo!(),
-            AstNode::WhileStatement { condition, body } => todo!(),
-            AstNode::PadWidth => todo!(),
-            AstNode::PadHeight => todo!(),
-            AstNode::ActualParams { params } => todo!(),
-            AstNode::Delay { expression } => {
-                println!("Delay: ");
-                self.visit(expression);
-            }
-            AstNode::Return { expression } => {
-                print!("return ");
-                let a = self.reset();
-                self.visit(expression);
-                print!(";");
-                self.restore(a);
-            }
-            _ => print_node(node),
+
+            AstNode::IntLiteral(i) => print!("{}", i),
+            AstNode::FloatLiteral(f) => print!("{}", f),
+            AstNode::BoolLiteral(b) => print!("{}", b),
+            AstNode::ColourLiteral(c) => print!("{}", c),
+            _ => todo!(),
         }
     }
 }

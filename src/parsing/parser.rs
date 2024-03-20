@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-use super::ast::{Ast, AstNode, StatementType};
+use super::ast::{Ast, AstNode};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -276,14 +276,10 @@ impl Parser {
 
         self.consume_if(TokenKind::Semicolon)?;
 
-        Ok(AstNode::Statement {
-            kind: StatementType::Write {
-                expression: Box::new(AstNode::PadWrite {
-                    loc_x: Box::new(loc_x),
-                    loc_y: Box::new(loc_y),
-                    colour: Box::new(colour),
-                }),
-            },
+        Ok(AstNode::PadWrite {
+            loc_x: Box::new(loc_x),
+            loc_y: Box::new(loc_y),
+            colour: Box::new(colour),
         })
     }
 
@@ -505,10 +501,8 @@ impl Parser {
         self.consume_if(TokenKind::Print)?;
         let expression = self.parse_expression()?;
         self.consume_if(TokenKind::Semicolon)?;
-        Ok(AstNode::Statement {
-            kind: StatementType::Print {
-                expression: Box::new(expression),
-            },
+        Ok(AstNode::Print {
+            expression: Box::new(expression),
         })
     }
 
@@ -605,11 +599,9 @@ impl Parser {
         let identifier = self.parse_identifier()?;
         self.consume_if(TokenKind::Equals)?;
         let expression = self.parse_expression()?;
-        Ok(AstNode::Statement {
-            kind: StatementType::Assignment {
-                identifier: Box::new(identifier),
-                expression: Box::new(expression),
-            },
+        Ok(AstNode::Assignment {
+            identifier: Box::new(identifier),
+            expression: Box::new(expression),
         })
     }
 
