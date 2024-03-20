@@ -199,7 +199,7 @@ impl Parser {
             }))?,
         };
 
-        let a = match increment {
+        match increment {
             Some(_) => Some(self.consume_if(TokenKind::RParen)?),
             None => None,
         };

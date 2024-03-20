@@ -3,4 +3,4 @@ pub mod errors;
 
 pub use buffer::SimpleBuffer;
 pub use buffer::Stream;
-pub use errors::{Result};
+pub use errors::Result;
