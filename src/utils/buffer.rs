@@ -1,10 +1,12 @@
+use std::path::{Path, PathBuf};
+
 // const BUFFER_SIZE: usize = 4096;
 const EOF: char = 0 as char;
 // const N2: usize = BUFFER_SIZE;
 // const N: usize = N2 / 2;
 
 pub trait Stream {
-    fn new(input: &str) -> Self
+    fn new(input: &str, path: &Path) -> Self
     where
         Self: Sized;
     fn rollback(&mut self);
@@ -14,24 +16,31 @@ pub trait Stream {
     fn get_input_pointer(&self) -> usize;
     fn is_eof(&self) -> bool;
     fn current_char(&self) -> char;
+    fn file_path(&self) -> &str;
 }
 
 #[derive(Clone)]
 pub struct SimpleBuffer {
     input: String,
     input_pointer: usize,
+    file: PathBuf,
     line: usize,
     col: usize,
 }
 
 impl Stream for SimpleBuffer {
-    fn new(input: &str) -> SimpleBuffer {
+    fn new(input: &str, path: &Path) -> SimpleBuffer {
         SimpleBuffer {
             line: 1,
             col: 1,
+            file: path.to_path_buf(),
             input: input.to_string(),
             input_pointer: 0,
         }
+    }
+
+    fn file_path(&self) -> &str {
+        self.file.to_str().unwrap()
     }
 
     fn rollback(&mut self) {
