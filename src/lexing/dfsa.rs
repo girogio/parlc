@@ -289,7 +289,7 @@ impl DfsaBuilder {
             .to([Category::Period])
             .to([Category::Digit])
             .repeated()
-            .goes_to(TokenKind::FloatLiteral(String::new()))
+            .goes_to(TokenKind::FloatLiteral)
             .done();
 
         self.add_category(['#'], Category::Hashtag)
@@ -301,7 +301,7 @@ impl DfsaBuilder {
             .to([Category::Digit, Category::HexAndLetter])
             .to([Category::Digit, Category::HexAndLetter])
             .to([Category::Digit, Category::HexAndLetter])
-            .goes_to(TokenKind::ColourLiteral(String::new()))
+            .goes_to(TokenKind::ColourLiteral)
             .done();
 
         self

@@ -78,7 +78,6 @@ impl Parser {
             TokenKind::Function => self.parse_function_decl(),
             TokenKind::Return => self.parse_return(),
             TokenKind::LBrace => self.parse_block(),
-            TokenKind::EndOfFile => Ok(AstNode::Empty),
             _ => Err(Error::Parse(ParseError::UnexpectedToken {
                 expected: TokenKind::Invalid,
                 source_file: self.source_file.clone(),
@@ -408,9 +407,9 @@ impl Parser {
             TokenKind::Minus | TokenKind::Not => self.parse_unary_expr(),
             TokenKind::PadRandI => self.parse_pad_rand_i(),
             TokenKind::IntLiteral
-            | TokenKind::FloatLiteral(_)
-            | TokenKind::BoolLiteral(_)
-            | TokenKind::ColourLiteral(_) => self.parse_literal(),
+            | TokenKind::FloatLiteral
+            | TokenKind::BoolLiteral
+            | TokenKind::ColourLiteral => self.parse_literal(),
             TokenKind::PadHeight => self.parse_pad_height(),
             TokenKind::PadRead => self.parse_pad_read(),
             _ => Err(Error::Parse(ParseError::UnexpectedTokenList {
@@ -552,10 +551,10 @@ impl Parser {
         let token = self.consume().clone();
 
         match token.kind {
-            TokenKind::IntLiteral => Ok(AstNode::IntLiteral(token.span.lexeme.parse().unwrap())),
-            TokenKind::FloatLiteral(s) => Ok(AstNode::FloatLiteral(s)),
-            TokenKind::BoolLiteral(s) => Ok(AstNode::BoolLiteral(s)),
-            TokenKind::ColourLiteral(s) => Ok(AstNode::ColourLiteral(s)),
+            TokenKind::IntLiteral => Ok(AstNode::IntLiteral(token)),
+            TokenKind::FloatLiteral => Ok(AstNode::FloatLiteral(token)),
+            TokenKind::BoolLiteral => Ok(AstNode::BoolLiteral(token)),
+            TokenKind::ColourLiteral => Ok(AstNode::ColourLiteral(token)),
             TokenKind::PadHeight => Ok(AstNode::PadHeight),
             TokenKind::PadWidth => Ok(AstNode::PadWidth),
             TokenKind::PadRead => self.parse_pad_read(),

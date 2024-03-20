@@ -65,31 +65,27 @@ impl<B: Stream + Clone> Lexer<B> {
     /// valid identifiers, otherwise they won't be caught.
     fn handle_keyword(&self, lexeme: &str) -> TokenKind {
         match lexeme {
-            "for" => TokenKind::For,
-            "if" => TokenKind::If,
-            "fun" => TokenKind::Function,
-            "else" => TokenKind::Else,
-            "let" => TokenKind::Let,
-            "while" => TokenKind::While,
-            "or" => TokenKind::Or,
-            "and" => TokenKind::And,
-            "not" => TokenKind::Not,
-            "int" => TokenKind::Type,
-            "float" => TokenKind::Type,
-            "true" => TokenKind::BoolLiteral(true),
-            "false" => TokenKind::BoolLiteral(false),
-            "bool" => TokenKind::Type,
-            "colour" => TokenKind::Type,
-            "return" => TokenKind::Return,
-            "__write" => TokenKind::PadWrite,
-            "__write_box" => TokenKind::PadWriteBox,
             "__delay" => TokenKind::Delay,
-            "__width" => TokenKind::PadWidth,
             "__height" => TokenKind::PadHeight,
-            "__read" => TokenKind::PadRead,
             "__print" => TokenKind::Print,
             "__randi" => TokenKind::PadRandI,
+            "__read" => TokenKind::PadRead,
+            "__width" => TokenKind::PadWidth,
+            "__write_box" => TokenKind::PadWriteBox,
+            "__write" => TokenKind::PadWrite,
+            "and" => TokenKind::And,
             "as" => TokenKind::As,
+            "else" => TokenKind::Else,
+            "for" => TokenKind::For,
+            "fun" => TokenKind::Function,
+            "if" => TokenKind::If,
+            "int" | "float" | "bool" | "colour" => TokenKind::Type,
+            "let" => TokenKind::Let,
+            "not" => TokenKind::Not,
+            "or" => TokenKind::Or,
+            "return" => TokenKind::Return,
+            "true" | "false" => TokenKind::BoolLiteral,
+            "while" => TokenKind::While,
             _ => TokenKind::Identifier,
         }
     }
@@ -132,8 +128,6 @@ impl<B: Stream + Clone> Lexer<B> {
         match self.dfsa.is_accepting(&state) {
             true => Ok(Token::new(
                 match self.dfsa.get_token_kind(state) {
-                    TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
-                    TokenKind::ColourLiteral(_) => TokenKind::ColourLiteral(lexeme),
                     TokenKind::Identifier => self.handle_keyword(&lexeme),
                     _ => self.dfsa.get_token_kind(state),
                 },
@@ -141,25 +135,15 @@ impl<B: Stream + Clone> Lexer<B> {
             )),
             false => {
                 let error = match prev_state {
-                    35 => LexicalError::UnterminatedBlockComment(text_span),
-                    150 => LexicalError::InvalidFloatLiteral(TextSpan::new(
-                        start_line,
-                        end_line,
-                        start_col,
-                        end_col,
-                        &self.buffer.current_char().to_string(),
-                    )),
-                    100 => LexicalError::UnterminatedString(text_span),
+                    _ if self.dfsa.is_accepting(&prev_state) => LexicalError::InvalidCharacter(
+                        TextSpan::new(start_line, start_line, start_col, start_col, &lexeme),
+                    ),
                     _ => LexicalError::InvalidCharacter(TextSpan::new(
-                        start_line,
-                        end_line,
-                        start_col,
-                        end_col,
-                        &self.buffer.current_char().to_string(),
+                        start_line, end_line, start_col, end_col, &lexeme,
                     )),
                 };
-                self.buffer.next_char();
-                Err(error.into())
+
+                Err(Error::Lexical(error))
             }
         }
     }

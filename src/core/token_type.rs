@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Hash, Eq, Clone)]
+#[derive(Debug, PartialEq, Hash, Eq, Clone, Copy)]
 pub enum TokenKind {
     Colon,
     Comma,
@@ -49,9 +49,9 @@ pub enum TokenKind {
     LessThanEqual,
     NotEqual,
     // Type and literal stuff
-    BoolLiteral(bool),
-    ColourLiteral(String),
-    FloatLiteral(String),
+    BoolLiteral,
+    ColourLiteral,
+    FloatLiteral,
     IntLiteral,
     Type,
     Arrow,

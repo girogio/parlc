@@ -10,23 +10,6 @@ pub enum AstNode {
         var_type: Option<Token>,
         expression: Ast,
     },
-    PixelStatement {
-        expression: Ast,
-    },
-    ReturnStatement {
-        expression: Ast,
-    },
-    IfStatement {
-        condition: Ast,
-        then_branch: Ast,
-        else_branch: Ast,
-    },
-    ForStatement {
-        initializer: Ast,
-        condition: Ast,
-        increment: Ast,
-        body: Ast,
-    },
     Identifier {
         token: Token,
     },
@@ -46,7 +29,6 @@ pub enum AstNode {
         operator: Token,
         right: Ast,
     },
-    Empty,
     PadWidth,
     PadRandI {
         upper_bound: Ast,
@@ -56,10 +38,10 @@ pub enum AstNode {
         first: Ast,
         second: Ast,
     },
-    IntLiteral(i32),
-    FloatLiteral(String),
-    BoolLiteral(bool),
-    ColourLiteral(String),
+    IntLiteral(Token),
+    FloatLiteral(Token),
+    BoolLiteral(Token),
+    ColourLiteral(Token),
     FunctionCall {
         identifier: Ast,
         args: Vec<Ast>,
@@ -394,11 +376,28 @@ impl Visitor for AstPrinter {
                 print!("{}", token.span.lexeme);
             }
 
-            AstNode::IntLiteral(i) => print!("{}", i),
-            AstNode::FloatLiteral(f) => print!("{}", f),
-            AstNode::BoolLiteral(b) => print!("{}", b),
-            AstNode::ColourLiteral(c) => print!("{}", c),
-            _ => todo!(),
+            AstNode::IntLiteral(token) => {
+                print!("{}", token.span.lexeme);
+            }
+
+            AstNode::FloatLiteral(token) => {
+                print!("{}", token.span.lexeme);
+            }
+
+            AstNode::BoolLiteral(token) => {
+                print!("{}", token.span.lexeme);
+            }
+
+            AstNode::ColourLiteral(token) => {
+                print!("{}", token.span.lexeme);
+            }
+            AstNode::PadWidth => {
+                print!("__width");
+            }
+            AstNode::PadHeight => {
+                print!("__height");
+            }
+            AstNode::ActualParams { params } => todo!(),
         }
     }
 }

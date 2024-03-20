@@ -71,7 +71,7 @@ fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
 // Execution (program entry point) starts at the first statement
 // that is not a function declaration. This should go in the .main
 // function of ParIR.
-let c1: colour = #00ff00 // green
+let c1: colour = #00ff00; // green
 let c2: colour = #0000ff; // blue
 let m: int = height; // the height (y-values) of the pad
 let w: int = Race(c1, c2, m); // call function Race
