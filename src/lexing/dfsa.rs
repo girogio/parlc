@@ -285,7 +285,7 @@ impl DfsaBuilder {
             .transition()
             .to([Category::Digit])
             .repeated()
-            .goes_to(TokenKind::IntLiteral(0))
+            .goes_to(TokenKind::IntLiteral)
             .to([Category::Period])
             .to([Category::Digit])
             .repeated()
@@ -322,13 +322,21 @@ impl DfsaBuilder {
         self.add_category(['<'], Category::LessThan)
             .add_category(['>'], Category::GreaterThan)
             .add_category(['='], Category::Equals)
-            .add_category(['!'], Category::Exclamation);
+            .add_category(['!'], Category::Exclamation)
+            .add_category(['-'], Category::Minus);
 
         self.transition()
             .to([Category::LessThan])
             .goes_to(TokenKind::LessThan)
             .to([Category::Equals])
             .goes_to(TokenKind::LessThanEqual)
+            .done();
+
+        self.transition()
+            .to([Category::Minus])
+            .goes_to(TokenKind::Minus)
+            .to([Category::GreaterThan])
+            .goes_to(TokenKind::Arrow)
             .done();
 
         self.transition()
@@ -453,7 +461,8 @@ mod tests {
     }
 
     fn test_parse(string: &str, dfsa: Option<Dfsa>) {
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(string, dfsa);
+        let fake_file = std::path::PathBuf::from("fake_file");
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(string, &fake_file, dfsa);
 
         match lexer.lex() {
             Ok(tokens) => {

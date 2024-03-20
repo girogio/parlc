@@ -1,11 +1,3 @@
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum DataTypes {
-    Int,
-    Float,
-    Bool,
-    Colour,
-}
-
 #[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub enum TokenKind {
     Colon,
@@ -60,6 +52,7 @@ pub enum TokenKind {
     BoolLiteral(bool),
     ColourLiteral(String),
     FloatLiteral(String),
-    IntLiteral(i32),
+    IntLiteral,
     Type,
+    Arrow,
 }
