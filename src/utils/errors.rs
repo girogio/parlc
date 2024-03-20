@@ -24,10 +24,26 @@ pub enum LexicalError {
 
 #[derive(Debug, Error)]
 pub enum ParseError {
-    #[error("Unexpected token: expected {expected:?}, found {found:?}")]
-    UnexpectedToken { expected: TokenKind, found: Token },
+    #[error("Parse error in file: {file}:{line}:{col}\nUnexpected token: expected {expected:?}, found {found:?}")]
+    UnexpectedToken {
+        expected: TokenKind,
+        found: Token,
+        file: &'static str,
+        line: u32,
+        col: u32,
+    },
+    #[error("Parse error in file: {}:{}:{}\nUnexpected token: {:?} expected one of these types: {:?}",.file, .line, .col, .found, .expected)]
+    UnexpectedTokenList {
+        file: &'static str,
+        line: u32,
+        col: u32,
+        found: Token,
+        expected: Vec<TokenKind>,
+    },
     #[error("Unclosed block.")]
     UnclosedBlock,
+    #[error("Unexpected end of file.")]
+    UnexpectedEof,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
