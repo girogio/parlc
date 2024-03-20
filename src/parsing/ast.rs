@@ -99,6 +99,7 @@ pub enum AstNode {
         identifier: Box<AstNode>,
         expression: Box<AstNode>,
     },
+    EndOfFile,
 }
 
 pub type Ast = Box<AstNode>;
@@ -397,6 +398,7 @@ impl Visitor for AstPrinter {
             AstNode::PadHeight => {
                 print!("__height");
             }
+            AstNode::EndOfFile => {}
             AstNode::ActualParams { params } => todo!(),
         }
     }

@@ -201,19 +201,16 @@ impl DfsaBuilder {
             // Add required characters for comment lexing
             .add_category(['\0'], Category::Eof)
             .add_category(['/'], Category::Slash)
-            .add_category(['*'], Category::Asterisk)
-            .transition() // If just a '/' is present, then we can say that's a division operator
-            .to([Category::Slash])
-            .goes_to(TokenKind::Divide)
-            .done();
+            .add_category(['*'], Category::Asterisk);
 
-        let slash_state = self.max_state; // Get the state id of the slash state
+        let slash_state =
+            self.auto_add_transition(0, Category::Slash, None, Some(TokenKind::Divide)); // If we see a slash, we're in a comment
 
         let in_multiline_comment_state = // If we see an asterisk, we can assume that we are now inside a multiline comment
             self.auto_add_transition(slash_state, Category::Asterisk, None, None); // Still not final as we need it to be closed
 
         // If we're at the end of a file and the comment is not closed, then it's an error
-        self.auto_add_transition(in_multiline_comment_state, Category::Eof, Some(-2), None);
+        self.auto_add_transition(in_multiline_comment_state, Category::Eof, Some(-1), None);
 
         // Catch any other character and stay in the multiline comment state
         self.auto_add_transition(

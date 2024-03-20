@@ -44,13 +44,20 @@ impl Parser {
     fn parse_program(&mut self) -> Result<AstNode> {
         let mut statements = vec![];
         while self.current < self.tokens.len() {
-            statements.push(self.parse_statement()?);
+            let next_statement = self.parse_statement()?;
+
+            if let AstNode::EndOfFile = next_statement {
+                break;
+            }
+
+            statements.push(next_statement);
         }
         Ok(AstNode::Program { statements })
     }
 
     fn parse_statement(&mut self) -> Result<AstNode> {
         let current_token = self.current_token();
+        dbg!(current_token.clone());
 
         match &current_token.kind {
             TokenKind::Let => self.parse_var_decl(),
@@ -78,6 +85,7 @@ impl Parser {
             TokenKind::Function => self.parse_function_decl(),
             TokenKind::Return => self.parse_return(),
             TokenKind::LBrace => self.parse_block(),
+            TokenKind::EndOfFile => Ok(AstNode::EndOfFile),
             _ => Err(Error::Parse(ParseError::UnexpectedToken {
                 expected: TokenKind::Invalid,
                 source_file: self.source_file.clone(),

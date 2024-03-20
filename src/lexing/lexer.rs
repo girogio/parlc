@@ -142,7 +142,7 @@ impl<B: Stream + Clone> Lexer<B> {
                         start_line, end_line, start_col, end_col, &lexeme,
                     )),
                 };
-
+                self.buffer.next_char();
                 Err(Error::Lexical(error))
             }
         }
@@ -168,16 +168,16 @@ impl<B: Stream + Clone> Lexer<B> {
             }
 
             if self.buffer.is_eof() {
-                // tokens.push(Token::new(
-                //     TokenKind::EndOfFile,
-                //     TextSpan::new(
-                //         self.buffer.get_line(),
-                //         self.buffer.get_line(),
-                //         self.buffer.get_col(),
-                //         self.buffer.get_col(),
-                //         "\0",
-                //     ),
-                // ));
+                tokens.push(Token::new(
+                    TokenKind::EndOfFile,
+                    TextSpan::new(
+                        self.buffer.get_line(),
+                        self.buffer.get_line(),
+                        self.buffer.get_col(),
+                        self.buffer.get_col(),
+                        "\0",
+                    ),
+                ));
 
                 match errors.is_empty() {
                     true => return Ok(tokens),
