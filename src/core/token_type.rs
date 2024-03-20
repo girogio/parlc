@@ -13,7 +13,7 @@ pub enum TokenKind {
     Comment,
     EndOfFile,
     Equals,
-    Identifier(String),
+    Identifier,
     Invalid,
     LBrace,
     LBracket,
@@ -47,6 +47,7 @@ pub enum TokenKind {
     Minus,
     Multiply,
     Or,
+    Not,
     Plus,
     // Relational operators
     EqEq,
@@ -60,5 +61,5 @@ pub enum TokenKind {
     ColourLiteral(String),
     FloatLiteral(String),
     IntLiteral(i32),
-    Type(DataTypes),
+    Type,
 }

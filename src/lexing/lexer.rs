@@ -72,12 +72,13 @@ impl<B: Stream + Clone> Lexer<B> {
             "while" => TokenKind::While,
             "or" => TokenKind::Or,
             "and" => TokenKind::And,
-            "int" => TokenKind::Type(DataTypes::Int),
-            "float" => TokenKind::Type(DataTypes::Float),
+            "not" => TokenKind::Not,
+            "int" => TokenKind::Type,
+            "float" => TokenKind::Type,
             "true" => TokenKind::BoolLiteral(true),
             "false" => TokenKind::BoolLiteral(false),
-            "bool" => TokenKind::Type(DataTypes::Bool),
-            "colour" => TokenKind::Type(DataTypes::Colour),
+            "bool" => TokenKind::Type,
+            "colour" => TokenKind::Type,
             "return" => TokenKind::Return,
             "__write" => TokenKind::PadWrite,
             "__write_box" => TokenKind::PadWriteBox,
@@ -88,7 +89,7 @@ impl<B: Stream + Clone> Lexer<B> {
             "__print" => TokenKind::Print,
             "__randi" => TokenKind::PadRandI,
             "as" => TokenKind::As,
-            _ => TokenKind::Identifier(lexeme.to_string()),
+            _ => TokenKind::Identifier,
         }
     }
 
@@ -133,7 +134,7 @@ impl<B: Stream + Clone> Lexer<B> {
                     TokenKind::FloatLiteral(_) => TokenKind::FloatLiteral(lexeme),
                     TokenKind::IntLiteral(_) => TokenKind::IntLiteral(lexeme.parse().unwrap()),
                     TokenKind::ColourLiteral(_) => TokenKind::ColourLiteral(lexeme),
-                    TokenKind::Identifier(_) => self.handle_keyword(&lexeme),
+                    TokenKind::Identifier => self.handle_keyword(&lexeme),
                     _ => self.dfsa.get_token_kind(state),
                 },
                 text_span,
@@ -184,16 +185,16 @@ impl<B: Stream + Clone> Lexer<B> {
             }
 
             if self.buffer.is_eof() {
-                tokens.push(Token::new(
-                    TokenKind::EndOfFile,
-                    TextSpan::new(
-                        self.buffer.get_line(),
-                        self.buffer.get_line(),
-                        self.buffer.get_col(),
-                        self.buffer.get_col(),
-                        "\0",
-                    ),
-                ));
+                // tokens.push(Token::new(
+                //     TokenKind::EndOfFile,
+                //     TextSpan::new(
+                //         self.buffer.get_line(),
+                //         self.buffer.get_line(),
+                //         self.buffer.get_col(),
+                //         self.buffer.get_col(),
+                //         "\0",
+                //     ),
+                // ));
 
                 match errors.is_empty() {
                     true => return Ok(tokens),

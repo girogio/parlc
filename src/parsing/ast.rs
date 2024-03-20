@@ -1,4 +1,6 @@
-use crate::core::{DataTypes, Token};
+use std::fmt::Display;
+
+use crate::core::{DataTypes, Token, TokenKind};
 
 #[derive(Debug)]
 pub enum StatementType {
@@ -11,6 +13,22 @@ pub enum StatementType {
     Delay,
     PixelR,
     Pixel,
+}
+
+impl Display for StatementType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StatementType::Let => write!(f, "Let"),
+            StatementType::If => write!(f, "If"),
+            StatementType::While => write!(f, "While"),
+            StatementType::Function => write!(f, "Function"),
+            StatementType::Return => write!(f, "Return"),
+            StatementType::Print { expression } => write!(f, "Print"),
+            StatementType::Delay => write!(f, "Delay"),
+            StatementType::PixelR => write!(f, "PixelR"),
+            StatementType::Pixel => write!(f, "Pixel"),
+        }
+    }
 }
 
 #[warn(clippy::enum_variant_names)]
@@ -49,7 +67,7 @@ pub enum AstNode {
         body: Ast,
     },
     Identifier {
-        kind: Token,
+        token: Token,
     },
     Block {
         statements: Vec<AstNode>,
@@ -58,50 +76,90 @@ pub enum AstNode {
         kind: StatementType,
     },
     Expression {
+        casted_type: Option<Token>,
+        bin_op: Ast,
+    },
+    UnaryOp {
+        operator: Token,
+        expr: Ast,
+    },
+    BinOp {
         left: Ast,
         operator: Token,
         right: Ast,
-    },
-    SimpleExpression {
-        left: Ast,
-        operator: Token,
-        right: Ast,
-    },
-    Term {
-        left: Ast,
-        operator: Token,
-        right: Ast,
-    },
-    Factor {
-        kind: Token,
-        value: DataTypes,
     },
     Empty,
+    PadWidth,
+    PadRandI,
+    PadHeight,
+    PadRead,
+    IntLiteral(i32),
+    FloatLiteral(String),
+    BoolLiteral(bool),
+    ColourLiteral(String),
+    FunctionCall {
+        identifier: Ast,
+        args: Ast,
+    },
+    ActualParams {
+        params: Vec<Ast>,
+    },
 }
 
 pub type Ast = Box<AstNode>;
 
-pub trait Visitor {
-    fn visit(&self, node: &AstNode);
+impl TryFrom<Token> for AstNode {
+    type Error = crate::utils::errors::ParseError;
+
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        match token.kind {
+            TokenKind::Identifier => Ok(AstNode::Identifier { token }),
+            _ => Err(crate::utils::errors::ParseError::UnexpectedToken {
+                expected: TokenKind::Identifier,
+                found: token,
+                file: file!(),
+                line: line!(),
+                col: column!(),
+            }),
+        }
+    }
 }
 
-pub struct AstPrinter;
+pub trait Visitor {
+    fn visit(&mut self, node: &AstNode);
+}
+
+pub struct AstPrinter {
+    tab_level: usize,
+}
 
 fn print_node(node: &AstNode) {
     println!("{:?}", node);
 }
 
+impl AstPrinter {
+    pub fn new() -> Self {
+        Self { tab_level: 0 }
+    }
+}
+
 impl Visitor for AstPrinter {
-    fn visit(&self, node: &AstNode) {
+    fn visit(&mut self, node: &AstNode) {
+        print!("{}", "  ".repeat(self.tab_level));
         match node {
             AstNode::Program { statements } => {
+                println!("Program");
+                self.tab_level += 1;
                 for statement in statements {
                     self.visit(statement);
                 }
+                self.tab_level -= 1;
             }
-            AstNode::Identifier { kind } => {
-                println!("Identifier: {:?}", kind.kind);
+
+            AstNode::Identifier { token } => {
+                println!("Identifier(\"{}\")", token.span.lexeme);
             }
+
             AstNode::VarDec {
                 identifier,
                 var_type,
@@ -109,16 +167,31 @@ impl Visitor for AstPrinter {
             } => {
                 self.visit(identifier);
                 println!("Type: {:?}", var_type.kind);
-                // self.visit(expression);
+                self.visit(expression);
             }
+
             AstNode::Block { statements } => {
                 println!("Block");
                 for statement in statements {
                     self.visit(statement);
                 }
             }
+
+            AstNode::Expression {
+                casted_type,
+                bin_op,
+            } => {
+                print!("Expression casted to ");
+                if let Some(casted_type) = casted_type {
+                    println!("{}", casted_type.span.lexeme);
+                }
+                self.tab_level += 1;
+                self.visit(bin_op);
+                self.tab_level -= 1;
+            }
+
             AstNode::Statement { kind } => {
-                // print_node(node);
+                println!("{kind}");
                 match kind {
                     StatementType::Let => println!("Let"),
                     StatementType::If => println!("If"),
@@ -126,10 +199,9 @@ impl Visitor for AstPrinter {
                     StatementType::Function => println!("Function"),
                     StatementType::Return => println!("Return"),
                     StatementType::Print { expression } => {
-                        // Remove the println! statement for the StatementType::Print variant
-                        // println!("Print"),
-                        println!("Print");
+                        self.tab_level += 1;
                         self.visit(expression);
+                        self.tab_level -= 1;
                     }
                     StatementType::Delay => println!("Delay"),
                     StatementType::PixelR => println!("PixelR"),
@@ -139,39 +211,30 @@ impl Visitor for AstPrinter {
                     }
                 }
             }
-            AstNode::Expression {
+
+            AstNode::BinOp {
                 left,
                 operator,
                 right,
             } => {
+                println!("Operator: {:?}", operator.kind);
+                self.tab_level += 1;
                 self.visit(left);
-                print_node(node);
                 self.visit(right);
+                self.tab_level -= 1;
             }
-            AstNode::SimpleExpression {
-                left,
-                operator,
-                right,
-            } => {
-                self.visit(left);
-                print_node(node);
-                self.visit(right);
+
+            AstNode::UnaryOp { operator, expr } => {
+                println!("Operator: {:?}", operator.kind);
+                self.tab_level += 1;
+                self.visit(expr);
+                self.tab_level -= 1;
             }
-            AstNode::Term {
-                left,
-                operator,
-                right,
-            } => {
-                self.visit(left);
-                print_node(node);
-                self.visit(right);
-            }
-            AstNode::Factor { kind, value } => {
-                print_node(node);
-            }
+
             AstNode::Empty => {
                 print_node(node);
             }
+
             _ => {
                 print_node(node);
             }

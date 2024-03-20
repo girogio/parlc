@@ -110,7 +110,7 @@ fn main() {
 
         match ast {
             Ok(ast) => {
-                let printer = AstPrinter;
+                let mut printer = AstPrinter::new();
                 printer.visit(ast);
             }
             Err(e) => {

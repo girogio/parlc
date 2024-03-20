@@ -266,7 +266,7 @@ impl DfsaBuilder {
                 Category::HexAndLetter,
                 Category::Underscore,
             ])
-            .goes_to(TokenKind::Identifier(String::new()))
+            .goes_to(TokenKind::Identifier)
             .to([
                 Category::Letter,
                 Category::HexAndLetter,
@@ -274,14 +274,15 @@ impl DfsaBuilder {
                 Category::Digit,
             ])
             .repeated()
-            .goes_to(TokenKind::Identifier(String::new()))
+            .goes_to(TokenKind::Identifier)
             .done();
 
         self
     }
 
     pub fn add_number_logic(&mut self) -> &mut Self {
-        self.transition()
+        self.add_category(['.'], Category::Period)
+            .transition()
             .to([Category::Digit])
             .repeated()
             .goes_to(TokenKind::IntLiteral(0))
