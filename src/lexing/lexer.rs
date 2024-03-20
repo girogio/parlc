@@ -215,7 +215,7 @@ mod tests {
     #[rstest]
     fn test_lex() {
         let input = "fn( bruh ) { return test; }";
-        let fake_path = PathBuf::from("fake_path");
+        let fake_path = Path::new("fake_path");
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, &fake_path, None);
         let tokens = lexer.lex();
 
