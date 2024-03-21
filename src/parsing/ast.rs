@@ -7,18 +7,18 @@ pub enum AstNode {
         statements: Vec<AstNode>,
     },
     VarDec {
-        identifier: Ast,
-        var_type: Option<Token>,
+        identifier: Token,
+        r#type: Token,
         expression: Ast,
-    },
-    Identifier {
-        token: Token,
     },
     Block {
         statements: Vec<AstNode>,
     },
     Expression {
         casted_type: Option<Token>,
+        bin_op: Ast,
+    },
+    SubExpression {
         bin_op: Ast,
     },
     UnaryOp {
@@ -44,61 +44,64 @@ pub enum AstNode {
     BoolLiteral(Token),
     ColourLiteral(Token),
     FunctionCall {
-        identifier: Ast,
+        identifier: Token,
         args: Vec<Ast>,
     },
     ActualParams {
         params: Vec<Ast>,
     },
     Delay {
-        expression: Box<AstNode>,
+        expression: Ast,
     },
     Return {
-        expression: Box<AstNode>,
+        expression: Ast,
     },
     PadWriteBox {
-        loc_x: Box<AstNode>,
-        loc_y: Box<AstNode>,
-        width: Box<AstNode>,
-        height: Box<AstNode>,
-        colour: Box<AstNode>,
+        loc_x: Ast,
+        loc_y: Ast,
+        width: Ast,
+        height: Ast,
+        colour: Ast,
     },
     PadWrite {
-        loc_x: Box<AstNode>,
-        loc_y: Box<AstNode>,
-        colour: Box<AstNode>,
+        loc_x: Ast,
+        loc_y: Ast,
+        colour: Ast,
+    },
+    Identifier {
+        token: Token,
     },
     If {
-        condition: Box<AstNode>,
-        if_true: Box<AstNode>,
-        if_false: Option<Box<AstNode>>,
+        condition: Ast,
+        if_true: Ast,
+        if_false: Option<Ast>,
     },
     For {
         initializer: Box<Option<AstNode>>,
-        condition: Box<AstNode>,
+        condition: Ast,
         increment: Box<Option<AstNode>>,
-        body: Box<AstNode>,
+        body: Ast,
     },
     While {
-        condition: Box<AstNode>,
-        body: Box<AstNode>,
+        condition: Ast,
+        body: Ast,
     },
     FormalParam {
-        identifier: Box<AstNode>,
+        identifier: Token,
         param_type: Token,
     },
     FunctionDecl {
-        identifier: Box<AstNode>,
+        identifier: Token,
         params: Vec<AstNode>,
         return_type: Token,
-        block: Box<AstNode>,
+        block: Ast,
     },
     Print {
-        expression: Box<AstNode>,
+        expression: Ast,
     },
     Assignment {
-        identifier: Box<AstNode>,
-        expression: Box<AstNode>,
+        identifier: Token,
+        expression: Ast,
     },
     EndOfFile,
     PadClear {
@@ -108,6 +111,6 @@ pub enum AstNode {
 
 pub type Ast = Box<AstNode>;
 
-pub trait Visitor {
-    fn visit(&mut self, node: &AstNode) -> Result<()>;
+pub trait Visitor<T> {
+    fn visit(&mut self, node: &AstNode) -> Result<T>;
 }
