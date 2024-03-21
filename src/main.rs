@@ -92,7 +92,7 @@ fn main() {
 
                     println!(
                         "\n{} `{}`\n",
-                        style("Parsing").green().bold(),
+                        style("Formatting").green().bold(),
                         style(file_path.display())
                     );
 
