@@ -23,7 +23,7 @@ impl AstFormatter {
     }
 }
 
-impl Visitor for AstFormatter {
+impl Visitor<()> for AstFormatter {
     fn visit(&mut self, node: &AstNode) -> Result<()> {
         match node {
             AstNode::Program { statements } => {
@@ -39,15 +39,11 @@ impl Visitor for AstFormatter {
 
             AstNode::VarDec {
                 identifier,
-                var_type,
+                r#type: var_type,
                 expression,
             } => {
-                write!(self.buff, "let ")?;
-                self.visit(identifier)?;
-                match var_type {
-                    Some(var_type) => write!(self.buff, ": {}", var_type.span.lexeme)?,
-                    None => write!(self.buff, ": n/a")?,
-                };
+                write!(self.buff, "let {}", identifier.span.lexeme)?;
+                write!(self.buff, ": {}", var_type.span.lexeme)?;
                 write!(self.buff, " = ")?;
                 self.visit(expression)?;
                 write!(self.buff, ";")?;
@@ -89,8 +85,7 @@ impl Visitor for AstFormatter {
                 identifier,
                 expression,
             } => {
-                self.visit(identifier)?;
-                write!(self.buff, " = ")?;
+                write!(self.buff, "{} = ", identifier.span.lexeme)?;
                 self.visit(expression)?;
                 Ok(())
             }
@@ -106,15 +101,12 @@ impl Visitor for AstFormatter {
                 // This is to avoid printing newline after the variable declaration in a for loop
                 if let Some(AstNode::VarDec {
                     identifier,
-                    var_type,
+                    r#type: var_type,
                     expression,
                 }) = initializer.as_ref()
                 {
-                    write!(self.buff, "let ")?;
-                    self.visit(identifier)?;
-                    if let Some(var_type) = var_type {
-                        write!(self.buff, ": {} = ", var_type.span.lexeme)?;
-                    }
+                    write!(self.buff, "let {}", identifier.span.lexeme)?;
+                    write!(self.buff, ": {} = ", var_type.span.lexeme)?;
                     self.visit(expression)?;
                 }
 
@@ -142,10 +134,10 @@ impl Visitor for AstFormatter {
             }
 
             AstNode::Block { statements } => {
-                writeln!(self.buff, "{}{{", "  ".repeat(self.tab_level))?;
+                writeln!(self.buff, "{} {{", "\t".repeat(self.tab_level))?;
                 self.tab_level += 1;
                 for statement in statements {
-                    write!(self.buff, "{}", "  ".repeat(self.tab_level))?;
+                    write!(self.buff, "{}", "\t".repeat(self.tab_level))?;
                     self.visit(statement)?;
                     if let AstNode::Assignment { .. } = statement {
                         writeln!(self.buff, ";")?;
@@ -155,7 +147,7 @@ impl Visitor for AstFormatter {
                 }
                 self.tab_level -= 1;
 
-                write!(self.buff, "{}}}", "  ".repeat(self.tab_level))?;
+                write!(self.buff, "{}}}", "\t".repeat(self.tab_level))?;
                 Ok(())
             }
 
@@ -173,14 +165,20 @@ impl Visitor for AstFormatter {
                 Ok(())
             }
 
+            AstNode::SubExpression { bin_op } => {
+                write!(self.buff, "(")?;
+                self.visit(bin_op)?;
+                write!(self.buff, ")")?;
+                Ok(())
+            }
+
             AstNode::FunctionDecl {
                 identifier,
                 params,
                 return_type,
                 block,
             } => {
-                write!(self.buff, "fun ")?;
-                self.visit(identifier)?;
+                write!(self.buff, "fun {}", identifier)?;
                 write!(self.buff, "(")?;
 
                 let (params, last) = params.split_at(params.len() - 1);
@@ -261,13 +259,9 @@ impl Visitor for AstFormatter {
                 operator,
                 right,
             } => {
-                write!(self.buff, "(")?;
                 self.visit(left)?;
-                write!(self.buff, ")")?;
                 write!(self.buff, " {} ", operator.span.lexeme)?;
-                write!(self.buff, "(")?;
                 self.visit(right)?;
-                write!(self.buff, ")")?;
                 Ok(())
             }
 
@@ -289,8 +283,11 @@ impl Visitor for AstFormatter {
                 identifier,
                 param_type,
             } => {
-                self.visit(identifier)?;
-                write!(self.buff, ": {}", param_type.span.lexeme)?;
+                write!(
+                    self.buff,
+                    "{}: {}",
+                    identifier.span.lexeme, param_type.span.lexeme
+                )?;
                 Ok(())
             }
 
@@ -301,8 +298,7 @@ impl Visitor for AstFormatter {
             }
 
             AstNode::FunctionCall { identifier, args } => {
-                self.visit(identifier)?;
-                write!(self.buff, "(")?;
+                write!(self.buff, "{}(", identifier.span.lexeme)?;
 
                 let (args, last) = args.split_at(args.len() - 1);
 
