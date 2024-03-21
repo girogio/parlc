@@ -42,14 +42,18 @@ pub enum ParseError {
 
 #[derive(Debug, Error)]
 pub enum SemanticError {
-    #[error("Variable '{0}' is not defined.")]
-    UndefinedVariable(String),
-    #[error("Variable '{0}' is already defined.")]
-    AlreadyDefinedVariable(String),
-    #[error("Function '{0}' is not defined.")]
-    UndefinedFunction(String),
-    #[error("Function '{0}' is already defined.")]
-    AlreadyDefinedFunction(String),
+    #[error("Variable '{}' is not defined.", .0.span.lexeme)]
+    UndefinedVariable(Token),
+    #[error("Variable '{}' is already defined.", .0.span.lexeme)]
+    AlreadyDefinedVariable(Token),
+    #[error("Function '{}' is not defined.", .0.span.lexeme)]
+    UndefinedFunction(Token),
+    #[error("Function '{}' is already defined.", .0.span.lexeme)]
+    AlreadyDefinedFunction(Token),
+    #[error("Variable '{}' is redeclared.", .0.span.lexeme)]
+    RedeclaredVariable(Token),
+    #[error("Expected {} but found {}", .0.span, .1)]
+    TypeMismatch(Token, String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
