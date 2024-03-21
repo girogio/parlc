@@ -96,7 +96,7 @@ impl Parser {
 
     fn parse_function_decl(&mut self) -> Result<AstNode> {
         self.consume_if(TokenKind::Function)?;
-        let identifier = self.parse_identifier()?;
+        let identifier = self.consume_if(TokenKind::Identifier)?.clone();
         self.consume_if(TokenKind::LParen)?;
 
         let mut params = vec![];
@@ -114,9 +114,9 @@ impl Parser {
         let block = self.parse_block()?;
 
         Ok(AstNode::FunctionDecl {
-            identifier: Box::new(identifier),
+            identifier: identifier.clone(),
             params,
-            return_type,
+            return_type: return_type.clone(),
             block: Box::new(block),
         })
     }
@@ -136,11 +136,11 @@ impl Parser {
     }
 
     fn parse_formal_param(&mut self) -> Result<AstNode> {
-        let identifier = self.parse_identifier()?;
+        let identifier = self.consume_if(TokenKind::Identifier)?.clone();
         self.consume_if(TokenKind::Colon)?;
         let param_type = self.consume_if(TokenKind::Type)?.clone();
         Ok(AstNode::FormalParam {
-            identifier: Box::new(identifier),
+            identifier: identifier.clone(),
             param_type,
         })
     }
@@ -361,9 +361,11 @@ impl Parser {
 
     fn parse_sub_expr(&mut self) -> Result<AstNode> {
         self.consume_if(TokenKind::LParen)?;
-        let expr = self.parse_expression();
+        let expr = self.parse_expression()?;
         self.consume_if(TokenKind::RParen)?;
-        expr
+        Ok(AstNode::SubExpression {
+            bin_op: Box::new(expr),
+        })
     }
 
     fn parse_term(&mut self) -> Result<AstNode> {
@@ -388,26 +390,28 @@ impl Parser {
 
         match &next_token.kind {
             TokenKind::Identifier => {
-                let ident = self.parse_identifier()?;
+                let ident = self.consume_if(TokenKind::Identifier)?.clone();
 
                 if self.current_token().kind == TokenKind::LParen {
                     self.consume();
                     if self.current_token().kind == TokenKind::RParen {
                         self.consume();
                         Ok(AstNode::FunctionCall {
-                            identifier: Box::new(ident),
+                            identifier: ident.clone(),
                             args: vec![],
                         })
                     } else {
                         let args = self.parse_actual_params()?;
                         self.consume_if(TokenKind::RParen)?;
                         Ok(AstNode::FunctionCall {
-                            identifier: Box::new(ident),
+                            identifier: ident.clone(),
                             args,
                         })
                     }
                 } else {
-                    Ok(ident)
+                    Ok(AstNode::Identifier {
+                        token: ident.clone(),
+                    })
                 }
             }
             TokenKind::PadWidth => self.parse_pad_width(),
@@ -429,8 +433,11 @@ impl Parser {
     }
 
     fn parse_identifier(&mut self) -> Result<AstNode> {
-        let token = self.consume_if(TokenKind::Identifier)?.clone();
-        Ok(AstNode::Identifier { token })
+        let ident = self.consume_if(TokenKind::Identifier)?;
+
+        Ok(AstNode::Identifier {
+            token: ident.clone(),
+        })
     }
 
     fn parse_pad_width(&mut self) -> Result<AstNode> {
@@ -473,15 +480,15 @@ impl Parser {
     // TODO: Add array functionality
     fn parse_var_decl(&mut self) -> Result<AstNode> {
         self.consume_if(TokenKind::Let)?;
-        let identifier = self.parse_identifier()?;
+        let identifier = self.consume_if(TokenKind::Identifier)?.clone();
         self.consume_if(TokenKind::Colon)?;
         let kind = self.consume_if(TokenKind::Type)?.clone();
         self.consume_if(TokenKind::Equals)?;
         let expression = self.parse_expression()?;
         self.consume_if(TokenKind::Semicolon)?;
         Ok(AstNode::VarDec {
-            identifier: Box::new(identifier),
-            var_type: Some(kind),
+            identifier: identifier.clone(),
+            r#type: kind,
             expression: Box::new(expression),
         })
     }
@@ -576,11 +583,11 @@ impl Parser {
     }
 
     fn parse_assignment_statement(&mut self) -> Result<AstNode> {
-        let identifier = self.parse_identifier()?;
+        let identifier = self.consume_if(TokenKind::Identifier)?.clone();
         self.consume_if(TokenKind::Equals)?;
         let expression = self.parse_expression()?;
         Ok(AstNode::Assignment {
-            identifier: Box::new(identifier),
+            identifier: identifier.clone(),
             expression: Box::new(expression),
         })
     }
