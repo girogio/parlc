@@ -76,5 +76,4 @@ let c2: colour = #0000ff; // blue
 let m: int = height; // the height (y-values) of the pad
 let w: int = Race(c1, c2, m); // call function Race
 __print w; // prints value of expression to VM logs
-
-/* asda sdna lsdhnbaso declaration
+__clear #000000; // clears the screen
