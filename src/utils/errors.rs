@@ -10,6 +10,10 @@ pub enum Error {
     Lexical(#[from] LexicalError),
     #[error("Parse error: {0}")]
     Parse(#[from] ParseError),
+    #[error("Semantic error: {0}")]
+    Semantic(#[from] SemanticError),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 #[derive(Debug, Error)]
@@ -34,6 +38,18 @@ pub enum ParseError {
     },
     #[error("Unclosed block.")]
     UnclosedBlock,
+}
+
+#[derive(Debug, Error)]
+pub enum SemanticError {
+    #[error("Variable '{0}' is not defined.")]
+    UndefinedVariable(String),
+    #[error("Variable '{0}' is already defined.")]
+    AlreadyDefinedVariable(String),
+    #[error("Function '{0}' is not defined.")]
+    UndefinedFunction(String),
+    #[error("Function '{0}' is already defined.")]
+    AlreadyDefinedFunction(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

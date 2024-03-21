@@ -1,4 +1,5 @@
 use crate::core::Token;
+use crate::utils::Result;
 
 #[derive(Debug)]
 pub enum AstNode {
@@ -108,5 +109,5 @@ pub enum AstNode {
 pub type Ast = Box<AstNode>;
 
 pub trait Visitor {
-    fn visit(&mut self, node: &AstNode);
+    fn visit(&mut self, node: &AstNode) -> Result<()>;
 }
