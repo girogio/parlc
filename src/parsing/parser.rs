@@ -57,7 +57,6 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<AstNode> {
         let current_token = self.current_token();
-        dbg!(current_token.clone());
 
         match &current_token.kind {
             TokenKind::Let => self.parse_var_decl(),

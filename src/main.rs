@@ -11,10 +11,7 @@ use utils::SimpleBuffer;
 
 use crate::{
     lexing::Lexer,
-    parsing::{
-        ast::{AstPrinter, Visitor},
-        Parser,
-    },
+    parsing::{ast::Visitor, visitors::AstFormatter, Parser},
 };
 
 fn main() {
@@ -25,8 +22,8 @@ fn main() {
                 .arg(Arg::new("file").value_parser(value_parser!(PathBuf))),
         )
         .subcommand(
-            Command::new("parse")
-                .about("Run the parser on a file")
+            Command::new("fmt")
+                .about("Format a PArL source file")
                 .arg(Arg::new("file").value_parser(value_parser!(PathBuf))),
         )
         .get_matches();
@@ -73,7 +70,7 @@ fn main() {
         }
     }
 
-    if let Some(parser_matches) = matches.subcommand_matches("parse") {
+    if let Some(parser_matches) = matches.subcommand_matches("fmt") {
         let file = parser_matches.get_one::<PathBuf>("file");
         let mut input = String::new();
 
@@ -107,7 +104,7 @@ fn main() {
 
                     match ast {
                         Ok(ast) => {
-                            let mut printer = AstPrinter::new();
+                            let mut printer = AstFormatter::new(file_path);
                             printer.visit(ast);
                         }
                         Err(e) => {
