@@ -79,6 +79,7 @@ impl Parser {
             TokenKind::Delay => self.parse_delay(),
             TokenKind::PadWrite => self.parse_write(),
             TokenKind::PadWriteBox => self.parse_write_box(),
+            TokenKind::PadClear => self.parse_clear_statement(),
             TokenKind::If => self.parse_if(),
             TokenKind::For => self.parse_for(),
             TokenKind::While => self.parse_while(),
@@ -580,8 +581,13 @@ impl Parser {
         self.consume_if(TokenKind::Equals)?;
         let expression = self.parse_expression()?;
         Ok(AstNode::Assignment {
-            identifier: Box::new(identifier),
-            expression: Box::new(expression),
+    fn parse_clear_statement(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::PadClear)?;
+        let expr = self.parse_expression()?;
+        self.consume_if(TokenKind::Semicolon)?;
+
+        Ok(AstNode::PadClear {
+            expr: Box::new(expr),
         })
     }
 

@@ -100,6 +100,9 @@ pub enum AstNode {
         expression: Box<AstNode>,
     },
     EndOfFile,
+    PadClear {
+        expr: Ast,
+    },
 }
 
 pub type Ast = Box<AstNode>;
@@ -296,6 +299,14 @@ impl Visitor for AstPrinter {
                 self.visit(loc_y);
                 print!(", ");
                 self.visit(colour);
+                print!(";")
+            }
+
+            AstNode::PadClear { expr } => {
+                print!("__clear ");
+
+                self.visit(expr);
+
                 print!(";")
             }
 

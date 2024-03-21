@@ -24,6 +24,7 @@ pub enum TokenKind {
     Function,
     If,
     Let,
+    PadClear,
     PadHeight,
     PadRandI,
     PadRead,

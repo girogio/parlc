@@ -71,6 +71,7 @@ impl<B: Stream + Clone> Lexer<B> {
             "__randi" => TokenKind::PadRandI,
             "__read" => TokenKind::PadRead,
             "__width" => TokenKind::PadWidth,
+            "__clear" => TokenKind::PadClear,
             "__write_box" => TokenKind::PadWriteBox,
             "__write" => TokenKind::PadWrite,
             "and" => TokenKind::And,
@@ -95,6 +96,7 @@ impl<B: Stream + Clone> Lexer<B> {
         let mut lexeme = String::new();
         let mut stack = vec![self.dfsa.bad_state()];
         let mut prev_state = state;
+
         let (start_line, start_col) = (self.buffer.get_line(), self.buffer.get_col());
 
         while state != self.dfsa.error_state() {
