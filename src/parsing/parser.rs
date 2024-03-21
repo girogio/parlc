@@ -581,6 +581,11 @@ impl Parser {
         self.consume_if(TokenKind::Equals)?;
         let expression = self.parse_expression()?;
         Ok(AstNode::Assignment {
+            identifier: Box::new(identifier),
+            expression: Box::new(expression),
+        })
+    }
+
     fn parse_clear_statement(&mut self) -> Result<AstNode> {
         self.consume_if(TokenKind::PadClear)?;
         let expr = self.parse_expression()?;
