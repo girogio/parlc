@@ -1,6 +1,11 @@
-let a: colour = 2;
-
-fun test(i: int, b: int) -> int {
-	return a + b;
+fun test(a: int, z: int) -> int {
+     return a + z;
 }
 
+let asd: float = test(#000000, 2);
+
+fun b() -> int {
+    return 1;
+}
+
+let a: int = b();

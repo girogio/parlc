@@ -2,4 +2,4 @@ mod formatter;
 mod semantics;
 
 pub use formatter::AstFormatter;
-pub use semantics::SemanticAnalyzer;
+pub use semantics::ScopeChecker;

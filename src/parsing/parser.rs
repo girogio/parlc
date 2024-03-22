@@ -199,9 +199,9 @@ impl Parser {
         let body = self.parse_block()?;
 
         Ok(AstNode::For {
-            initializer: Box::new(initializer),
+            initializer: initializer.map(Box::new),
             condition: Box::new(condition),
-            increment: Box::new(increment),
+            increment: increment.map(Box::new),
             body: Box::new(body),
         })
     }

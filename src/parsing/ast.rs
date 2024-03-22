@@ -1,6 +1,8 @@
 use crate::core::Token;
 use crate::utils::Result;
 
+pub type Ast = Box<AstNode>;
+
 #[derive(Debug)]
 pub enum AstNode {
     Program {
@@ -77,9 +79,9 @@ pub enum AstNode {
         if_false: Option<Ast>,
     },
     For {
-        initializer: Box<Option<AstNode>>,
+        initializer: Option<Ast>,
         condition: Ast,
-        increment: Box<Option<AstNode>>,
+        increment: Option<Ast>,
         body: Ast,
     },
     While {
@@ -108,8 +110,6 @@ pub enum AstNode {
         expr: Ast,
     },
 }
-
-pub type Ast = Box<AstNode>;
 
 pub trait Visitor<T> {
     fn visit(&mut self, node: &AstNode) -> Result<T>;

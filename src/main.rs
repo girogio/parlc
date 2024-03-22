@@ -13,7 +13,7 @@ use crate::{
     lexing::Lexer,
     parsing::{
         ast::Visitor,
-        visitors::{AstFormatter, SemanticAnalyzer},
+        visitors::{AstFormatter, ScopeChecker},
         Parser,
     },
 };
@@ -165,7 +165,7 @@ fn main() {
 
                     match ast {
                         Ok(ast) => {
-                            let mut sem = SemanticAnalyzer::new();
+                            let mut sem = ScopeChecker::new();
                             match sem.visit(ast) {
                                 Ok(_) => {
                                     println!("Semantic analysis completed successfully.");

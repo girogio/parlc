@@ -52,7 +52,7 @@ pub enum SemanticError {
     AlreadyDefinedFunction(Token),
     #[error("Variable '{}' is redeclared.", .0.span.lexeme)]
     RedeclaredVariable(Token),
-    #[error("Expected {} but found {}", .0.span, .1)]
+    #[error("Expected {} but found {}", .0.span.lexeme, .1)]
     TypeMismatch(Token, String),
 }
 

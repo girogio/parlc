@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fs::File,
     io::{BufWriter, Write},
     path::Path,
@@ -96,18 +97,21 @@ impl Visitor<()> for AstFormatter {
                 increment,
                 body,
             } => {
-                write!(self.buff, "for (");
+                write!(self.buff, "for (")?;
 
                 // This is to avoid printing newline after the variable declaration in a for loop
-                if let Some(AstNode::VarDec {
-                    identifier,
-                    r#type: var_type,
-                    expression,
-                }) = initializer.as_ref()
-                {
-                    write!(self.buff, "let {}", identifier.span.lexeme)?;
-                    write!(self.buff, ": {} = ", var_type.span.lexeme)?;
-                    self.visit(expression)?;
+
+                if let Some(node) = initializer {
+                    if let AstNode::VarDec {
+                        identifier,
+                        r#type: var_type,
+                        expression,
+                    } = node.as_ref()
+                    {
+                        write!(self.buff, "let {}", identifier.span.lexeme)?;
+                        write!(self.buff, ": {} = ", var_type.span.lexeme)?;
+                        self.visit(expression)?;
+                    }
                 }
 
                 write!(self.buff, "; ")?;
@@ -115,11 +119,8 @@ impl Visitor<()> for AstFormatter {
                 self.visit(condition)?;
 
                 write!(self.buff, "; ")?;
-                match increment.as_ref() {
-                    Some(increment) => {
-                        self.visit(increment)?;
-                    }
-                    None => {}
+                if let Some(increment) = increment.as_ref() {
+                    self.visit(increment)?;
                 }
                 write!(self.buff, ") ")?;
                 self.visit(body)?;
