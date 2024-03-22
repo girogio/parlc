@@ -42,7 +42,7 @@ for (let i: int = 0; (i) < (10); i = (i) + (1))  {
 fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
 	let p1score: int = 0;
 	let p2score: int = 0;
-	while (((p1score) < (scoremax)) and ((p2score) < (scoremax))) 	 {
+	while (p1score < scoremax and p2score < scoremax) 	 {
 		let p1toss: int = __randi 1000;
 		let p2toss: int = __randi 1000;
 		if ((p1toss) > (p2toss)) 		 {

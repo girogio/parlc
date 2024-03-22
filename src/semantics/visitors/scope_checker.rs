@@ -252,6 +252,7 @@ impl Visitor<()> for ScopeChecker {
                 self.visit(colour)?;
                 Ok(())
             }
+
             AstNode::If {
                 condition,
                 if_true,
@@ -264,15 +265,21 @@ impl Visitor<()> for ScopeChecker {
                 }
                 Ok(())
             }
+
             AstNode::For {
                 initializer,
                 condition,
                 increment,
                 body,
             } => {
+                self.symbol_table.push(SymbolTable::new());
+                self.scope_peek_limit = self.symbol_table.len() - 1;
+                self.inside_function = true;
+
                 if let Some(initializer) = initializer {
                     self.visit(initializer)?;
                 }
+
                 self.visit(condition)?;
 
                 if let Some(increment) = increment {
@@ -280,6 +287,9 @@ impl Visitor<()> for ScopeChecker {
                 }
 
                 self.visit(body)?;
+                self.scope_peek_limit = 0;
+                self.inside_function = false;
+                self.symbol_table.pop();
                 Ok(())
             }
             AstNode::While { condition, body } => {
