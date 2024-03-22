@@ -46,6 +46,16 @@ impl SymbolTable {
         }
     }
 
+    pub fn token_to_type(&self, token: &str) -> Option<Type> {
+        match token {
+            "int" => Some(Type::Int),
+            "float" => Some(Type::Float),
+            "bool" => Some(Type::Bool),
+            "colour" => Some(Type::Colour),
+            _ => None,
+        }
+    }
+
     pub fn add_symbol(&mut self, lexeme: &str, r#type: Option<Type>) {
         let mut index = 0;
         let symbol = Symbol::new(lexeme, r#type);

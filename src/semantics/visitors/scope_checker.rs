@@ -1,3 +1,5 @@
+use std::thread::current;
+
 use crate::semantics::utils::{Symbol, SymbolTable, Type};
 use crate::utils::errors::SemanticError;
 use crate::utils::Result;
@@ -8,8 +10,13 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ScopeChecker {
+    /// Stack of symbol tables, each representing a scope
     symbol_table: Vec<SymbolTable>,
+    /// Flag to denote that the current scope lies within a function
     inside_function: bool,
+    /// If this is 0, we can check for the existence of the symbol in any
+    /// scope, up to the global scope.
+    scope_peek_limit: usize,
 }
 
 impl ScopeChecker {
@@ -17,6 +24,7 @@ impl ScopeChecker {
         ScopeChecker {
             symbol_table: Vec::new(),
             inside_function: false,
+            scope_peek_limit: 0,
         }
     }
 
@@ -28,15 +36,14 @@ impl ScopeChecker {
     }
 
     fn add_symbol(&mut self, symbol: &Token, r#type: &Token) -> Result<()> {
-        self.symbol_table
-            .last_mut()
-            .unwrap()
-            .add_symbol(&symbol.span.lexeme, None);
+        let current_scope = self.symbol_table.last_mut().unwrap();
 
-        self.symbol_table
-            .last_mut()
-            .unwrap()
-            .set_type(&symbol.span.lexeme, token_type(r#type));
+        current_scope.add_symbol(&symbol.span.lexeme, None);
+
+        if let Some(r#type) = current_scope.token_to_type(&r#type.span.lexeme) {
+            current_scope.set_type(&symbol.span.lexeme, r#type);
+        }
+
         Ok(())
     }
 
@@ -48,15 +55,13 @@ impl ScopeChecker {
             .find_symbol(&symbol.span.lexeme)
             .is_some()
     }
-}
 
-fn token_type(r#type: &Token) -> Type {
-    match r#type.span.lexeme.as_str() {
-        "int" => Type::Int,
-        "float" => Type::Float,
-        "bool" => Type::Bool,
-        "colour" => Type::Colour,
-        _ => unreachable!(),
+    fn check_up_to_scope(&self, symbol: &Token) -> bool {
+        self.symbol_table
+            .iter()
+            .skip(self.scope_peek_limit)
+            .find_map(|table| table.find_symbol(&symbol.span.lexeme))
+            .is_some()
     }
 }
 
@@ -73,10 +78,7 @@ impl Visitor<()> for ScopeChecker {
             }
 
             AstNode::Block { statements } => {
-                if !self.inside_function {
-                    self.symbol_table.push(SymbolTable::new());
-                }
-                self.inside_function = false;
+                self.symbol_table.push(SymbolTable::new());
                 for statement in statements {
                     self.visit(statement)?;
                 }
@@ -90,18 +92,37 @@ impl Visitor<()> for ScopeChecker {
                 return_type,
                 block,
             } => {
+                // Check that function name isn't already defined
                 if self.check_scope(identifier) {
                     return Err(SemanticError::AlreadyDefinedFunction(identifier.clone()).into());
                 } else {
                     self.add_symbol(identifier, return_type)?;
                 }
+
                 self.symbol_table.push(SymbolTable::new());
+                self.scope_peek_limit = self.symbol_table.len() - 1;
+                // Add the parameter symbols to the symbol table in this scope
                 for param in params {
                     self.visit(param)?;
                 }
+
                 self.inside_function = true;
                 self.visit(block)?;
-                // self.symbol_table.pop();
+                self.symbol_table.pop();
+                self.inside_function = false;
+                self.scope_peek_limit = 0;
+                Ok(())
+            }
+
+            AstNode::Identifier { token } => {
+                if self.inside_function {
+                    if !self.check_up_to_scope(token) {
+                        dbg!(&self.symbol_table);
+                        return Err(SemanticError::UndefinedVariable(token.clone()).into());
+                    }
+                } else if !self.check_scope(token) {
+                    return Err(SemanticError::UndefinedVariable(token.clone()).into());
+                }
                 Ok(())
             }
 
@@ -171,17 +192,6 @@ impl Visitor<()> for ScopeChecker {
             } => {
                 self.visit(left)?;
                 self.visit(right)?;
-                Ok(())
-            }
-
-            AstNode::Identifier { token } => {
-                if self.inside_function {
-                    if !self.check_scope(token) {
-                        return Err(SemanticError::UndefinedVariable(token.clone()).into());
-                    }
-                } else if self.find_symbol(token).is_none() {
-                    return Err(SemanticError::UndefinedVariable(token.clone()).into());
-                }
                 Ok(())
             }
 
@@ -354,7 +364,5 @@ mod tests {
             .unwrap();
 
         assert!(scope_checker.check_scope(&token));
-
-        assert!(!scope_checker.check_parent_scope(&token));
     }
 }

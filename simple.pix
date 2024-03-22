@@ -1,7 +1,10 @@
 let d: int = 2;
 
-fun test(b: int, z: int) -> int {
-	return d * b * b * b + b;
+fun test(a: int, b: int) -> int {
+	__print a;
+	__print b;
+	if (a < a) 	 {
+		let c: int = a + b;
+		return c;
+	}
 }
-
-return d + 1;
