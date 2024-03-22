@@ -1,8 +1,11 @@
 let d: int = 2;
 
 fun test(b: int, z: int) -> int {
-	return z * b * b * b;
+	return b * b * b * b + b;
 }
 
-let asd: float = test(#000000, 2);
+return d + 1;
 
+fun test(b: int, z: int) -> int {
+    return b * b * b * b + b;
+}

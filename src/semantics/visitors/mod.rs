@@ -1,5 +1,5 @@
 mod formatter;
-mod scope;
+mod scope_checker;
 
 pub use formatter::Formatter;
-pub use scope::ScopeChecker;
+pub use scope_checker::ScopeChecker;

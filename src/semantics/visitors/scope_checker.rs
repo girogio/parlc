@@ -9,12 +9,14 @@ use crate::{
 #[derive(Debug)]
 pub struct ScopeChecker {
     symbol_table: Vec<SymbolTable>,
+    inside_function: bool,
 }
 
 impl ScopeChecker {
     pub fn new() -> Self {
         ScopeChecker {
             symbol_table: Vec::new(),
+            inside_function: false,
         }
     }
 
@@ -51,8 +53,9 @@ impl ScopeChecker {
         self.symbol_table
             .iter()
             .rev()
-            .skip(1)
-            .find_map(|table| table.find_symbol(&symbol.span.lexeme))
+            .nth(1)
+            .unwrap()
+            .find_symbol(&symbol.span.lexeme)
             .is_some()
     }
 }
@@ -99,13 +102,14 @@ impl Visitor<()> for ScopeChecker {
                 } else {
                     self.add_symbol(identifier, return_type)?;
                 }
-
                 self.symbol_table.push(SymbolTable::new());
                 for param in params {
                     self.visit(param)?;
                 }
+                self.inside_function = true;
                 self.visit(block)?;
                 self.symbol_table.pop();
+                self.inside_function = false;
                 Ok(())
             }
 
@@ -179,7 +183,11 @@ impl Visitor<()> for ScopeChecker {
             }
 
             AstNode::Identifier { token } => {
-                if !self.check_parent_scope(token) {
+                if self.inside_function {
+                    if !self.check_parent_scope(token) {
+                        return Err(SemanticError::UndefinedVariable(token.clone()).into());
+                    }
+                } else if self.find_symbol(token).is_none() {
                     return Err(SemanticError::UndefinedVariable(token.clone()).into());
                 }
                 Ok(())
@@ -298,11 +306,7 @@ mod tests {
 
     #[test]
     fn test_scope_checker() {
-        let symbol_table = SymbolTable::new();
-
-        let mut scope_checker = ScopeChecker {
-            symbol_table: vec![symbol_table],
-        };
+        let mut scope_checker = ScopeChecker::new();
 
         let token = Token::new(TokenKind::Identifier, TextSpan::new(0, 0, 0, 0, "asd"));
 
