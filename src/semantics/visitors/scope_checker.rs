@@ -48,16 +48,6 @@ impl ScopeChecker {
             .find_symbol(&symbol.span.lexeme)
             .is_some()
     }
-
-    fn check_parent_scope(&self, symbol: &Token) -> bool {
-        self.symbol_table
-            .iter()
-            .rev()
-            .nth(1)
-            .unwrap()
-            .find_symbol(&symbol.span.lexeme)
-            .is_some()
-    }
 }
 
 fn token_type(r#type: &Token) -> Type {
@@ -83,11 +73,15 @@ impl Visitor<()> for ScopeChecker {
             }
 
             AstNode::Block { statements } => {
-                self.symbol_table.push(SymbolTable::new());
+                if !self.inside_function {
+                    self.symbol_table.push(SymbolTable::new());
+                }
                 for statement in statements {
                     self.visit(statement)?;
                 }
-                self.symbol_table.pop();
+                if !self.inside_function {
+                    self.symbol_table.pop();
+                }
                 Ok(())
             }
 
@@ -109,7 +103,6 @@ impl Visitor<()> for ScopeChecker {
                 self.inside_function = true;
                 self.visit(block)?;
                 self.symbol_table.pop();
-                self.inside_function = false;
                 Ok(())
             }
 
@@ -184,7 +177,7 @@ impl Visitor<()> for ScopeChecker {
 
             AstNode::Identifier { token } => {
                 if self.inside_function {
-                    if !self.check_parent_scope(token) {
+                    if !self.check_scope(token) {
                         return Err(SemanticError::UndefinedVariable(token.clone()).into());
                     }
                 } else if self.find_symbol(token).is_none() {
@@ -198,12 +191,16 @@ impl Visitor<()> for ScopeChecker {
                 Ok(())
             }
             AstNode::PadWidth => Ok(()),
-            AstNode::PadRandI { upper_bound: _ } => todo!(),
-            AstNode::PadHeight => todo!(),
-            AstNode::PadRead {
-                first: _,
-                second: _,
-            } => todo!(),
+            AstNode::PadRandI { upper_bound } => {
+                self.visit(upper_bound)?;
+                Ok(())
+            }
+            AstNode::PadHeight => Ok(()),
+            AstNode::PadRead { first, second } => {
+                self.visit(first)?;
+                self.visit(second)?;
+                Ok(())
+            }
             AstNode::IntLiteral(_) => Ok(()),
             AstNode::FloatLiteral(_) => Ok(()),
             AstNode::BoolLiteral(_) => Ok(()),
@@ -214,44 +211,82 @@ impl Visitor<()> for ScopeChecker {
                 }
                 Ok(())
             }
-            AstNode::Delay { expression: _ } => todo!(),
+            AstNode::Delay { expression } => {
+                self.visit(expression)?;
+                Ok(())
+            }
             AstNode::Return { expression } => {
                 self.visit(expression)?;
                 Ok(())
             }
             AstNode::PadWriteBox {
-                loc_x: _,
-                loc_y: _,
-                width: _,
-                height: _,
-                colour: _,
-            } => todo!(),
+                loc_x,
+                loc_y,
+                width,
+                height,
+                colour,
+            } => {
+                self.visit(loc_x)?;
+                self.visit(loc_y)?;
+                self.visit(width)?;
+                self.visit(height)?;
+                self.visit(colour)?;
+                Ok(())
+            }
             AstNode::PadWrite {
-                loc_x: _,
-                loc_y: _,
-                colour: _,
-            } => todo!(),
+                loc_x,
+                loc_y,
+                colour,
+            } => {
+                self.visit(loc_x)?;
+                self.visit(loc_y)?;
+                self.visit(colour)?;
+                Ok(())
+            }
             AstNode::If {
-                condition: _,
-                if_true: _,
-                if_false: _,
-            } => todo!(),
+                condition,
+                if_true,
+                if_false,
+            } => {
+                self.visit(condition)?;
+                self.visit(if_true)?;
+                if let Some(if_false) = if_false {
+                    self.visit(if_false)?;
+                }
+                Ok(())
+            }
             AstNode::For {
-                initializer: _,
-                condition: _,
-                increment: _,
-                body: _,
-            } => todo!(),
-            AstNode::While {
-                condition: _,
-                body: _,
-            } => todo!(),
-            AstNode::Print { expression: _ } => todo!(),
+                initializer,
+                condition,
+                increment,
+                body,
+            } => {
+                if let Some(initializer) = initializer {
+                    self.visit(initializer)?;
+                }
+                self.visit(condition)?;
+
+                if let Some(increment) = increment {
+                    self.visit(increment)?;
+                }
+
+                self.visit(body)?;
+                Ok(())
+            }
+            AstNode::While { condition, body } => {
+                self.visit(condition)?;
+                self.visit(body)?;
+                Ok(())
+            }
+            AstNode::Print { expression } => {
+                self.visit(expression)?;
+                Ok(())
+            }
             AstNode::PadClear { expr } => {
                 self.visit(expr)?;
                 Ok(())
             }
-            AstNode::EndOfFile => todo!(),
+            AstNode::EndOfFile => Ok(()),
         }
     }
 }

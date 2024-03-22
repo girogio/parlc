@@ -1,13 +1,13 @@
 fun XGreaterY(x: int, y: int) -> bool {
 	let ans: bool = true;
-	if ((y) > (x)) 	 {
+	if (y > x) 	 {
 		ans = false;
 	}
 	return ans;
 }
 
 fun XGreaterY2(x: int, y: int) -> bool {
-	return (x) > (y);
+	return x > y;
 }
 
 fun AverageOfTwo(x: int, y: int) -> float {
@@ -64,11 +64,10 @@ let c1: colour = #00ff00;
 
 let c2: colour = #0000ff;
 
-let m: int = height;
+let m: int = __height;
 
 let w: int = Race(c1, c2, m);
 
 __print w;
 
 __clear #000000;
-

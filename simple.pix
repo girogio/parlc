@@ -5,7 +5,3 @@ fun test(b: int, z: int) -> int {
 }
 
 return d + 1;
-
-fun test(b: int, z: int) -> int {
-    return b * b * b * b + b;
-}
