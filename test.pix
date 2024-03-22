@@ -2,8 +2,8 @@ fun XGreaterY(x: int, y: int) -> bool {
 	let ans: bool = true;
 	if (y > x) 	 {
 		ans = false;
+		let a: int = 0;
 	}
-	return ans;
 }
 
 fun XGreaterY2(x: int, y: int) -> bool {

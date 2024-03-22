@@ -76,12 +76,11 @@ impl Visitor<()> for ScopeChecker {
                 if !self.inside_function {
                     self.symbol_table.push(SymbolTable::new());
                 }
+                self.inside_function = false;
                 for statement in statements {
                     self.visit(statement)?;
                 }
-                if !self.inside_function {
-                    self.symbol_table.pop();
-                }
+                self.symbol_table.pop();
                 Ok(())
             }
 
@@ -102,7 +101,7 @@ impl Visitor<()> for ScopeChecker {
                 }
                 self.inside_function = true;
                 self.visit(block)?;
-                self.symbol_table.pop();
+                // self.symbol_table.pop();
                 Ok(())
             }
 

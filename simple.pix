@@ -1,7 +1,7 @@
 let d: int = 2;
 
 fun test(b: int, z: int) -> int {
-	return b * b * b * b + b;
+	return d * b * b * b + b;
 }
 
 return d + 1;
