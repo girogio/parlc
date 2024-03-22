@@ -1,88 +1,10 @@
-use std::collections::LinkedList;
-use std::fmt::Display;
-
+use crate::semantics::utils::{Symbol, SymbolTable, Type};
 use crate::utils::errors::SemanticError;
 use crate::utils::Result;
 use crate::{
     core::Token,
     parsing::ast::{AstNode, Visitor},
 };
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
-enum Type {
-    Int,
-    Float,
-    Bool,
-    Colour,
-}
-
-impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Type::Int => write!(f, "int"),
-            Type::Float => write!(f, "float"),
-            Type::Bool => write!(f, "bool"),
-            Type::Colour => write!(f, "colour"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct Symbol {
-    lexeme: String,
-    r#type: Option<Type>,
-}
-
-impl Symbol {
-    fn new(lexeme: &str, r#type: Option<Type>) -> Self {
-        Symbol {
-            lexeme: lexeme.to_string(),
-            r#type,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct SymbolTable {
-    symbols: LinkedList<Symbol>,
-}
-
-impl SymbolTable {
-    fn new() -> Self {
-        SymbolTable {
-            symbols: LinkedList::new(),
-        }
-    }
-
-    fn add_symbol(&mut self, lexeme: &str, r#type: Option<Type>) {
-        let mut index = 0;
-        let symbol = Symbol::new(lexeme, r#type);
-        for s in &self.symbols {
-            if s < &symbol {
-                break;
-            }
-            index += 1;
-        }
-
-        self.insert_at(index, symbol);
-    }
-
-    fn insert_at(&mut self, index: usize, symbol: Symbol) {
-        let mut tail = self.symbols.split_off(index);
-        self.symbols.push_back(symbol);
-        self.symbols.append(&mut tail);
-    }
-
-    fn find_symbol(&self, symbol: &str) -> Option<&Symbol> {
-        self.symbols.iter().find(|s| s.lexeme == symbol)
-    }
-
-    fn set_type(&mut self, symbol: &str, r#type: Type) {
-        if let Some(s) = self.symbols.iter_mut().find(|s| s.lexeme == symbol) {
-            s.r#type = Some(r#type);
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct ScopeChecker {
@@ -183,7 +105,6 @@ impl Visitor<()> for ScopeChecker {
                     self.visit(param)?;
                 }
                 self.visit(block)?;
-                dbg!(&self.symbol_table);
                 self.symbol_table.pop();
                 Ok(())
             }
@@ -220,16 +141,12 @@ impl Visitor<()> for ScopeChecker {
                 identifier,
                 param_type,
             } => {
-                if self.check_parent_scope(identifier) {
-                    return Err(SemanticError::RedeclaredVariable(identifier.clone()).into());
-                } else {
-                    self.add_symbol(identifier, param_type)?;
-                }
+                self.add_symbol(identifier, param_type)?;
                 Ok(())
             }
 
             AstNode::Expression {
-                casted_type,
+                casted_type: _,
                 bin_op,
             } => {
                 self.visit(bin_op)?;
@@ -242,7 +159,7 @@ impl Visitor<()> for ScopeChecker {
             }
 
             AstNode::Assignment {
-                identifier,
+                identifier: _,
                 expression,
             } => {
                 // self.visit(identifier)?;
@@ -253,7 +170,7 @@ impl Visitor<()> for ScopeChecker {
 
             AstNode::BinOp {
                 left,
-                operator,
+                operator: _,
                 right,
             } => {
                 self.visit(left)?;
@@ -262,61 +179,66 @@ impl Visitor<()> for ScopeChecker {
             }
 
             AstNode::Identifier { token } => {
-                if self.find_symbol(token).is_none() {
+                if !self.check_parent_scope(token) {
                     return Err(SemanticError::UndefinedVariable(token.clone()).into());
                 }
                 Ok(())
             }
 
-            AstNode::UnaryOp { operator, expr } => {
+            AstNode::UnaryOp { operator: _, expr } => {
                 self.visit(expr)?;
                 Ok(())
             }
             AstNode::PadWidth => Ok(()),
-            AstNode::PadRandI { upper_bound } => todo!(),
+            AstNode::PadRandI { upper_bound: _ } => todo!(),
             AstNode::PadHeight => todo!(),
-            AstNode::PadRead { first, second } => todo!(),
+            AstNode::PadRead {
+                first: _,
+                second: _,
+            } => todo!(),
             AstNode::IntLiteral(_) => Ok(()),
             AstNode::FloatLiteral(_) => Ok(()),
             AstNode::BoolLiteral(_) => Ok(()),
             AstNode::ColourLiteral(_) => Ok(()),
-            AstNode::FunctionCall { identifier, args } => todo!(),
             AstNode::ActualParams { params } => {
                 for param in params {
                     self.visit(param)?;
                 }
                 Ok(())
             }
-            AstNode::Delay { expression } => todo!(),
+            AstNode::Delay { expression: _ } => todo!(),
             AstNode::Return { expression } => {
                 self.visit(expression)?;
                 Ok(())
             }
             AstNode::PadWriteBox {
-                loc_x,
-                loc_y,
-                width,
-                height,
-                colour,
+                loc_x: _,
+                loc_y: _,
+                width: _,
+                height: _,
+                colour: _,
             } => todo!(),
             AstNode::PadWrite {
-                loc_x,
-                loc_y,
-                colour,
+                loc_x: _,
+                loc_y: _,
+                colour: _,
             } => todo!(),
             AstNode::If {
-                condition,
-                if_true,
-                if_false,
+                condition: _,
+                if_true: _,
+                if_false: _,
             } => todo!(),
             AstNode::For {
-                initializer,
-                condition,
-                increment,
-                body,
+                initializer: _,
+                condition: _,
+                increment: _,
+                body: _,
             } => todo!(),
-            AstNode::While { condition, body } => todo!(),
-            AstNode::Print { expression } => todo!(),
+            AstNode::While {
+                condition: _,
+                body: _,
+            } => todo!(),
+            AstNode::Print { expression: _ } => todo!(),
             AstNode::PadClear { expr } => {
                 self.visit(expr)?;
                 Ok(())
@@ -328,21 +250,26 @@ impl Visitor<()> for ScopeChecker {
 
 #[cfg(test)]
 mod tests {
-    use crate::{core::TextSpan, lexing::Lexer, parsing::Parser, utils::SimpleBuffer};
+    use crate::{
+        core::{TextSpan, TokenKind},
+        lexing::Lexer,
+        parsing::Parser,
+        utils::SimpleBuffer,
+    };
 
     use super::*;
     use std::path::Path;
 
     fn check_semantics(input: &str) -> Result<()> {
-        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, &Path::new(""), None);
+        let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, Path::new(""), None);
 
         let tokens = lexer.lex().unwrap();
 
-        let mut parser = Parser::new(&tokens, &Path::new(""));
+        let mut parser = Parser::new(&tokens, Path::new(""));
         let ast = parser.parse()?;
 
         let mut scope_checker = ScopeChecker::new();
-        scope_checker.visit(&ast)?;
+        scope_checker.visit(ast)?;
 
         Ok(())
     }
@@ -390,6 +317,6 @@ mod tests {
 
         assert!(scope_checker.check_scope(&token));
 
-        assert_eq!(scope_checker.check_parent_scope(&token), false);
+        assert!(!scope_checker.check_parent_scope(&token));
     }
 }

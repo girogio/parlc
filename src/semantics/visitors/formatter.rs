@@ -1,5 +1,4 @@
 use std::{
-    borrow::Borrow,
     fs::File,
     io::{BufWriter, Write},
     path::Path,
@@ -8,12 +7,12 @@ use std::{
 use crate::parsing::ast::{AstNode, Visitor};
 use crate::utils::Result;
 
-pub struct AstFormatter {
+pub struct Formatter {
     tab_level: usize,
     buff: BufWriter<File>,
 }
 
-impl AstFormatter {
+impl Formatter {
     pub fn new(file: &Path) -> Self {
         let file = File::create(file).unwrap();
 
@@ -24,7 +23,7 @@ impl AstFormatter {
     }
 }
 
-impl Visitor<()> for AstFormatter {
+impl Visitor<()> for Formatter {
     fn visit(&mut self, node: &AstNode) -> Result<()> {
         match node {
             AstNode::Program { statements } => {
@@ -348,7 +347,7 @@ impl Visitor<()> for AstFormatter {
                 write!(self.buff, "__height")?;
                 Ok(())
             }
-            AstNode::ActualParams { params } => Ok(()),
+            AstNode::ActualParams { params: _ } => Ok(()),
             AstNode::EndOfFile => Ok(()),
         }
     }

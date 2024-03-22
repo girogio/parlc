@@ -11,11 +11,8 @@ use utils::SimpleBuffer;
 
 use crate::{
     lexing::Lexer,
-    parsing::{
-        ast::Visitor,
-        visitors::{AstFormatter, ScopeChecker},
-        Parser,
-    },
+    parsing::{ast::Visitor, Parser},
+    semantics::visitors::{Formatter, ScopeChecker},
 };
 
 fn main() {
@@ -113,7 +110,7 @@ fn main() {
 
                     match ast {
                         Ok(ast) => {
-                            let mut printer = AstFormatter::new(file_path);
+                            let mut printer = Formatter::new(file_path);
                             printer.visit(ast);
                         }
                         Err(e) => {
