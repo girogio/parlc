@@ -301,7 +301,6 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Result<AstNode> {
         let left = self.parse_simple_expr()?;
-
         let curr = self.current_token().clone();
 
         match &curr.kind {
@@ -320,7 +319,7 @@ impl Parser {
             | TokenKind::EqEq
             | TokenKind::NotEqual => {
                 self.consume();
-                let right = self.parse_simple_expr()?;
+                let right = self.parse_expression()?;
 
                 Ok(AstNode::Expression {
                     casted_type: if let TokenKind::As = self.current_token().kind {
@@ -352,7 +351,7 @@ impl Parser {
                 Ok(AstNode::BinOp {
                     left: Box::new(left),
                     operator: curr,
-                    right: Box::new(self.parse_term()?),
+                    right: Box::new(self.parse_simple_expr()?),
                 })
             }
             _ => Ok(left),
@@ -378,7 +377,7 @@ impl Parser {
                 Ok(AstNode::BinOp {
                     left: Box::new(left),
                     operator: next_token,
-                    right: Box::new(self.parse_factor()?),
+                    right: Box::new(self.parse_term()?),
                 })
             }
             _ => Ok(left),
