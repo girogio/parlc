@@ -302,17 +302,13 @@ impl Visitor<()> for ScopeChecker {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        core::{TextSpan, TokenKind},
-        lexing::Lexer,
-        parsing::Parser,
-        utils::SimpleBuffer,
-    };
+    use crate::{lexing::Lexer, parsing::Parser, utils::SimpleBuffer};
 
     use super::*;
+    use rstest::rstest;
     use std::path::Path;
 
-    fn check_semantics(input: &str) -> Result<()> {
+    fn run_scope_checker(input: &str) -> Result<()> {
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, Path::new(""), None);
 
         let tokens = lexer.lex().unwrap();
@@ -326,7 +322,7 @@ mod tests {
         Ok(())
     }
 
-    #[test]
+    #[rstest]
     fn test_symbol_table() {
         let mut symbol_table = SymbolTable::new();
 
@@ -348,21 +344,24 @@ mod tests {
         );
     }
 
-    #[test]
+    #[rstest]
     fn test_scope_checker() {
-        let mut scope_checker = ScopeChecker::new();
+        let input = r#"
+            let x: int = 5;
+            let y: float = 3.14;
+            let z: bool = true;
+            let f: colour = #ff0000;
 
-        let token = Token::new(TokenKind::Identifier, TextSpan::new(0, 0, 0, 0, "asd"));
+            fun foo(x: int, y: float) -> int {
+                let z: bool = false;
+                let f: colour = #00ff00;
+                return x;
+            }
 
-        assert!(!scope_checker.check_scope(&token));
+            let a: int = foo(5, 3.14);
+            let b: float = x + y;
+        "#;
 
-        scope_checker
-            .add_symbol(
-                &token,
-                &Token::new(TokenKind::Type, TextSpan::new(0, 0, 0, 0, "int")),
-            )
-            .unwrap();
-
-        assert!(scope_checker.check_scope(&token));
+        assert!(run_scope_checker(input).is_ok());
     }
 }
