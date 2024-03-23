@@ -180,15 +180,19 @@ impl Visitor<()> for Formatter {
                 write!(self.buff, "fun {}", identifier)?;
                 write!(self.buff, "(")?;
 
-                let (params, last) = params.split_at(params.len() - 1);
+                if params.is_empty() {
+                    write!(self.buff, ") -> {}", return_type.span.lexeme)?;
+                    self.visit(block)?;
+                    return Ok(());
+                } else {
+                    for param in params.iter().take(params.len() - 1) {
+                        self.visit(param)?;
+                        write!(self.buff, ", ")?;
+                    }
 
-                for param in params {
-                    self.visit(param)?;
-                    write!(self.buff, ", ")?;
-                }
-
-                if let Some(last) = last.first() {
-                    self.visit(last)?;
+                    if let Some(last) = params.last() {
+                        self.visit(last)?;
+                    }
                 }
 
                 write!(self.buff, ") -> {}", return_type.span.lexeme)?;
