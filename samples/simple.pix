@@ -1,0 +1,9 @@
+let b: int = 0;
+
+for (let a: int = 0; 2 < 10; a = 2 + 1) {
+	let a: int = 0;
+	return a;
+}
+
+__clear #000000;
+
