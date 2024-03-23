@@ -99,7 +99,6 @@ impl Visitor<()> for Formatter {
                 write!(self.buff, "for (")?;
 
                 // This is to avoid printing newline after the variable declaration in a for loop
-
                 if let Some(node) = initializer {
                     if let AstNode::VarDec {
                         identifier,
@@ -121,7 +120,7 @@ impl Visitor<()> for Formatter {
                 if let Some(increment) = increment.as_ref() {
                     self.visit(increment)?;
                 }
-                write!(self.buff, ") ")?;
+                write!(self.buff, ")")?;
                 self.visit(body)?;
                 Ok(())
             }
