@@ -20,14 +20,16 @@ impl Printer {
 
 impl Visitor<()> for Printer {
     fn visit(&mut self, node: &AstNode) -> Result<()> {
-        self.tab();
         match node {
             AstNode::Program { statements } => {
                 println!("Program");
+                self.tab_level += 1;
                 for statement in statements {
+                    self.print_tab();
                     self.visit(statement)?;
                 }
-
+                self.tab_level -= 1;
+                println!();
                 Ok(())
             }
 
@@ -39,9 +41,9 @@ impl Visitor<()> for Printer {
                 println!("VarDec");
                 self.tab_level += 1;
                 self.print_tab();
-                print!("Identifier: {}\n", identifier.span.lexeme);
+                println!("Identifier: {}", identifier);
                 self.print_tab();
-                print!("Type: {}\n", var_type.span.lexeme);
+                println!("Type: {}", var_type);
                 self.print_tab();
                 print!("Expression: ");
                 self.visit(expression)?;
@@ -66,6 +68,7 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Expression: ");
                 self.visit(expression)?;
+                self.tab_level -= 1;
                 Ok(())
             }
 
@@ -79,6 +82,7 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Condition: ");
                 self.visit(condition)?;
+                println!();
                 self.print_tab();
                 print!("If True: ");
                 self.visit(if_true)?;
@@ -87,6 +91,7 @@ impl Visitor<()> for Printer {
                     print!("If False: ");
                     self.visit(if_false)?;
                 }
+                self.tab_level -= 1;
                 Ok(())
             }
 
@@ -101,6 +106,7 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Expression: ");
                 self.visit(expression)?;
+                self.tab_level -= 1;
                 Ok(())
             }
 
@@ -132,24 +138,28 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Body: ");
                 self.visit(body)?;
+                self.tab_level -= 1;
                 Ok(())
             }
 
             AstNode::Return { expression } => {
                 println!("Return");
-                self.tab_level += 1;
                 self.print_tab();
+                self.tab_level += 1;
                 print!("Expression: ");
                 self.visit(expression)?;
+                self.tab_level -= 1;
                 Ok(())
             }
 
             AstNode::Block { statements } => {
-                println!("Block");
+                println!();
                 self.tab_level += 1;
                 for statement in statements {
+                    self.print_tab();
                     self.visit(statement)?;
                 }
+                self.tab_level -= 1;
                 Ok(())
             }
 
@@ -157,10 +167,12 @@ impl Visitor<()> for Printer {
                 casted_type,
                 expr: bin_op,
             } => {
-                if let Some(casted_type) = casted_type {
-                    print!("{} as ", casted_type.span.lexeme);
-                }
+                self.tab_level += 1;
                 self.visit(bin_op)?;
+                if let Some(casted_type) = casted_type {
+                    print!(" as {}", casted_type);
+                }
+                self.tab_level -= 1;
                 Ok(())
             }
 
@@ -180,7 +192,7 @@ impl Visitor<()> for Printer {
                 println!("FunctionDecl");
                 self.tab_level += 1;
                 self.print_tab();
-                print!("Identifier: {}\n", identifier.span.lexeme);
+                println!("Identifier: {}", identifier.span.lexeme);
                 self.print_tab();
                 print!("Params: ");
                 for param in params {
@@ -193,6 +205,7 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Block: ");
                 self.visit(block)?;
+                self.tab_level -= 1;
                 Ok(())
             }
 
@@ -205,6 +218,7 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Body: ");
                 self.visit(body)?;
+                self.tab_level -= 1;
                 Ok(())
             }
 
@@ -296,7 +310,7 @@ impl Visitor<()> for Printer {
             AstNode::FunctionCall { identifier, args } => {
                 print!("{}(", identifier.span.lexeme);
 
-                let (args, last) = args.split_at(args.len() - 1);
+                let (args, last) = args.split_at(args.len());
 
                 for arg in args {
                     self.visit(arg)?;
