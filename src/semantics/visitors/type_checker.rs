@@ -1,3 +1,4 @@
+use crate::core::TokenKind;
 use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType, Type};
 use crate::utils::errors::SemanticError;
 use crate::utils::Result;
@@ -41,17 +42,82 @@ impl TypeChecker {
         self.symbol_table.last_mut().unwrap()
     }
 
-    fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType) -> Result<()> {
+    fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType) {
         self.mut_current_scope()
             .add_symbol(&symbol.span.lexeme, symbol_type);
+    }
 
-        Ok(())
+    fn get_symbol_type(&self, symbol: &Token) -> Result<Type> {
+        self.find_symbol(symbol)
+            .map(|s| match &s.symbol_type {
+                SymbolType::Variable(t) => *t,
+                SymbolType::Function(signature) => signature.return_type,
+                SymbolType::Void => Type::Void,
+            })
+            .ok_or_else(|| SemanticError::UndefinedVariable(symbol.clone()).into())
     }
 
     fn check_scope(&self, symbol: &Token) -> bool {
         self.current_scope()
             .find_symbol(&symbol.span.lexeme)
             .is_some()
+    }
+
+    fn get_unary_op_type(&self, op: &Token, expr: &Type) -> Result<Type> {
+        match (op.kind, expr) {
+            (TokenKind::Minus, Type::Int) => Ok(Type::Int),
+            (TokenKind::Minus, Type::Float) => Ok(Type::Float),
+            (TokenKind::Not, Type::Bool) => Ok(Type::Bool),
+            _ => Err(SemanticError::InvalidOperation(op.clone()).into()),
+        }
+    }
+
+    fn get_bin_op_type(&self, op: &Token, left: &Type, right: &Type) -> Result<Type> {
+        match (op.kind, left, right) {
+            (TokenKind::Plus, Type::Int, Type::Int) => Ok(Type::Int),
+            (TokenKind::Plus, Type::Float, Type::Float) => Ok(Type::Float),
+            (TokenKind::Plus, Type::Colour, Type::Colour) => Ok(Type::Colour),
+            (TokenKind::Minus, Type::Int, Type::Int) => Ok(Type::Int),
+            (TokenKind::Minus, Type::Float, Type::Float) => Ok(Type::Float),
+            (TokenKind::Minus, Type::Colour, Type::Colour) => Ok(Type::Colour),
+            (TokenKind::Multiply, Type::Int, Type::Int) => Ok(Type::Int),
+            (TokenKind::Multiply, Type::Float, Type::Float) => Ok(Type::Float),
+            (TokenKind::Multiply, Type::Colour, Type::Colour) => Ok(Type::Colour),
+            (TokenKind::Divide, Type::Int, Type::Int) => Ok(Type::Int),
+            (TokenKind::Divide, Type::Float, Type::Float) => Ok(Type::Float),
+            (TokenKind::Divide, Type::Colour, Type::Colour) => Ok(Type::Colour),
+            (TokenKind::EqEq, Type::Int, Type::Int) => Ok(Type::Bool),
+            (TokenKind::EqEq, Type::Float, Type::Float) => Ok(Type::Bool),
+            (TokenKind::EqEq, Type::Bool, Type::Bool) => Ok(Type::Bool),
+            (TokenKind::EqEq, Type::Colour, Type::Colour) => Ok(Type::Bool),
+            (TokenKind::NotEqual, Type::Int, Type::Int) => Ok(Type::Bool),
+            (TokenKind::NotEqual, Type::Float, Type::Float) => Ok(Type::Bool),
+            (TokenKind::NotEqual, Type::Bool, Type::Bool) => Ok(Type::Bool),
+            (TokenKind::NotEqual, Type::Colour, Type::Colour) => Ok(Type::Bool),
+            (TokenKind::LessThan, Type::Int, Type::Int) => Ok(Type::Bool),
+            (TokenKind::LessThan, Type::Float, Type::Float) => Ok(Type::Bool),
+            (TokenKind::LessThan, Type::Colour, Type::Colour) => Ok(Type::Bool),
+            (TokenKind::LessThanEqual, Type::Int, Type::Int) => Ok(Type::Bool),
+            (TokenKind::LessThanEqual, Type::Float, Type::Float) => Ok(Type::Bool),
+            (TokenKind::LessThanEqual, Type::Colour, Type::Colour) => Ok(Type::Bool),
+            (TokenKind::GreaterThan, Type::Int, Type::Int) => Ok(Type::Bool),
+            (TokenKind::GreaterThan, Type::Float, Type::Float) => Ok(Type::Bool),
+            (TokenKind::GreaterThan, Type::Colour, Type::Colour) => Ok(Type::Bool),
+            (TokenKind::GreaterThanEqual, Type::Int, Type::Int) => Ok(Type::Bool),
+            (TokenKind::GreaterThanEqual, Type::Float, Type::Float) => Ok(Type::Bool),
+            (TokenKind::GreaterThanEqual, Type::Colour, Type::Colour) => Ok(Type::Bool),
+            (TokenKind::And, Type::Bool, Type::Bool) => Ok(Type::Bool),
+            (TokenKind::Or, Type::Bool, Type::Bool) => Ok(Type::Bool),
+            _ => Err(SemanticError::InvalidOperation(op.clone()).into()),
+        }
+    }
+
+    fn assert_type(&self, token: &Token, expected: &Type, found: &Type) -> Result<Type> {
+        if expected != found {
+            return Err(SemanticError::TypeMismatch(token.clone(), *found, *expected).into());
+        }
+
+        Ok(*found)
     }
 
     fn push_scope(&mut self) {
@@ -71,8 +137,8 @@ impl TypeChecker {
     }
 }
 
-impl Visitor<SymbolType> for TypeChecker {
-    fn visit(&mut self, node: &AstNode) -> Result<SymbolType> {
+impl Visitor<Type> for TypeChecker {
+    fn visit(&mut self, node: &AstNode) -> Result<Type> {
         match node {
             AstNode::Program { statements } => {
                 self.push_scope();
@@ -80,7 +146,8 @@ impl Visitor<SymbolType> for TypeChecker {
                     self.visit(statement)?;
                 }
                 self.pop_scope();
-                Ok(())
+
+                Ok(Type::Void)
             }
 
             AstNode::Block { statements } => {
@@ -89,7 +156,8 @@ impl Visitor<SymbolType> for TypeChecker {
                     self.visit(statement)?;
                 }
                 self.pop_scope();
-                Ok(())
+
+                Ok(Type::Void)
             }
 
             AstNode::FunctionDecl {
@@ -141,19 +209,27 @@ impl Visitor<SymbolType> for TypeChecker {
                 self.inside_function = false;
                 self.scope_peek_limit = 0;
 
-                Ok(())
+                Ok(Type::Void)
             }
 
             AstNode::Identifier { token } => {
                 if self.inside_function {
                     if !self.check_up_to_scope(token) {
-                        dbg!(&self.symbol_table);
                         return Err(SemanticError::UndefinedVariable(token.clone()).into());
                     }
                 } else if !self.check_scope(token) {
                     return Err(SemanticError::UndefinedVariable(token.clone()).into());
                 }
-                Ok(())
+
+                self.symbol_table
+                    .iter()
+                    .rev()
+                    .find_map(|table| table.find_symbol(&token.span.lexeme))
+                    .map(|s| match &s.symbol_type {
+                        SymbolType::Variable(t) => Ok(t.clone()),
+                        _ => Err(SemanticError::UndefinedVariable(token.clone()).into()),
+                    })
+                    .unwrap()
             }
 
             AstNode::VarDec {
@@ -171,10 +247,10 @@ impl Visitor<SymbolType> for TypeChecker {
                         &SymbolType::Variable(
                             self.current_scope().token_to_type(&var_type.span.lexeme),
                         ),
-                    )?;
+                    );
                 }
 
-                Ok(())
+                Ok(Type::Void)
             }
 
             AstNode::FunctionCall { identifier, args } => {
@@ -186,7 +262,12 @@ impl Visitor<SymbolType> for TypeChecker {
                     self.visit(arg)?;
                 }
 
-                Ok(())
+                self.find_symbol(identifier)
+                    .map(|s| match &s.symbol_type {
+                        SymbolType::Function(signature) => Ok(signature.return_type),
+                        _ => Err(SemanticError::UndefinedFunction(identifier.clone()).into()),
+                    })
+                    .unwrap()
             }
 
             AstNode::FormalParam {
@@ -198,22 +279,17 @@ impl Visitor<SymbolType> for TypeChecker {
                     &SymbolType::Variable(
                         self.current_scope().token_to_type(&param_type.span.lexeme),
                     ),
-                )?;
-                Ok(())
+                );
+
+                Ok(Type::Void)
             }
 
             AstNode::Expression {
                 casted_type: _,
                 bin_op,
-            } => {
-                self.visit(bin_op)?;
-                Ok(())
-            }
+            } => self.visit(bin_op),
 
-            AstNode::SubExpression { bin_op } => {
-                self.visit(bin_op)?;
-                Ok(())
-            }
+            AstNode::SubExpression { bin_op } => self.visit(bin_op),
 
             AstNode::Assignment {
                 identifier,
@@ -227,53 +303,68 @@ impl Visitor<SymbolType> for TypeChecker {
                     return Err(SemanticError::UndefinedVariable(identifier.clone()).into());
                 }
 
-                self.visit(expression)?;
-                Ok(())
+                let identifier_type = self.get_symbol_type(identifier)?;
+                let expression_type = self.visit(expression)?;
+
+                self.assert_type(identifier, &identifier_type, &expression_type)
             }
 
             AstNode::BinOp {
                 left,
-                operator: _,
+                operator,
                 right,
             } => {
-                self.visit(left)?;
-                self.visit(right)?;
-                Ok(())
+                let left_type = self.visit(left)?;
+                let right_type = self.visit(right)?;
+
+                self.get_bin_op_type(operator, &left_type, &right_type)
             }
 
-            AstNode::UnaryOp { operator: _, expr } => {
-                self.visit(expr)?;
-                Ok(())
+            AstNode::UnaryOp { operator, expr } => {
+                let expr_type = self.visit(expr)?;
+
+                self.get_unary_op_type(operator, &expr_type)
             }
-            AstNode::PadWidth => Ok(()),
+
+            AstNode::PadWidth => Ok(Type::Int),
+
             AstNode::PadRandI { upper_bound } => {
                 self.visit(upper_bound)?;
-                Ok(())
+                Ok(Type::Int)
             }
-            AstNode::PadHeight => Ok(()),
+
+            AstNode::PadHeight => Ok(Type::Int),
+
             AstNode::PadRead { first, second } => {
                 self.visit(first)?;
                 self.visit(second)?;
-                Ok(())
+
+                Ok(Type::Int)
             }
-            AstNode::IntLiteral(_) => Ok(()),
-            AstNode::FloatLiteral(_) => Ok(()),
-            AstNode::BoolLiteral(_) => Ok(()),
-            AstNode::ColourLiteral(_) => Ok(()),
+
+            AstNode::IntLiteral(_) => Ok(Type::Int),
+
+            AstNode::FloatLiteral(_) => Ok(Type::Float),
+
+            AstNode::BoolLiteral(_) => Ok(Type::Bool),
+
+            AstNode::ColourLiteral(_) => Ok(Type::Colour),
+
             AstNode::ActualParams { params } => {
                 for param in params {
                     self.visit(param)?;
                 }
-                Ok(())
+
+                Ok(Type::Void)
             }
             AstNode::Delay { expression } => {
                 self.visit(expression)?;
-                Ok(())
+
+                Ok(Type::Void)
             }
-            AstNode::Return { expression } => {
-                self.visit(expression)?;
-                Ok(())
-            }
+
+            AstNode::Return { expression } => self.visit(expression),
+
             AstNode::PadWriteBox {
                 loc_x,
                 loc_y,
@@ -286,8 +377,10 @@ impl Visitor<SymbolType> for TypeChecker {
                 self.visit(width)?;
                 self.visit(height)?;
                 self.visit(colour)?;
-                Ok(())
+
+                Ok(Type::Void)
             }
+
             AstNode::PadWrite {
                 loc_x,
                 loc_y,
@@ -296,7 +389,8 @@ impl Visitor<SymbolType> for TypeChecker {
                 self.visit(loc_x)?;
                 self.visit(loc_y)?;
                 self.visit(colour)?;
-                Ok(())
+
+                Ok(Type::Void)
             }
 
             AstNode::If {
@@ -309,7 +403,8 @@ impl Visitor<SymbolType> for TypeChecker {
                 if let Some(if_false) = if_false {
                     self.visit(if_false)?;
                 }
-                Ok(())
+
+                Ok(Type::Void)
             }
 
             AstNode::For {
@@ -336,22 +431,24 @@ impl Visitor<SymbolType> for TypeChecker {
                 self.scope_peek_limit = 0;
                 self.inside_function = false;
                 self.symbol_table.pop();
-                Ok(())
+
+                Ok(Type::Void)
             }
             AstNode::While { condition, body } => {
                 self.visit(condition)?;
                 self.visit(body)?;
-                Ok(())
+                Ok(Type::Void)
             }
             AstNode::Print { expression } => {
                 self.visit(expression)?;
-                Ok(())
+                Ok(Type::Void)
             }
             AstNode::PadClear { expr } => {
                 self.visit(expr)?;
-                Ok(())
+
+                Ok(Type::Void)
             }
-            AstNode::EndOfFile => Ok(()),
+            AstNode::EndOfFile => Ok(Type::Void),
         }
     }
 }

@@ -57,6 +57,8 @@ pub enum SemanticError {
     RedeclaredVariable(Token),
     #[error("'{}' is of type {:?}, expected {:?}.", .0.span.lexeme, .1, .2)]
     TypeMismatch(Token, Type, Type),
+    #[error("Invalid operation: {:?}", .0)]
+    InvalidOperation(Token),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

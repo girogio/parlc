@@ -4,9 +4,13 @@ fun test(a: int, b: int) -> int {
 	__print a;
 	__print b;
 
-	a = a + 1;
+	let some_bool: bool = a < b;
+
+	let asd: int = a + 1;
+	asd = 0.04;
 
 	let f: int = test(1, a);
+
 	if (a < a) 	 {
 		let c: int = a + b;
 		return c;
@@ -14,5 +18,7 @@ fun test(a: int, b: int) -> int {
 }
 
 let a: int = 1;
+
 d = test(a, d);
+
 __print d;

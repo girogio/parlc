@@ -12,8 +12,7 @@ use utils::SimpleBuffer;
 use crate::{
     lexing::Lexer,
     parsing::{ast::Visitor, Parser},
-    semantics::visitors::{Formatter, ScopeChecker},
-    // semantics::visitors::{Formatter, ScopeChecker, TypeChecker},
+    semantics::visitors::{Formatter, ScopeChecker, TypeChecker},
 };
 
 fn main() {
@@ -175,16 +174,16 @@ fn main() {
                                 }
                             }
 
-                            // let mut type_check = TypeChecker::new();
-                            // match type_check.visit(ast) {
-                            //     Ok(_) => {
-                            //         println!("Type checking completed successfully.");
-                            //     }
-                            //     Err(e) => {
-                            //         eprintln!("{}", e);
-                            //         std::process::exit(1);
-                            //     }
-                            // }
+                            let mut type_check = TypeChecker::new();
+                            match type_check.visit(ast) {
+                                Ok(_) => {
+                                    println!("Type checking completed successfully.");
+                                }
+                                Err(e) => {
+                                    eprintln!("{}", e);
+                                    std::process::exit(1);
+                                }
+                            }
                         }
                         Err(e) => {
                             eprintln!("{}", e);

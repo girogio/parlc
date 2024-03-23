@@ -25,6 +25,7 @@ impl Display for Type {
 pub enum SymbolType {
     Variable(Type),
     Function(Signature),
+    Void,
 }
 
 impl SymbolType {
