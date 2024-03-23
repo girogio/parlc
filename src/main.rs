@@ -4,7 +4,7 @@ mod parsing;
 mod semantics;
 mod utils;
 
-use clap::{command, value_parser, Arg, Command};
+use clap::{command, value_parser, Arg, Command, Parser as ClapParser, Subcommand};
 use console::style;
 use std::{io::Read, path::PathBuf};
 use utils::SimpleBuffer;
@@ -15,176 +15,136 @@ use crate::{
     semantics::visitors::{Formatter, Printer, ScopeChecker, TypeChecker},
 };
 
+#[derive(ClapParser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    subcmd: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Runs the PArL lexer on the given file.
+    Lex {
+        /// The file to lex.
+        file: PathBuf,
+    },
+    /// Runs the PArL formatter on the given file.
+    Fmt {
+        /// The file to format.
+        file: PathBuf,
+    },
+    /// Runs the PArL semantic analyzer on the given file.
+    Sem {
+        /// The file to analyze.
+        file: PathBuf,
+    },
+}
+
 fn main() {
-    let matches = command!()
-        .subcommand(
-            Command::new("lex")
-                .about("Run the lexer on a PArL source file")
-                .arg(Arg::new("file").value_parser(value_parser!(PathBuf))),
-        )
-        .subcommand(
-            Command::new("fmt")
-                .about("Format a PArL source file")
-                .arg(Arg::new("file").value_parser(value_parser!(PathBuf))),
-        )
-        .subcommand(
-            Command::new("sem")
-                .about("Run the semantic analyzer on a PArL source file")
-                .arg(Arg::new("file").value_parser(value_parser!(PathBuf))),
-        )
-        .get_matches();
+    let cli = Cli::parse();
 
-    if let Some(lexer_matches) = matches.subcommand_matches("lex") {
-        let mut input = String::new();
+    let file = match &cli.subcmd {
+        Commands::Lex { file } => file,
+        Commands::Fmt { file } => file,
+        Commands::Sem { file } => file,
+    };
 
-        if let Some(file_path) = lexer_matches.get_one::<PathBuf>("file") {
-            let mut file = std::fs::File::open(file_path);
+    if !file.exists() {
+        let msg = style("error: file not found").red().bold().for_stderr();
+        eprintln!("{} `{}`...", msg, style(file.display()).cyan());
+        std::process::exit(1);
+    }
 
-            match file {
-                Ok(ref mut file) => {
-                    file.read_to_string(&mut input).unwrap();
+    let input = match std::fs::read_to_string(file) {
+        Ok(input) => input,
+        Err(_) => {
+            let msg = style("error: could not read file")
+                .red()
+                .bold()
+                .for_stderr();
+            eprintln!("{} `{}`...", msg, style(file.display()).cyan());
+            std::process::exit(1);
+        }
+    };
 
-                    println!(
-                        "{} `{}`\n",
-                        style("Lexing").green().bold(),
-                        style(file_path.display())
-                    );
+    println!(
+        "\n{} {}\n",
+        style(match &cli.subcmd {
+            Commands::Lex { .. } => "Lexing",
+            Commands::Fmt { .. } => "Formatting",
+            Commands::Sem { .. } => "Analyzing",
+        })
+        .green()
+        .bold(),
+        style(file.display())
+    );
 
-                    let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, file_path, None);
-                    let tokens = lexer.lex();
+    let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, file, None);
 
-                    match tokens {
-                        Ok(tokens) => {
-                            for token in tokens {
-                                println!("  {}", token);
-                            }
-                        }
-                        Err(e) => {
-                            for err in e {
-                                eprintln!("{}", err);
-                            }
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                Err(_) => {
-                    let msg = style("File not found:").red().bold().for_stderr();
-                    eprintln!("{} `{}`...", msg, style(file_path.display()).cyan());
-                    std::process::exit(1);
-                }
-            };
+    let tokens = match lexer.lex() {
+        Ok(tokens) => tokens,
+        Err(e) => {
+            for err in e {
+                eprintln!("{}", err);
+            }
+            std::process::exit(1);
+        }
+    };
+
+    if let Commands::Lex { .. } = &cli.subcmd {
+        for token in &tokens {
+            println!("{:?}", token);
         }
     }
 
-    if let Some(parser_matches) = matches.subcommand_matches("fmt") {
-        let file = parser_matches.get_one::<PathBuf>("file");
-        let mut input = String::new();
+    if let Commands::Fmt { .. } = &cli.subcmd {
+        let mut parser = Parser::new(&tokens, file);
+        let ast = parser.parse();
 
-        if let Some(file_path) = file {
-            let mut file = std::fs::File::open(file_path);
-
-            match file {
-                Ok(ref mut file) => {
-                    file.read_to_string(&mut input).unwrap();
-
-                    println!(
-                        "\n{} `{}`\n",
-                        style("Formatting").green().bold(),
-                        style(file_path.display())
-                    );
-
-                    let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, file_path, None);
-
-                    let tokens = match lexer.lex() {
-                        Ok(tokens) => tokens,
-                        Err(e) => {
-                            for err in e {
-                                eprintln!("{}", err);
-                            }
-                            std::process::exit(1);
-                        }
-                    };
-
-                    let mut parser = Parser::new(&tokens, file_path);
-                    let ast = parser.parse();
-
-                    match ast {
-                        Ok(ast) => {
-                            let mut printer = Formatter::new(file_path);
-                            printer.visit(ast).unwrap();
-                        }
-                        Err(e) => {
-                            eprintln!("{}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                Err(_) => {
-                    let msg = style("File not found:").red().bold().for_stderr();
-                    eprintln!("{} `{}`...", msg, style(file_path.display()).cyan());
-                    std::process::exit(1);
-                }
-            };
+        match ast {
+            Ok(ast) => {
+                let mut printer = Formatter::new(file);
+                printer.visit(ast).unwrap();
+                println!("{} formatted successfully.", style(file.display()).cyan());
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
         }
     }
 
-    if let Some(parser_matches) = matches.subcommand_matches("sem") {
-        let file = parser_matches.get_one::<PathBuf>("file");
-        let mut input = String::new();
+    if let Commands::Sem { .. } = &cli.subcmd {
+        let mut parser = Parser::new(&tokens, file);
+        let ast = parser.parse();
 
-        if let Some(file_path) = file {
-            let mut file = std::fs::File::open(file_path);
-
-            match file {
-                Ok(ref mut file) => {
-                    file.read_to_string(&mut input).unwrap();
-
-                    println!(
-                        "\n{} `{}`\n",
-                        style("Analyzing").green().bold(),
-                        style(file_path.display())
-                    );
-
-                    let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, file_path, None);
-
-                    let tokens = match lexer.lex() {
-                        Ok(tokens) => tokens,
-                        Err(e) => {
-                            for err in e {
-                                eprintln!("{}", err);
+        match ast {
+            Ok(ast) => {
+                let mut scope_check = ScopeChecker::new();
+                match scope_check.visit(ast) {
+                    Ok(_) => {
+                        let mut type_check = TypeChecker::new();
+                        match type_check.visit(ast) {
+                            Ok(_) => {
+                                println!("Semantic analysis completed successfully.");
                             }
-                            std::process::exit(1);
-                        }
-                    };
-
-                    let mut parser = Parser::new(&tokens, file_path);
-                    let ast = parser.parse();
-
-                    match ast {
-                        Ok(ast) => {
-                            let mut type_check = TypeChecker::new();
-                            match type_check.visit(ast) {
-                                Ok(_) => {
-                                    println!("Semantic analysis completed successfully.");
-                                }
-                                Err(e) => {
-                                    eprintln!("{}", e);
-                                    std::process::exit(1);
-                                }
+                            Err(e) => {
+                                eprintln!("{}", e);
+                                std::process::exit(1);
                             }
-                        }
-                        Err(e) => {
-                            eprintln!("{}", e);
-                            std::process::exit(1);
                         }
                     }
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        std::process::exit(1);
+                    }
                 }
-                Err(_) => {
-                    let msg = style("File not found:").red().bold().for_stderr();
-                    eprintln!("{} `{}`...", msg, style(file_path.display()).cyan());
-                    std::process::exit(1);
-                }
-            };
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
         }
     }
 }
