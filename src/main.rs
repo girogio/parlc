@@ -4,15 +4,15 @@ mod parsing;
 mod semantics;
 mod utils;
 
-use clap::{command, value_parser, Arg, Command, Parser as ClapParser, Subcommand};
+use clap::{command, Parser as ClapParser, Subcommand};
 use console::style;
-use std::{io::Read, path::PathBuf};
+use std::path::PathBuf;
 use utils::SimpleBuffer;
 
 use crate::{
     lexing::Lexer,
     parsing::{ast::Visitor, Parser},
-    semantics::visitors::{Formatter, Printer, ScopeChecker, TypeChecker},
+    semantics::visitors::{Formatter, ScopeChecker, TreePrinter, TypeChecker},
 };
 
 #[derive(ClapParser)]
@@ -25,17 +25,26 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Runs the PArL lexer on the given file.
-    Lex {
+    #[clap(name = "lex")]
+    Lexer {
         /// The file to lex.
         file: PathBuf,
     },
+    #[clap(name = "parse")]
+    /// Runs the PArL parser on the given file and prints the AST.
+    Parse {
+        /// The file to print.
+        file: PathBuf,
+    },
     /// Runs the PArL formatter on the given file.
-    Fmt {
+    #[clap(name = "fmt")]
+    Format {
         /// The file to format.
         file: PathBuf,
     },
     /// Runs the PArL semantic analyzer on the given file.
-    Sem {
+    #[clap(name = "sem")]
+    Semantic {
         /// The file to analyze.
         file: PathBuf,
     },
@@ -45,9 +54,10 @@ fn main() {
     let cli = Cli::parse();
 
     let file = match &cli.subcmd {
-        Commands::Lex { file } => file,
-        Commands::Fmt { file } => file,
-        Commands::Sem { file } => file,
+        Commands::Lexer { file } => file,
+        Commands::Format { file } => file,
+        Commands::Semantic { file } => file,
+        Commands::Parse { file } => file,
     };
 
     if !file.exists() {
@@ -71,9 +81,10 @@ fn main() {
     println!(
         "\n{} {}\n",
         style(match &cli.subcmd {
-            Commands::Lex { .. } => "Lexing",
-            Commands::Fmt { .. } => "Formatting",
-            Commands::Sem { .. } => "Analyzing",
+            Commands::Lexer { .. } => "Lexing",
+            Commands::Format { .. } => "Formatting",
+            Commands::Semantic { .. } => "Analyzing",
+            Commands::Parse { .. } => "Printing",
         })
         .green()
         .bold(),
@@ -92,13 +103,13 @@ fn main() {
         }
     };
 
-    if let Commands::Lex { .. } = &cli.subcmd {
+    if let Commands::Lexer { .. } = &cli.subcmd {
         for token in &tokens {
             println!("{:?}", token);
         }
     }
 
-    if let Commands::Fmt { .. } = &cli.subcmd {
+    if let Commands::Format { .. } = &cli.subcmd {
         let mut parser = Parser::new(&tokens, file);
         let ast = parser.parse();
 
@@ -115,7 +126,7 @@ fn main() {
         }
     }
 
-    if let Commands::Sem { .. } = &cli.subcmd {
+    if let Commands::Semantic { .. } = &cli.subcmd {
         let mut parser = Parser::new(&tokens, file);
         let ast = parser.parse();
 
@@ -140,6 +151,22 @@ fn main() {
                         std::process::exit(1);
                     }
                 }
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    if let Commands::Parse { .. } = &cli.subcmd {
+        let mut parser = Parser::new(&tokens, file);
+        let ast = parser.parse();
+
+        match ast {
+            Ok(ast) => {
+                let mut printer = TreePrinter::new();
+                printer.visit(ast).unwrap();
             }
             Err(e) => {
                 eprintln!("{}", e);
