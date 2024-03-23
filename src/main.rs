@@ -1,4 +1,5 @@
 mod core;
+mod generation;
 mod lexing;
 mod parsing;
 mod semantics;
