@@ -1,9 +1,9 @@
 fun XGreaterY(x: int, y: int) -> bool {
-	let ans: bool = true;
-	if (y > x) 	 {
-		ans = false;
-		let a: int = 0;
+	let ans: bool = false;
+	if (x > y) { 
+		ans = true;
 	}
+	return ans;
 }
 
 fun XGreaterY2(x: int, y: int) -> bool {
@@ -17,7 +17,7 @@ fun AverageOfTwo(x: int, y: int) -> float {
 }
 
 fun AverageOfTwo2(x: int, y: int) -> float {
-	return ((x) + (y)) / (2) as float;
+	return (x + y) / 2as float;
 }
 
 fun Max(x: int, y: int) -> int {
@@ -42,7 +42,7 @@ for (let i: int = 0; (i) < (10); i = (i) + (1))  {
 fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
 	let p1score: int = 0;
 	let p2score: int = 0;
-	while (p1score < scoremax and p2score < scoremax) 	 {
+	while ((p1score < scoremax) and (p2score < scoremax)) 	 {
 		let p1toss: int = __randi 1000;
 		let p2toss: int = __randi 1000;
 		if ((p1toss) > (p2toss)) 		 {
