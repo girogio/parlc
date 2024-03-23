@@ -300,10 +300,9 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<AstNode> {
-        let left = self.parse_simple_expr()?;
-        let curr = self.current_token().clone();
+        let left = self.parse_equality()?;
 
-        match &curr.kind {
+        match self.current_token().kind {
             TokenKind::As => {
                 self.consume();
                 let kind = self.consume_if(TokenKind::Type)?.clone();
@@ -312,71 +311,81 @@ impl Parser {
                     expr: Box::new(left),
                 })
             }
-            TokenKind::LessThan
-            | TokenKind::LessThanEqual
-            | TokenKind::GreaterThan
-            | TokenKind::GreaterThanEqual
-            | TokenKind::EqEq
-            | TokenKind::NotEqual => {
-                self.consume();
+
+            TokenKind::And | TokenKind::Or => {
+                let operator = self.consume().clone();
                 let right = self.parse_expression()?;
 
+                let bin_op = AstNode::BinOp {
+                    left: Box::new(left),
+                    operator,
+                    right: Box::new(right),
+                };
+
                 Ok(AstNode::Expression {
-                    casted_type: if let TokenKind::As = self.current_token().kind {
-                        self.consume();
-                        let kind = self.consume_if(TokenKind::Type)?.clone();
-                        Some(kind)
-                    } else {
-                        None
-                    },
-                    expr: Box::new(AstNode::BinOp {
-                        left: Box::new(left),
-                        operator: curr,
-                        right: Box::new(right),
-                    }),
+                    casted_type: None,
+                    expr: Box::new(bin_op),
+                })
+            }
+
+            _ => Ok(AstNode::Expression {
+                casted_type: None,
+                expr: Box::new(left),
+            }),
+        }
+    }
+
+    fn parse_equality(&mut self) -> Result<AstNode> {
+        let left = self.parse_comparison()?;
+        let curr = self.current_token().clone();
+
+        match &curr.kind {
+            TokenKind::EqEq | TokenKind::NotEqual => {
+                self.consume();
+                let right = self.parse_comparison()?;
+                Ok(AstNode::BinOp {
+                    left: Box::new(left),
+                    operator: curr,
+                    right: Box::new(right),
                 })
             }
             _ => Ok(left),
         }
     }
 
-    fn parse_simple_expr(&mut self) -> Result<AstNode> {
+    fn parse_comparison(&mut self) -> Result<AstNode> {
         let left = self.parse_term()?;
         let curr = self.current_token().clone();
 
         match &curr.kind {
-            TokenKind::Plus | TokenKind::Minus | TokenKind::Or => {
+            TokenKind::LessThan
+            | TokenKind::LessThanEqual
+            | TokenKind::GreaterThan
+            | TokenKind::GreaterThanEqual => {
                 self.consume();
+                let right = self.parse_term()?;
                 Ok(AstNode::BinOp {
                     left: Box::new(left),
                     operator: curr,
-                    right: Box::new(self.parse_simple_expr()?),
+                    right: Box::new(right),
                 })
             }
             _ => Ok(left),
         }
     }
 
-    fn parse_sub_expr(&mut self) -> Result<AstNode> {
-        self.consume_if(TokenKind::LParen)?;
-        let expr = self.parse_expression()?;
-        self.consume_if(TokenKind::RParen)?;
-        Ok(AstNode::SubExpression {
-            bin_op: Box::new(expr),
-        })
-    }
-
     fn parse_term(&mut self) -> Result<AstNode> {
         let left = self.parse_factor()?;
-        let next_token = self.current_token().clone();
+        let curr = self.current_token().clone();
 
-        match &next_token.kind {
-            TokenKind::Multiply | TokenKind::Divide | TokenKind::And => {
-                self.consume();
+        match &curr.kind {
+            TokenKind::Plus | TokenKind::Minus => {
+                let operator = self.consume().clone();
+                let right = self.parse_term()?;
                 Ok(AstNode::BinOp {
                     left: Box::new(left),
-                    operator: next_token,
-                    right: Box::new(self.parse_term()?),
+                    operator,
+                    right: Box::new(right),
                 })
             }
             _ => Ok(left),
@@ -384,9 +393,43 @@ impl Parser {
     }
 
     fn parse_factor(&mut self) -> Result<AstNode> {
-        let next_token = self.current_token().clone();
+        let left = self.parse_unary()?;
+        let curr = self.current_token().clone();
 
-        match &next_token.kind {
+        match &curr.kind {
+            TokenKind::Multiply | TokenKind::Divide => {
+                let operator = self.consume().clone();
+                let right = self.parse_factor()?;
+                Ok(AstNode::BinOp {
+                    left: Box::new(left),
+                    operator,
+                    right: Box::new(right),
+                })
+            }
+            _ => Ok(left),
+        }
+    }
+
+    fn parse_unary(&mut self) -> Result<AstNode> {
+        let curr_token = self.current_token();
+
+        match curr_token.kind {
+            TokenKind::Minus | TokenKind::Not => {
+                self.consume();
+                let expr = self.parse_primary()?;
+                Ok(AstNode::UnaryOp {
+                    operator: curr_token.clone(),
+                    expr: Box::new(expr),
+                })
+            }
+            _ => self.parse_primary(),
+        }
+    }
+
+    fn parse_primary(&mut self) -> Result<AstNode> {
+        let curr = self.current_token();
+
+        match curr.kind {
             TokenKind::Identifier => {
                 let ident = self.consume_if(TokenKind::Identifier)?.clone();
 
@@ -412,22 +455,41 @@ impl Parser {
                     })
                 }
             }
-            TokenKind::PadWidth => self.parse_pad_width(),
-            TokenKind::LParen => self.parse_sub_expr(),
-            TokenKind::Minus | TokenKind::Not => self.parse_unary_expr(),
-            TokenKind::PadRandI => self.parse_pad_rand_i(),
             TokenKind::IntLiteral
             | TokenKind::FloatLiteral
             | TokenKind::BoolLiteral
             | TokenKind::ColourLiteral => self.parse_literal(),
             TokenKind::PadHeight => self.parse_pad_height(),
+            TokenKind::PadWidth => self.parse_pad_width(),
             TokenKind::PadRead => self.parse_pad_read(),
-            _ => Err(Error::Parse(ParseError::UnexpectedTokenList {
-                expected: vec![TokenKind::Identifier],
-                found: next_token.clone(),
+            TokenKind::PadRandI => self.parse_pad_rand_i(),
+            TokenKind::LParen => self.parse_sub_expr(),
+            _ => Err(ParseError::UnexpectedTokenList {
                 source_file: self.source_file.clone(),
-            })),
+                expected: vec![
+                    TokenKind::Identifier,
+                    TokenKind::IntLiteral,
+                    TokenKind::FloatLiteral,
+                    TokenKind::BoolLiteral,
+                    TokenKind::ColourLiteral,
+                    TokenKind::PadHeight,
+                    TokenKind::PadWidth,
+                    TokenKind::PadRead,
+                    TokenKind::PadRandI,
+                ],
+                found: curr.clone(),
+            }
+            .into()),
         }
+    }
+
+    fn parse_sub_expr(&mut self) -> Result<AstNode> {
+        self.consume_if(TokenKind::LParen)?;
+        let expr = self.parse_expression()?;
+        self.consume_if(TokenKind::RParen)?;
+        Ok(AstNode::SubExpression {
+            bin_op: Box::new(expr),
+        })
     }
 
     fn parse_identifier(&mut self) -> Result<AstNode> {

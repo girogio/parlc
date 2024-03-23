@@ -1,13 +1,2 @@
-let a: float = true or false;
+let a: bool = a or b and (c as colour) as colour;
 
-let x: int =  
-
-let y: float = 3.14;
-
-let z: bool = true;
-
-let f: colour = #ff0000;
-
-fun foo(x: int, y: float) -> int {
-	return x;
-}
