@@ -90,7 +90,6 @@ impl SemAnalyzer {
             .map(|s| match &s.symbol_type {
                 SymbolType::Variable(t) => *t,
                 SymbolType::Function(signature) => signature.return_type,
-                SymbolType::Unknown => Type::Unknown,
             })
             .unwrap_or(Type::Unknown)
     }
@@ -116,11 +115,8 @@ impl SemAnalyzer {
             (TokenKind::Minus, Type::Float) => Type::Float,
             (TokenKind::Not, Type::Bool) => Type::Bool,
             _ => {
-                self.results.add_error(SemanticError::TypeMismatch(
-                    op.span.lexeme.clone(),
-                    *expr,
-                    Type::Unknown,
-                ));
+                self.results
+                    .add_error(SemanticError::InvalidOperation(op.clone()));
                 Type::Unknown
             }
         }
@@ -165,11 +161,9 @@ impl SemAnalyzer {
             (TokenKind::And, Type::Bool, Type::Bool) => Type::Bool,
             (TokenKind::Or, Type::Bool, Type::Bool) => Type::Bool,
             _ => {
-                self.results.add_error(SemanticError::TypeMismatch(
-                    op.span.lexeme.clone(),
-                    *left,
-                    *right,
-                ));
+                self.results
+                    .add_error(SemanticError::InvalidOperation(op.clone()));
+
                 Type::Unknown
             }
         }
@@ -210,7 +204,7 @@ impl SemAnalyzer {
             return from;
         }
 
-        let result = match (from, to) {
+        match (from, to) {
             (Type::Int, Type::Float) => Type::Float,  // 5 -> 5.0
             (Type::Colour, Type::Int) => Type::Int,   // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
             (Type::Bool, Type::Int) => Type::Int,     // false -> 0, true -> 1
@@ -219,9 +213,7 @@ impl SemAnalyzer {
                 self.results.add_error(SemanticError::InvalidCast(from, to));
                 Type::Unknown
             }
-        };
-
-        result
+        }
     }
 }
 
@@ -704,11 +696,11 @@ impl Visitor<Type> for SemAnalyzer {
             AstNode::Print { expression } => {
                 let print_expr_type = self.visit(expression);
 
-                if print_expr_type == Type::Void {
-                    self.results.add_error(SemanticError::TypeMismatch(
+                if print_expr_type == Type::Void || print_expr_type == Type::Unknown {
+                    self.results.add_error(SemanticError::TypeMismatchUnion(
                         "__print <expr>".to_string(),
                         print_expr_type,
-                        Type::Unknown,
+                        vec![Type::Int, Type::Float, Type::Bool, Type::Colour],
                     ));
                 }
 

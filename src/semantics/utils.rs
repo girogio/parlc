@@ -27,7 +27,6 @@ impl Display for Type {
 pub enum SymbolType {
     Variable(Type),
     Function(Signature),
-    Unknown,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
