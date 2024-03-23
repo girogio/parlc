@@ -112,5 +112,5 @@ pub enum AstNode {
 }
 
 pub trait Visitor<T> {
-    fn visit(&mut self, node: &AstNode) -> Result<T>;
+    fn visit(&mut self, node: &AstNode) -> T;
 }

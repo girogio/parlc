@@ -23,7 +23,7 @@ impl Formatter {
     }
 }
 
-impl Visitor<()> for Formatter {
+impl Visitor<Result<()>> for Formatter {
     fn visit(&mut self, node: &AstNode) -> Result<()> {
         match node {
             AstNode::Program { statements } => {

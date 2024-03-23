@@ -18,7 +18,7 @@ impl TreePrinter {
     }
 }
 
-impl Visitor<()> for TreePrinter {
+impl Visitor<Result<()>> for TreePrinter {
     fn visit(&mut self, node: &AstNode) -> Result<()> {
         match node {
             AstNode::Program { statements } => {
