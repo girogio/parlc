@@ -83,6 +83,8 @@ impl TypeChecker {
     fn get_bin_op_type(&self, op: &Token, left: &Type, right: &Type) -> Result<Type> {
         match (op.kind, left, right) {
             (TokenKind::Plus, Type::Int, Type::Int) => Ok(Type::Int),
+            (TokenKind::Plus, Type::Float, Type::Int) => Ok(Type::Float),
+            (TokenKind::Plus, Type::Int, Type::Float) => Ok(Type::Float),
             (TokenKind::Plus, Type::Float, Type::Float) => Ok(Type::Float),
             (TokenKind::Plus, Type::Colour, Type::Colour) => Ok(Type::Colour),
             (TokenKind::Minus, Type::Int, Type::Int) => Ok(Type::Int),
@@ -732,13 +734,13 @@ mod tests {
             let z: bool = true;
             let f: colour = #ff0000;
 
-            fun foo(x: int, y: float) -> int {
+            fun foo(x: int, y: float) -> bool {
                 let z: bool = false;
                 let f: colour = #00ff00;
-                return x;
+                return z;
             }
 
-            let a: int = foo(5, 3.14);
+            let a: bool = foo(5, 3.14);
             let b: float = x + y;
         "#;
 
