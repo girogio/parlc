@@ -593,34 +593,25 @@ impl Parser {
         }
     }
 
-    fn consume_if_any<T: Clone + IntoIterator<Item = TokenKind>>(
-        &mut self,
-        kinds: T,
-    ) -> Result<Token> {
-        let found = kinds
-            .clone()
-            .into_iter()
-            .any(|kind| self.current_token().kind == kind);
-        if found {
-            Ok(self.consume().clone())
-        } else {
-            Err(ParseError::UnexpectedTokenList {
-                expected: kinds.into_iter().collect(),
-                found: self.current_token().clone(),
-                source_file: self.source_file.clone(),
-            }
-            .into())
-        }
-    }
-
-    fn parse_unary_expr(&mut self) -> Result<AstNode> {
-        let operator = self.consume_if_any([TokenKind::Minus, TokenKind::Not])?;
-        let expr = self.parse_expression()?;
-        Ok(AstNode::UnaryOp {
-            operator,
-            expr: Box::new(expr),
-        })
-    }
+    // fn consume_if_any<T: Clone + IntoIterator<Item = TokenKind>>(
+    //     &mut self,
+    //     kinds: T,
+    // ) -> Result<Token> {
+    //     let found = kinds
+    //         .clone()
+    //         .into_iter()
+    //         .any(|kind| self.current_token().kind == kind);
+    //     if found {
+    //         Ok(self.consume().clone())
+    //     } else {
+    //         Err(ParseError::UnexpectedTokenList {
+    //             expected: kinds.into_iter().collect(),
+    //             found: self.current_token().clone(),
+    //             source_file: self.source_file.clone(),
+    //         }
+    //         .into())
+    //     }
+    // }
 
     fn parse_literal(&mut self) -> Result<AstNode> {
         let token = self.consume().clone();

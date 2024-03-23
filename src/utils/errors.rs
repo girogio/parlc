@@ -53,14 +53,20 @@ pub enum SemanticError {
     UndefinedFunction(Token),
     #[error("Function '{}' is already defined.", .0.span.lexeme)]
     AlreadyDefinedFunction(Token),
-    #[error("Variable '{}' is redeclared.", .0.span.lexeme)]
-    RedeclaredVariable(Token),
+    // #[error("Variable '{}' is redeclared.", .0.span.lexeme)]
+    // RedeclaredVariable(Token),
     #[error("'{}' is of type {:?}, expected {:?}.", .0, .1, .2)]
     TypeMismatch(String, Type, Type),
+    #[error("Union type '{}' is of type {:?}, expected one of these types: {:?}.", .0, .1, .2)]
+    TypeMismatchUnion(String, Type, Vec<Type>),
     #[error("Invalid operation: {:?}", .0)]
     InvalidOperation(Token),
     #[error("Couldn't cast {:?} to {:?}.", .0, .1)]
     InvalidCast(Type, Type),
+    #[error("Function '{}' has a return type of: {:?}, got: {:?}.", .0.span.lexeme, .1, .2)]
+    FunctionReturnTypeMismatch(Token, Type, Type),
+    #[error("Function '{}' takes no parameters, supplied {:?}.", .0, .1)]
+    FunctionCallNoParams(String, Vec<Type>),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

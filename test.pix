@@ -7,12 +7,15 @@ fun XGreaterY(x: int, y: int) -> bool {
 }
 
 fun XGreaterY2(x: int, y: int) -> bool {
+
+
+
 	return x > y;
 }
 
 fun AverageOfTwo(x: int, y: int) -> float {
 	let t0: int = (x) + (y);
-	let t1: float = (t0) / (2) as float;
+	let t1: float = t0 / 2 as float;
 	return t1;
 }
 
@@ -39,14 +42,26 @@ for (let i: int = 0; (i) < (10); i = (i) + (1))  {
 	__delay 1000;
 }
 
-fun random() -> int {
-	return __randi 1000;
+fun random() -> bool {
+	let a: int = __randi 1000;
+	let b: int = __randi 1000;
+
+	for (let i: int = 0; (i) < (10); i = (i) + (1))  {
+		if (XGreaterY(a, b)) {
+			__write 1, a, #00ff00;
+		} else {
+			__write 2, b, #0000ff;
+		}
+		__delay 1000;
+	}
+
+	return a > b;
 }
 
 fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
 	let p1score: int = 0;
 	let p2score: int = 0;
-	while (p1score < random() and p2score < scoremax) 	 {
+	while (p1score < scoremax and p2score < scoremax) 	 {
 		let p1toss: int = __randi 1000;
 		let p2toss: int = __randi 1000;
 		if ((p1toss) > (p2toss)) 		 {
@@ -58,13 +73,16 @@ fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
 		}
 		__delay 100;
 	}
-	if ((p2score) > (p1score)) 	 {
+	if (p2score > p1score){
 		return 2;
 	}
+
 	return 1;
 }
 
 let c1: colour = #00ff00;
+
+let ca2: int = __read 1, 2;
 
 let c2: colour = #0000ff;
 

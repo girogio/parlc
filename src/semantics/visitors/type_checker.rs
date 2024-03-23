@@ -237,7 +237,17 @@ impl Visitor<Type> for TypeChecker {
                     );
 
                 self.inside_function = true;
-                self.visit(block)?;
+                let return_type = self.visit(block)?;
+
+                if signature.return_type != return_type {
+                    return Err(SemanticError::FunctionReturnTypeMismatch(
+                        identifier.clone(),
+                        signature.return_type,
+                        return_type,
+                    )
+                    .into());
+                }
+
                 self.pop_scope();
                 self.inside_function = false;
                 self.scope_peek_limit = 0;
@@ -290,20 +300,29 @@ impl Visitor<Type> for TypeChecker {
                 }
 
                 let signature = self.get_signature(identifier)?.clone();
+                let arg_types = args
+                    .iter()
+                    .map(|arg| self.visit(arg))
+                    .collect::<Result<Vec<_>>>()?;
+
+                if signature.parameters.is_empty() && !arg_types.is_empty() {
+                    return Err(SemanticError::FunctionCallNoParams(
+                        identifier.span.lexeme.clone(),
+                        arg_types,
+                    )
+                    .into());
+                }
 
                 // Make sure each argument is of the correct type
-                args.iter()
-                    .rev()
-                    .enumerate()
-                    .try_for_each(|(i, arg)| -> Result<()> {
-                        let arg_type = self.visit(arg)?;
-                        self.assert_type(
-                            &signature.parameters[i].1,
-                            &signature.parameters[i].0,
-                            &arg_type,
-                        )
-                        .map(|_| ())
-                    })?;
+                for (idx, b) in args.iter().rev().enumerate() {
+                    let arg_type = self.visit(b)?;
+
+                    self.assert_type(
+                        &signature.parameters[idx].1,
+                        &signature.parameters[idx].0,
+                        &arg_type,
+                    )?;
+                }
 
                 self.get_symbol_type(identifier)
             }
@@ -371,7 +390,16 @@ impl Visitor<Type> for TypeChecker {
             AstNode::PadWidth => Ok(Type::Int),
 
             AstNode::PadRandI { upper_bound } => {
-                self.visit(upper_bound)?;
+                let upper_bound_type = self.visit(upper_bound)?;
+
+                if upper_bound_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "upper_bound".to_string(),
+                        upper_bound_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
 
                 Ok(Type::Int)
             }
@@ -379,8 +407,26 @@ impl Visitor<Type> for TypeChecker {
             AstNode::PadHeight => Ok(Type::Int),
 
             AstNode::PadRead { x, y } => {
-                self.visit(x)?;
-                self.visit(y)?;
+                let x_type = self.visit(x)?;
+                let y_type = self.visit(y)?;
+
+                if x_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "__read <x>, y".to_string(),
+                        x_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
+
+                if y_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "__read x <y>".to_string(),
+                        y_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
 
                 Ok(Type::Int)
             }
@@ -401,7 +447,16 @@ impl Visitor<Type> for TypeChecker {
                 Ok(Type::Void)
             }
             AstNode::Delay { expression } => {
-                self.visit(expression)?;
+                let delay_ms_type = self.visit(expression)?;
+
+                if delay_ms_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "delay".to_string(),
+                        delay_ms_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
 
                 Ok(Type::Void)
             }
@@ -415,11 +470,56 @@ impl Visitor<Type> for TypeChecker {
                 height,
                 colour,
             } => {
-                self.visit(loc_x)?;
-                self.visit(loc_y)?;
-                self.visit(width)?;
-                self.visit(height)?;
-                self.visit(colour)?;
+                let loc_x_type = self.visit(loc_x)?;
+                let loc_y_type = self.visit(loc_y)?;
+                let width_type = self.visit(width)?;
+                let height_type = self.visit(height)?;
+                let colour_type = self.visit(colour)?;
+
+                if loc_x_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "loc_x".to_string(),
+                        loc_x_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
+
+                if loc_y_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "loc_y".to_string(),
+                        loc_y_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
+
+                if width_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "width".to_string(),
+                        width_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
+
+                if height_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "height".to_string(),
+                        height_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
+
+                if colour_type != Type::Colour {
+                    return Err(SemanticError::TypeMismatch(
+                        "colour".to_string(),
+                        colour_type,
+                        Type::Colour,
+                    )
+                    .into());
+                }
 
                 Ok(Type::Void)
             }
@@ -429,9 +529,36 @@ impl Visitor<Type> for TypeChecker {
                 loc_y,
                 colour,
             } => {
-                self.visit(loc_x)?;
-                self.visit(loc_y)?;
-                self.visit(colour)?;
+                let loc_x_type = self.visit(loc_x)?;
+                let loc_y_type = self.visit(loc_y)?;
+                let colour_type = self.visit(colour)?;
+
+                if loc_x_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "loc_x".to_string(),
+                        loc_x_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
+
+                if loc_y_type != Type::Int {
+                    return Err(SemanticError::TypeMismatch(
+                        "loc_y".to_string(),
+                        loc_y_type,
+                        Type::Int,
+                    )
+                    .into());
+                }
+
+                if colour_type != Type::Colour {
+                    return Err(SemanticError::TypeMismatch(
+                        "colour".to_string(),
+                        colour_type,
+                        Type::Colour,
+                    )
+                    .into());
+                }
 
                 Ok(Type::Void)
             }
@@ -442,12 +569,21 @@ impl Visitor<Type> for TypeChecker {
                 if_false,
             } => {
                 self.visit(condition)?;
-                self.visit(if_true)?;
+                let true_branch_return_type = self.visit(if_true)?;
                 if let Some(if_false) = if_false {
-                    self.visit(if_false)?;
+                    let false_branch_return_type = self.visit(if_false)?;
+
+                    if true_branch_return_type != false_branch_return_type {
+                        return Err(SemanticError::TypeMismatch(
+                            "if".to_string(),
+                            true_branch_return_type,
+                            false_branch_return_type,
+                        )
+                        .into());
+                    }
                 }
 
-                Ok(Type::Void)
+                Ok(true_branch_return_type)
             }
 
             AstNode::For {
@@ -457,40 +593,80 @@ impl Visitor<Type> for TypeChecker {
                 body,
             } => {
                 self.symbol_table.push(SymbolTable::new());
-                self.scope_peek_limit = self.symbol_table.len() - 1;
+                self.scope_peek_limit = 0;
                 self.inside_function = true;
 
                 if let Some(initializer) = initializer {
                     self.visit(initializer)?;
                 }
 
-                self.visit(condition)?;
+                let condition_type = self.visit(condition)?;
+
+                if condition_type != Type::Bool {
+                    return Err(SemanticError::TypeMismatch(
+                        "for condition".to_string(),
+                        condition_type,
+                        Type::Bool,
+                    )
+                    .into());
+                }
 
                 if let Some(increment) = increment {
                     self.visit(increment)?;
                 }
 
-                self.visit(body)?;
-                self.scope_peek_limit = 0;
+                let body_type = self.visit(body)?;
                 self.inside_function = false;
                 self.symbol_table.pop();
 
-                Ok(Type::Void)
+                Ok(body_type)
             }
+
             AstNode::While { condition, body } => {
-                self.visit(condition)?;
-                self.visit(body)?;
-                Ok(Type::Void)
+                let condition_type = self.visit(condition)?;
+
+                if condition_type != Type::Bool {
+                    return Err(SemanticError::TypeMismatch(
+                        "while".to_string(),
+                        condition_type,
+                        Type::Bool,
+                    )
+                    .into());
+                }
+
+                self.visit(body)
             }
+
             AstNode::Print { expression } => {
-                self.visit(expression)?;
-                Ok(Type::Void)
-            }
-            AstNode::PadClear { expr } => {
-                self.visit(expr)?;
+                let print_expr_type = self.visit(expression)?;
+
+                if print_expr_type == Type::Void {
+                    return Err(SemanticError::TypeMismatchUnion(
+                        "__print <expr>".to_string(),
+                        print_expr_type,
+                        vec![Type::Int, Type::Float, Type::Bool, Type::Colour],
+                    )
+                    .into());
+                }
 
                 Ok(Type::Void)
             }
+
+            AstNode::PadClear { expr } => {
+                let clear_expr_type = self.visit(expr)?;
+
+                if clear_expr_type != Type::Colour {
+                    return Err(SemanticError::TypeMismatch(
+                        "__clear <expr>".to_string(),
+                        clear_expr_type,
+                        Type::Colour,
+                    )
+                    .into());
+                }
+
+                Ok(Type::Void)
+            }
+
             AstNode::EndOfFile => Ok(Type::Void),
         }
     }

@@ -110,7 +110,7 @@ fn main() {
 
                     match ast {
                         Ok(ast) => {
-                            let mut printer = Printer::new();
+                            let mut printer = Formatter::new(file_path);
                             printer.visit(ast).unwrap();
                         }
                         Err(e) => {
@@ -162,22 +162,10 @@ fn main() {
 
                     match ast {
                         Ok(ast) => {
-                            let mut sem = ScopeChecker::new();
-
-                            match sem.visit(ast) {
-                                Ok(_) => {
-                                    println!("Scope checking completed successfully.");
-                                }
-                                Err(e) => {
-                                    eprintln!("{}", e);
-                                    std::process::exit(1);
-                                }
-                            }
-
                             let mut type_check = TypeChecker::new();
                             match type_check.visit(ast) {
                                 Ok(_) => {
-                                    println!("Type checking completed successfully.");
+                                    println!("Semantic analysis completed successfully.");
                                 }
                                 Err(e) => {
                                     eprintln!("{}", e);

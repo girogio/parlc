@@ -102,12 +102,6 @@ impl SymbolTable {
         self.symbols.iter().find(|s| s.lexeme == symbol)
     }
 
-    pub fn set_type(&mut self, symbol: &str, symbol_type: SymbolType) {
-        if let Some(s) = self.symbols.iter_mut().find(|s| s.lexeme == symbol) {
-            s.symbol_type = symbol_type;
-        }
-    }
-
     pub fn all_symbols(&self) -> impl Iterator<Item = &Symbol> {
         self.symbols.iter()
     }
