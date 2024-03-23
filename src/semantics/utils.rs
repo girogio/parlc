@@ -7,6 +7,7 @@ pub enum Type {
     Bool,
     Colour,
     Void,
+    Unknown,
 }
 
 impl Display for Type {
@@ -17,6 +18,7 @@ impl Display for Type {
             Type::Bool => write!(f, "bool"),
             Type::Colour => write!(f, "colour"),
             Type::Void => write!(f, "void"),
+            Type::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -25,6 +27,7 @@ impl Display for Type {
 pub enum SymbolType {
     Variable(Type),
     Function(Signature),
+    Unknown,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]

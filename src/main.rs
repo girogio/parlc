@@ -132,16 +132,23 @@ fn main() {
 
         match ast {
             Ok(ast) => {
-                let mut scope_check = SemAnalyzer::new();
-                match scope_check.visit(ast) {
-                    Ok(_) => {
-                        println!("{} analyzed successfully.", style(file.display()).cyan());
-                    }
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        std::process::exit(1);
+                let mut sem_analyzer = SemAnalyzer::new();
+                let result = sem_analyzer.analyze(ast);
+
+                if result.has_warnings() {
+                    for warn in &result.warnings {
+                        eprintln!("{}", warn);
                     }
                 }
+
+                if result.has_errors() {
+                    for err in &result.errors {
+                        eprintln!("{}", err);
+                    }
+                    std::process::exit(1);
+                }
+
+                println!("{} analyzed successfully.", style(file.display()).cyan());
             }
             Err(e) => {
                 eprintln!("{}", e);

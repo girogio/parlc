@@ -1,11 +1,41 @@
 use crate::core::TokenKind;
 use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType, Type};
 use crate::utils::errors::SemanticError;
-use crate::utils::Result;
 use crate::{
     core::Token,
     parsing::ast::{AstNode, Visitor},
 };
+
+#[derive(Debug)]
+pub struct SemanticResult {
+    pub errors: Vec<SemanticError>,
+    pub warnings: Vec<SemanticError>,
+}
+
+impl SemanticResult {
+    fn new() -> Self {
+        SemanticResult {
+            errors: Vec::new(),
+            warnings: Vec::new(),
+        }
+    }
+
+    fn add_error(&mut self, error: SemanticError) {
+        self.errors.push(error);
+    }
+
+    fn add_warning(&mut self, warning: SemanticError) {
+        self.warnings.push(warning);
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    pub fn has_warnings(&self) -> bool {
+        !self.warnings.is_empty()
+    }
+}
 
 #[derive(Debug)]
 pub struct SemAnalyzer {
@@ -16,6 +46,8 @@ pub struct SemAnalyzer {
     /// If this is 0, we can check for the existence of the symbol in any
     /// scope, up to the global scope.
     scope_peek_limit: usize,
+    /// The results of the semantic analysis
+    results: SemanticResult,
 }
 
 impl SemAnalyzer {
@@ -24,7 +56,13 @@ impl SemAnalyzer {
             symbol_table: Vec::new(),
             inside_function: false,
             scope_peek_limit: 0,
+            results: SemanticResult::new(),
         }
+    }
+
+    pub fn analyze(&mut self, ast: &AstNode) -> &SemanticResult {
+        self.visit(ast);
+        &self.results
     }
 
     fn find_symbol(&self, symbol: &Token) -> Option<&Symbol> {
@@ -47,22 +85,23 @@ impl SemAnalyzer {
             .add_symbol(&symbol.span.lexeme, symbol_type);
     }
 
-    fn get_symbol_type(&self, symbol: &Token) -> Result<Type> {
+    fn get_symbol_type(&self, symbol: &Token) -> Type {
         self.find_symbol(symbol)
             .map(|s| match &s.symbol_type {
                 SymbolType::Variable(t) => *t,
                 SymbolType::Function(signature) => signature.return_type,
+                SymbolType::Unknown => Type::Unknown,
             })
-            .ok_or_else(|| SemanticError::UndefinedVariable(symbol.clone()).into())
+            .unwrap_or(Type::Unknown)
     }
 
-    fn get_signature(&self, symbol: &Token) -> Result<&Signature> {
+    fn get_signature(&self, symbol: &Token) -> Signature {
         self.find_symbol(symbol)
             .map(|s| match &s.symbol_type {
-                SymbolType::Function(signature) => signature,
-                _ => panic!("Symbol is not a function"),
+                SymbolType::Function(signature) => signature.clone(),
+                _ => unreachable!(),
             })
-            .ok_or_else(|| SemanticError::UndefinedFunction(symbol.clone()).into())
+            .unwrap_or(Signature::new(Type::Unknown))
     }
 
     fn check_scope(&self, symbol: &Token) -> bool {
@@ -71,63 +110,81 @@ impl SemAnalyzer {
             .is_some()
     }
 
-    fn get_unary_op_type(&self, op: &Token, expr: &Type) -> Result<Type> {
+    fn get_unary_op_type(&mut self, op: &Token, expr: &Type) -> Type {
         match (op.kind, expr) {
-            (TokenKind::Minus, Type::Int) => Ok(Type::Int),
-            (TokenKind::Minus, Type::Float) => Ok(Type::Float),
-            (TokenKind::Not, Type::Bool) => Ok(Type::Bool),
-            _ => Err(SemanticError::InvalidOperation(op.clone()).into()),
+            (TokenKind::Minus, Type::Int) => Type::Int,
+            (TokenKind::Minus, Type::Float) => Type::Float,
+            (TokenKind::Not, Type::Bool) => Type::Bool,
+            _ => {
+                self.results.add_error(SemanticError::TypeMismatch(
+                    op.span.lexeme.clone(),
+                    *expr,
+                    Type::Unknown,
+                ));
+                Type::Unknown
+            }
         }
     }
 
-    fn get_bin_op_type(&self, op: &Token, left: &Type, right: &Type) -> Result<Type> {
+    fn get_bin_op_type(&mut self, op: &Token, left: &Type, right: &Type) -> Type {
         match (op.kind, left, right) {
-            (TokenKind::Plus, Type::Int, Type::Int) => Ok(Type::Int),
-            (TokenKind::Plus, Type::Float, Type::Int) => Ok(Type::Float),
-            (TokenKind::Plus, Type::Int, Type::Float) => Ok(Type::Float),
-            (TokenKind::Plus, Type::Float, Type::Float) => Ok(Type::Float),
-            (TokenKind::Plus, Type::Colour, Type::Colour) => Ok(Type::Colour),
-            (TokenKind::Minus, Type::Int, Type::Int) => Ok(Type::Int),
-            (TokenKind::Minus, Type::Float, Type::Float) => Ok(Type::Float),
-            (TokenKind::Minus, Type::Colour, Type::Colour) => Ok(Type::Colour),
-            (TokenKind::Multiply, Type::Int, Type::Int) => Ok(Type::Int),
-            (TokenKind::Multiply, Type::Float, Type::Float) => Ok(Type::Float),
-            (TokenKind::Multiply, Type::Colour, Type::Colour) => Ok(Type::Colour),
-            (TokenKind::Divide, Type::Int, Type::Int) => Ok(Type::Int),
-            (TokenKind::Divide, Type::Float, Type::Float) => Ok(Type::Float),
-            (TokenKind::Divide, Type::Colour, Type::Colour) => Ok(Type::Colour),
-            (TokenKind::EqEq, Type::Int, Type::Int) => Ok(Type::Bool),
-            (TokenKind::EqEq, Type::Float, Type::Float) => Ok(Type::Bool),
-            (TokenKind::EqEq, Type::Bool, Type::Bool) => Ok(Type::Bool),
-            (TokenKind::EqEq, Type::Colour, Type::Colour) => Ok(Type::Bool),
-            (TokenKind::NotEqual, Type::Int, Type::Int) => Ok(Type::Bool),
-            (TokenKind::NotEqual, Type::Float, Type::Float) => Ok(Type::Bool),
-            (TokenKind::NotEqual, Type::Bool, Type::Bool) => Ok(Type::Bool),
-            (TokenKind::NotEqual, Type::Colour, Type::Colour) => Ok(Type::Bool),
-            (TokenKind::LessThan, Type::Int, Type::Int) => Ok(Type::Bool),
-            (TokenKind::LessThan, Type::Float, Type::Float) => Ok(Type::Bool),
-            (TokenKind::LessThan, Type::Colour, Type::Colour) => Ok(Type::Bool),
-            (TokenKind::LessThanEqual, Type::Int, Type::Int) => Ok(Type::Bool),
-            (TokenKind::LessThanEqual, Type::Float, Type::Float) => Ok(Type::Bool),
-            (TokenKind::LessThanEqual, Type::Colour, Type::Colour) => Ok(Type::Bool),
-            (TokenKind::GreaterThan, Type::Int, Type::Int) => Ok(Type::Bool),
-            (TokenKind::GreaterThan, Type::Float, Type::Float) => Ok(Type::Bool),
-            (TokenKind::GreaterThan, Type::Colour, Type::Colour) => Ok(Type::Bool),
-            (TokenKind::GreaterThanEqual, Type::Int, Type::Int) => Ok(Type::Bool),
-            (TokenKind::GreaterThanEqual, Type::Float, Type::Float) => Ok(Type::Bool),
-            (TokenKind::GreaterThanEqual, Type::Colour, Type::Colour) => Ok(Type::Bool),
-            (TokenKind::And, Type::Bool, Type::Bool) => Ok(Type::Bool),
-            (TokenKind::Or, Type::Bool, Type::Bool) => Ok(Type::Bool),
-            _ => Err(SemanticError::InvalidOperation(op.clone()).into()),
+            (TokenKind::Plus, Type::Int, Type::Int) => Type::Int,
+            (TokenKind::Plus, Type::Float, Type::Int) => Type::Float,
+            (TokenKind::Plus, Type::Int, Type::Float) => Type::Float,
+            (TokenKind::Plus, Type::Float, Type::Float) => Type::Float,
+            (TokenKind::Plus, Type::Colour, Type::Colour) => Type::Colour,
+            (TokenKind::Minus, Type::Int, Type::Int) => Type::Int,
+            (TokenKind::Minus, Type::Float, Type::Float) => Type::Float,
+            (TokenKind::Minus, Type::Colour, Type::Colour) => Type::Colour,
+            (TokenKind::Multiply, Type::Int, Type::Int) => Type::Int,
+            (TokenKind::Multiply, Type::Float, Type::Float) => Type::Float,
+            (TokenKind::Multiply, Type::Colour, Type::Colour) => Type::Colour,
+            (TokenKind::Divide, Type::Int, Type::Int) => Type::Int,
+            (TokenKind::Divide, Type::Float, Type::Float) => Type::Float,
+            (TokenKind::Divide, Type::Colour, Type::Colour) => Type::Colour,
+            (TokenKind::EqEq, Type::Int, Type::Int) => Type::Bool,
+            (TokenKind::EqEq, Type::Float, Type::Float) => Type::Bool,
+            (TokenKind::EqEq, Type::Bool, Type::Bool) => Type::Bool,
+            (TokenKind::EqEq, Type::Colour, Type::Colour) => Type::Bool,
+            (TokenKind::NotEqual, Type::Int, Type::Int) => Type::Bool,
+            (TokenKind::NotEqual, Type::Float, Type::Float) => Type::Bool,
+            (TokenKind::NotEqual, Type::Bool, Type::Bool) => Type::Bool,
+            (TokenKind::NotEqual, Type::Colour, Type::Colour) => Type::Bool,
+            (TokenKind::LessThan, Type::Int, Type::Int) => Type::Bool,
+            (TokenKind::LessThan, Type::Float, Type::Float) => Type::Bool,
+            (TokenKind::LessThan, Type::Colour, Type::Colour) => Type::Bool,
+            (TokenKind::LessThanEqual, Type::Int, Type::Int) => Type::Bool,
+            (TokenKind::LessThanEqual, Type::Float, Type::Float) => Type::Bool,
+            (TokenKind::LessThanEqual, Type::Colour, Type::Colour) => Type::Bool,
+            (TokenKind::GreaterThan, Type::Int, Type::Int) => Type::Bool,
+            (TokenKind::GreaterThan, Type::Float, Type::Float) => Type::Bool,
+            (TokenKind::GreaterThan, Type::Colour, Type::Colour) => Type::Bool,
+            (TokenKind::GreaterThanEqual, Type::Int, Type::Int) => Type::Bool,
+            (TokenKind::GreaterThanEqual, Type::Float, Type::Float) => Type::Bool,
+            (TokenKind::GreaterThanEqual, Type::Colour, Type::Colour) => Type::Bool,
+            (TokenKind::And, Type::Bool, Type::Bool) => Type::Bool,
+            (TokenKind::Or, Type::Bool, Type::Bool) => Type::Bool,
+            _ => {
+                self.results.add_error(SemanticError::TypeMismatch(
+                    op.span.lexeme.clone(),
+                    *left,
+                    *right,
+                ));
+                Type::Unknown
+            }
         }
     }
 
-    fn assert_type(&self, token: &String, expected: &Type, found: &Type) -> Result<Type> {
+    fn assert_type(&mut self, token: &String, expected: &Type, found: &Type) -> Type {
         if expected != found {
-            return Err(SemanticError::TypeMismatch(token.to_string(), *found, *expected).into());
+            self.results.add_error(SemanticError::TypeMismatch(
+                token.to_string(),
+                *found,
+                *expected,
+            ));
         }
 
-        Ok(*found)
+        *found
     }
 
     fn push_scope(&mut self) {
@@ -146,11 +203,11 @@ impl SemAnalyzer {
             .is_some()
     }
 
-    fn check_cast(&self, to: &Token, from: Type) -> Result<Type> {
+    fn check_cast(&mut self, to: &Token, from: Type) -> Type {
         let to = self.current_scope().token_to_type(&to.span.lexeme);
 
         if from == to {
-            return Ok(from);
+            return from;
         }
 
         let result = match (from, to) {
@@ -158,24 +215,27 @@ impl SemAnalyzer {
             (Type::Colour, Type::Int) => Type::Int,   // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
             (Type::Bool, Type::Int) => Type::Int,     // false -> 0, true -> 1
             (Type::Bool, Type::Float) => Type::Float, // false -> 0.0, true -> 1.0
-            _ => return Err(SemanticError::InvalidCast(from, to).into()),
+            _ => {
+                self.results.add_error(SemanticError::InvalidCast(from, to));
+                Type::Unknown
+            }
         };
 
-        Ok(result)
+        result
     }
 }
 
 impl Visitor<Type> for SemAnalyzer {
-    fn visit(&mut self, node: &AstNode) -> Result<Type> {
+    fn visit(&mut self, node: &AstNode) -> Type {
         match node {
             AstNode::Program { statements } => {
                 self.push_scope();
                 for statement in statements {
-                    self.visit(statement)?;
+                    self.visit(statement);
                 }
                 self.pop_scope();
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::Block { statements } => {
@@ -188,12 +248,12 @@ impl Visitor<Type> for SemAnalyzer {
                         self.pop_scope();
                         return tmp;
                     } else {
-                        self.visit(statement)?;
+                        self.visit(statement);
                     }
                 }
                 self.pop_scope();
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::FunctionDecl {
@@ -204,7 +264,8 @@ impl Visitor<Type> for SemAnalyzer {
             } => {
                 // Check that function name isn't already defined
                 if self.check_scope(identifier) {
-                    return Err(SemanticError::AlreadyDefinedFunction(identifier.clone()).into());
+                    self.results
+                        .add_error(SemanticError::AlreadyDefinedFunction(identifier.clone()));
                 }
 
                 self.push_scope();
@@ -212,7 +273,7 @@ impl Visitor<Type> for SemAnalyzer {
 
                 // Add the parameter symbols to the symbol table in this scope
                 for param in params {
-                    self.visit(param)?;
+                    self.visit(param);
                 }
 
                 // all the parameters are added to the symbol table
@@ -239,31 +300,33 @@ impl Visitor<Type> for SemAnalyzer {
                     );
 
                 self.inside_function = true;
-                let return_type = self.visit(block)?;
+                let return_type = self.visit(block);
 
                 if signature.return_type != return_type {
-                    return Err(SemanticError::FunctionReturnTypeMismatch(
-                        identifier.clone(),
-                        signature.return_type,
-                        return_type,
-                    )
-                    .into());
+                    self.results
+                        .add_error(SemanticError::FunctionReturnTypeMismatch(
+                            identifier.clone(),
+                            signature.return_type,
+                            return_type,
+                        ));
                 }
 
                 self.pop_scope();
                 self.inside_function = false;
                 self.scope_peek_limit = 0;
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::Identifier { token } => {
                 if self.inside_function {
                     if !self.check_up_to_scope(token) {
-                        return Err(SemanticError::UndefinedVariable(token.clone()).into());
+                        self.results
+                            .add_error(SemanticError::UndefinedVariable(token.clone()));
                     }
                 } else if !self.check_scope(token) {
-                    return Err(SemanticError::UndefinedVariable(token.clone()).into());
+                    self.results
+                        .add_error(SemanticError::UndefinedVariable(token.clone()));
                 }
 
                 self.get_symbol_type(token)
@@ -274,10 +337,22 @@ impl Visitor<Type> for SemAnalyzer {
                 r#type: var_type,
                 expression,
             } => {
-                let expr_type = self.visit(expression)?;
+                let expr_type = self.visit(expression);
 
                 if self.check_scope(identifier) {
-                    return Err(SemanticError::VariableRedaclaration(identifier.clone()).into());
+                    // get old type of the variable
+                    let old_type = self.get_symbol_type(identifier);
+                    // if changing types, add error, if not add warning
+                    if old_type != expr_type {
+                        self.results.add_error(SemanticError::TypeMismatch(
+                            identifier.span.lexeme.clone(),
+                            old_type,
+                            expr_type,
+                        ));
+                    } else {
+                        self.results
+                            .add_warning(SemanticError::VariableRedaclaration(identifier.clone()));
+                    }
                 } else {
                     self.add_symbol(
                         identifier,
@@ -291,39 +366,40 @@ impl Visitor<Type> for SemAnalyzer {
                     &identifier.span.lexeme,
                     &self.current_scope().token_to_type(&var_type.span.lexeme),
                     &expr_type,
-                )?;
+                );
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::FunctionCall { identifier, args } => {
                 if self.find_symbol(identifier).is_none() {
-                    return Err(SemanticError::UndefinedFunction(identifier.clone()).into());
+                    self.results
+                        .add_error(SemanticError::UndefinedFunction(identifier.clone()))
                 }
 
-                let signature = self.get_signature(identifier)?.clone();
+                let signature = self.get_signature(identifier);
+
                 let arg_types = args
                     .iter()
                     .map(|arg| self.visit(arg))
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Vec<Type>>();
 
                 if signature.parameters.is_empty() && !arg_types.is_empty() {
-                    return Err(SemanticError::FunctionCallNoParams(
+                    self.results.add_error(SemanticError::FunctionCallNoParams(
                         identifier.span.lexeme.clone(),
                         arg_types,
-                    )
-                    .into());
+                    ));
                 }
 
                 // Make sure each argument is of the correct type
                 for (idx, b) in args.iter().rev().enumerate() {
-                    let arg_type = self.visit(b)?;
+                    let arg_type = self.visit(b);
 
                     self.assert_type(
                         &signature.parameters[idx].1,
                         &signature.parameters[idx].0,
                         &arg_type,
-                    )?;
+                    );
                 }
 
                 self.get_symbol_type(identifier)
@@ -340,15 +416,15 @@ impl Visitor<Type> for SemAnalyzer {
                     ),
                 );
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::Expression { casted_type, expr } => {
-                let expr_type = self.visit(expr)?;
+                let expr_type = self.visit(expr);
 
                 match casted_type {
                     Some(casted_type) => self.check_cast(casted_type, expr_type),
-                    None => Ok(expr_type),
+                    None => expr_type,
                 }
             }
 
@@ -360,14 +436,16 @@ impl Visitor<Type> for SemAnalyzer {
             } => {
                 if self.inside_function {
                     if !self.check_up_to_scope(identifier) {
-                        return Err(SemanticError::UndefinedVariable(identifier.clone()).into());
+                        self.results
+                            .add_error(SemanticError::UndefinedVariable(identifier.clone()));
                     }
                 } else if !self.check_scope(identifier) {
-                    return Err(SemanticError::UndefinedVariable(identifier.clone()).into());
+                    self.results
+                        .add_error(SemanticError::UndefinedVariable(identifier.clone()));
                 }
 
-                let identifier_type = self.get_symbol_type(identifier)?;
-                let expression_type = self.visit(expression)?;
+                let identifier_type = self.get_symbol_type(identifier);
+                let expression_type = self.visit(expression);
 
                 self.assert_type(&identifier.span.lexeme, &identifier_type, &expression_type)
             }
@@ -377,90 +455,86 @@ impl Visitor<Type> for SemAnalyzer {
                 operator,
                 right,
             } => {
-                let left_type = self.visit(left)?;
-                let right_type = self.visit(right)?;
+                let left_type = self.visit(left);
+                let right_type = self.visit(right);
 
                 self.get_bin_op_type(operator, &left_type, &right_type)
             }
 
             AstNode::UnaryOp { operator, expr } => {
-                let expr_type = self.visit(expr)?;
+                let expr_type = self.visit(expr);
 
                 self.get_unary_op_type(operator, &expr_type)
             }
 
-            AstNode::PadWidth => Ok(Type::Int),
+            AstNode::PadWidth => Type::Int,
 
             AstNode::PadRandI { upper_bound } => {
-                let upper_bound_type = self.visit(upper_bound)?;
+                let upper_bound_type = self.visit(upper_bound);
 
                 if upper_bound_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "upper_bound".to_string(),
                         upper_bound_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
-                Ok(Type::Int)
+                Type::Int
             }
 
-            AstNode::PadHeight => Ok(Type::Int),
+            AstNode::PadHeight => Type::Int,
 
             AstNode::PadRead { x, y } => {
-                let x_type = self.visit(x)?;
-                let y_type = self.visit(y)?;
+                let x_type = self.visit(x);
+                let y_type = self.visit(y);
 
                 if x_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "__read <x>, y".to_string(),
                         x_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
                 if y_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
-                        "__read x <y>".to_string(),
+                    self.results.add_error(SemanticError::TypeMismatch(
+                        "__read x, <y>".to_string(),
                         y_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
-                Ok(Type::Int)
+                Type::Int
             }
 
-            AstNode::IntLiteral(_) => Ok(Type::Int),
+            AstNode::IntLiteral(_) => Type::Int,
 
-            AstNode::FloatLiteral(_) => Ok(Type::Float),
+            AstNode::FloatLiteral(_) => Type::Float,
 
-            AstNode::BoolLiteral(_) => Ok(Type::Bool),
+            AstNode::BoolLiteral(_) => Type::Bool,
 
-            AstNode::ColourLiteral(_) => Ok(Type::Colour),
+            AstNode::ColourLiteral(_) => Type::Colour,
 
             AstNode::ActualParams { params } => {
                 for param in params {
-                    self.visit(param)?;
+                    self.visit(param);
                 }
 
-                Ok(Type::Void)
+                Type::Void
             }
             AstNode::Delay { expression } => {
-                let delay_ms_type = self.visit(expression)?;
+                let delay_ms_type = self.visit(expression);
 
                 if delay_ms_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "delay".to_string(),
                         delay_ms_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::Return { expression } => self.visit(expression),
@@ -472,58 +546,53 @@ impl Visitor<Type> for SemAnalyzer {
                 height,
                 colour,
             } => {
-                let loc_x_type = self.visit(loc_x)?;
-                let loc_y_type = self.visit(loc_y)?;
-                let width_type = self.visit(width)?;
-                let height_type = self.visit(height)?;
-                let colour_type = self.visit(colour)?;
+                let loc_x_type = self.visit(loc_x);
+                let loc_y_type = self.visit(loc_y);
+                let width_type = self.visit(width);
+                let height_type = self.visit(height);
+                let colour_type = self.visit(colour);
 
                 if loc_x_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "loc_x".to_string(),
                         loc_x_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
                 if loc_y_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "loc_y".to_string(),
                         loc_y_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
                 if width_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "width".to_string(),
                         width_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
                 if height_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "height".to_string(),
                         height_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
                 if colour_type != Type::Colour {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "colour".to_string(),
                         colour_type,
                         Type::Colour,
-                    )
-                    .into());
+                    ));
                 }
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::PadWrite {
@@ -531,38 +600,35 @@ impl Visitor<Type> for SemAnalyzer {
                 loc_y,
                 colour,
             } => {
-                let loc_x_type = self.visit(loc_x)?;
-                let loc_y_type = self.visit(loc_y)?;
-                let colour_type = self.visit(colour)?;
+                let loc_x_type = self.visit(loc_x);
+                let loc_y_type = self.visit(loc_y);
+                let colour_type = self.visit(colour);
 
                 if loc_x_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "loc_x".to_string(),
                         loc_x_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
                 if loc_y_type != Type::Int {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "loc_y".to_string(),
                         loc_y_type,
                         Type::Int,
-                    )
-                    .into());
+                    ));
                 }
 
                 if colour_type != Type::Colour {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "colour".to_string(),
                         colour_type,
                         Type::Colour,
-                    )
-                    .into());
+                    ));
                 }
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::If {
@@ -570,22 +636,21 @@ impl Visitor<Type> for SemAnalyzer {
                 if_true,
                 if_false,
             } => {
-                self.visit(condition)?;
-                let true_branch_return_type = self.visit(if_true)?;
+                self.visit(condition);
+                let true_branch_return_type = self.visit(if_true);
                 if let Some(if_false) = if_false {
-                    let false_branch_return_type = self.visit(if_false)?;
+                    let false_branch_return_type = self.visit(if_false);
 
                     if true_branch_return_type != false_branch_return_type {
-                        return Err(SemanticError::TypeMismatch(
+                        self.results.add_error(SemanticError::TypeMismatch(
                             "if".to_string(),
                             true_branch_return_type,
                             false_branch_return_type,
-                        )
-                        .into());
+                        ));
                     }
                 }
 
-                Ok(true_branch_return_type)
+                true_branch_return_type
             }
 
             AstNode::For {
@@ -599,77 +664,72 @@ impl Visitor<Type> for SemAnalyzer {
                 self.inside_function = true;
 
                 if let Some(initializer) = initializer {
-                    self.visit(initializer)?;
+                    self.visit(initializer);
                 }
 
-                let condition_type = self.visit(condition)?;
+                let condition_type = self.visit(condition);
 
                 if condition_type != Type::Bool {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "for condition".to_string(),
                         condition_type,
                         Type::Bool,
-                    )
-                    .into());
+                    ));
                 }
 
                 if let Some(increment) = increment {
-                    self.visit(increment)?;
+                    self.visit(increment);
                 }
 
-                let body_type = self.visit(body)?;
+                let body_type = self.visit(body);
                 self.inside_function = false;
                 self.symbol_table.pop();
 
-                Ok(body_type)
+                body_type
             }
 
             AstNode::While { condition, body } => {
-                let condition_type = self.visit(condition)?;
-
+                let condition_type = self.visit(condition);
                 if condition_type != Type::Bool {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "while".to_string(),
                         condition_type,
                         Type::Bool,
-                    )
-                    .into());
+                    ));
                 }
 
                 self.visit(body)
             }
 
             AstNode::Print { expression } => {
-                let print_expr_type = self.visit(expression)?;
+                let print_expr_type = self.visit(expression);
 
                 if print_expr_type == Type::Void {
-                    return Err(SemanticError::TypeMismatchUnion(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "__print <expr>".to_string(),
                         print_expr_type,
-                        vec![Type::Int, Type::Float, Type::Bool, Type::Colour],
-                    )
-                    .into());
+                        Type::Unknown,
+                    ));
                 }
 
-                Ok(Type::Void)
+                Type::Void
             }
 
             AstNode::PadClear { expr } => {
-                let clear_expr_type = self.visit(expr)?;
+                let clear_expr_type = self.visit(expr);
 
                 if clear_expr_type != Type::Colour {
-                    return Err(SemanticError::TypeMismatch(
+                    self.results.add_error(SemanticError::TypeMismatch(
                         "__clear <expr>".to_string(),
                         clear_expr_type,
                         Type::Colour,
-                    )
-                    .into());
+                    ));
                 }
 
-                Ok(Type::Void)
+                Type::Void
             }
 
-            AstNode::EndOfFile => Ok(Type::Void),
+            AstNode::EndOfFile => Type::Void,
         }
     }
 }
@@ -680,7 +740,7 @@ mod tests {
         lexing::Lexer,
         parsing::Parser,
         semantics::utils::{SymbolType, Type},
-        utils::SimpleBuffer,
+        utils::{errors::Error, SimpleBuffer},
     };
 
     use super::*;
@@ -688,7 +748,7 @@ mod tests {
     use rstest::rstest;
     use std::path::Path;
 
-    fn run_scope_checker(input: &str) -> Result<()> {
+    fn run_scope_checker(input: &str) -> Result<(), Error> {
         let mut lexer: Lexer<SimpleBuffer> = Lexer::new(input, Path::new(""), None);
 
         let tokens = lexer.lex().unwrap();
@@ -697,7 +757,7 @@ mod tests {
         let ast = parser.parse()?;
 
         let mut scope_checker = SemAnalyzer::new();
-        scope_checker.visit(ast)?;
+        scope_checker.visit(ast);
 
         Ok(())
     }
