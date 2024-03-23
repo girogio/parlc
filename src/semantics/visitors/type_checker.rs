@@ -143,6 +143,24 @@ impl TypeChecker {
             .find_map(|table| table.find_symbol(&symbol.span.lexeme))
             .is_some()
     }
+
+    fn check_cast(&self, to: &Token, from: Type) -> Result<Type> {
+        let to = self.current_scope().token_to_type(&to.span.lexeme);
+
+        if from == to {
+            return Ok(from);
+        }
+
+        let result = match (from, to) {
+            (Type::Int, Type::Float) => Type::Float,  // 5 -> 5.0
+            (Type::Colour, Type::Int) => Type::Int,   // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
+            (Type::Bool, Type::Int) => Type::Int,     // false -> 0, true -> 1
+            (Type::Bool, Type::Float) => Type::Float, // false -> 0.0, true -> 1.0
+            _ => return Err(SemanticError::InvalidCast(from, to).into()),
+        };
+
+        Ok(result)
+    }
 }
 
 impl Visitor<Type> for TypeChecker {
@@ -163,8 +181,8 @@ impl Visitor<Type> for TypeChecker {
                 for statement in statements {
                     // if the statement is a return statement, we don't need to
                     // check the rest of the block
-                    if let AstNode::Return { .. } = statement {
-                        let tmp = self.visit(statement);
+                    if let AstNode::Return { expression } = statement {
+                        let tmp = self.visit(expression);
                         self.pop_scope();
                         return tmp;
                     } else {
@@ -244,7 +262,7 @@ impl Visitor<Type> for TypeChecker {
                 r#type: var_type,
                 expression,
             } => {
-                self.visit(expression)?;
+                let expr_type = self.visit(expression)?;
 
                 if self.check_scope(identifier) {
                     return Err(SemanticError::VariableRedaclaration(identifier.clone()).into());
@@ -257,6 +275,12 @@ impl Visitor<Type> for TypeChecker {
                     );
                 }
 
+                self.assert_type(
+                    &identifier.span.lexeme,
+                    &self.current_scope().token_to_type(&var_type.span.lexeme),
+                    &expr_type,
+                )?;
+
                 Ok(Type::Void)
             }
 
@@ -267,6 +291,7 @@ impl Visitor<Type> for TypeChecker {
 
                 let signature = self.get_signature(identifier)?.clone();
 
+                // Make sure each argument is of the correct type
                 args.iter()
                     .rev()
                     .enumerate()
@@ -297,10 +322,14 @@ impl Visitor<Type> for TypeChecker {
                 Ok(Type::Void)
             }
 
-            AstNode::Expression {
-                casted_type: _,
-                expr: bin_op,
-            } => self.visit(bin_op),
+            AstNode::Expression { casted_type, expr } => {
+                let expr_type = self.visit(expr)?;
+
+                match casted_type {
+                    Some(casted_type) => self.check_cast(casted_type, expr_type),
+                    None => Ok(expr_type),
+                }
+            }
 
             AstNode::SubExpression { bin_op } => self.visit(bin_op),
 
@@ -343,14 +372,15 @@ impl Visitor<Type> for TypeChecker {
 
             AstNode::PadRandI { upper_bound } => {
                 self.visit(upper_bound)?;
+
                 Ok(Type::Int)
             }
 
             AstNode::PadHeight => Ok(Type::Int),
 
-            AstNode::PadRead { first, second } => {
-                self.visit(first)?;
-                self.visit(second)?;
+            AstNode::PadRead { x, y } => {
+                self.visit(x)?;
+                self.visit(y)?;
 
                 Ok(Type::Int)
             }

@@ -250,9 +250,9 @@ impl Visitor<()> for ScopeChecker {
                 Ok(())
             }
             AstNode::PadHeight => Ok(()),
-            AstNode::PadRead { first, second } => {
-                self.visit(first)?;
-                self.visit(second)?;
+            AstNode::PadRead { x, y } => {
+                self.visit(x)?;
+                self.visit(y)?;
                 Ok(())
             }
             AstNode::IntLiteral(_) => Ok(()),

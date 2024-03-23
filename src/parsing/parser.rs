@@ -520,8 +520,8 @@ impl Parser {
         let second = self.parse_expression()?;
 
         Ok(AstNode::PadRead {
-            first: Box::new(first),
-            second: Box::new(second),
+            x: Box::new(first),
+            y: Box::new(second),
         })
     }
 

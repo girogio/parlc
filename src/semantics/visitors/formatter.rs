@@ -271,11 +271,11 @@ impl Visitor<()> for Formatter {
                 Ok(())
             }
 
-            AstNode::PadRead { first, second } => {
+            AstNode::PadRead { x, y } => {
                 write!(self.buff, "__read ")?;
-                self.visit(first)?;
+                self.visit(x)?;
                 write!(self.buff, ", ")?;
-                self.visit(second)?;
+                self.visit(y)?;
                 Ok(())
             }
 

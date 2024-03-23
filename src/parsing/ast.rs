@@ -38,8 +38,8 @@ pub enum AstNode {
     },
     PadHeight,
     PadRead {
-        first: Ast,
-        second: Ast,
+        x: Ast,
+        y: Ast,
     },
     IntLiteral(Token),
     FloatLiteral(Token),

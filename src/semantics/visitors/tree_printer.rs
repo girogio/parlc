@@ -285,11 +285,11 @@ impl Visitor<()> for Printer {
                 Ok(())
             }
 
-            AstNode::PadRead { first, second } => {
+            AstNode::PadRead { x, y } => {
                 print!("__read ");
-                self.visit(first)?;
+                self.visit(x)?;
                 print!(", ");
-                self.visit(second)?;
+                self.visit(y)?;
                 Ok(())
             }
 
