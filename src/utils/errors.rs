@@ -59,6 +59,8 @@ pub enum SemanticError {
     TypeMismatch(String, Type, Type),
     #[error("Invalid operation: {:?}", .0)]
     InvalidOperation(Token),
+    #[error("Couldn't cast {:?} to {:?}.", .0, .1)]
+    InvalidCast(Type, Type),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
