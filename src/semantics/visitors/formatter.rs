@@ -71,8 +71,10 @@ impl Visitor<()> for Formatter {
             } => {
                 write!(self.buff, "if (")?;
                 self.visit(condition)?;
-                write!(self.buff, ") ")?;
+                write!(self.buff, ")")?;
+                let tmp_tab_level = self.tab_level;
                 self.visit(if_true)?;
+                self.tab_level = tmp_tab_level;
                 if let Some(if_false) = if_false {
                     write!(self.buff, " else ")?;
                     self.visit(if_false)?;
@@ -133,7 +135,7 @@ impl Visitor<()> for Formatter {
             }
 
             AstNode::Block { statements } => {
-                writeln!(self.buff, "{} {{", "\t".repeat(self.tab_level))?;
+                writeln!(self.buff, " {{")?;
                 self.tab_level += 1;
                 for statement in statements {
                     write!(self.buff, "{}", "\t".repeat(self.tab_level))?;
@@ -303,18 +305,19 @@ impl Visitor<()> for Formatter {
             AstNode::FunctionCall { identifier, args } => {
                 write!(self.buff, "{}(", identifier.span.lexeme)?;
 
-                let (args, last) = args.split_at(args.len() - 1);
+                if !args.is_empty() {
+                    for arg in args.iter().take(args.len() - 1) {
+                        self.visit(arg)?;
+                        write!(self.buff, ", ")?;
+                    }
 
-                for arg in args {
-                    self.visit(arg)?;
-                    write!(self.buff, ", ")?;
-                }
-
-                if let Some(last) = last.first() {
-                    self.visit(last)?;
+                    if let Some(last) = args.last() {
+                        self.visit(last)?;
+                    }
                 }
 
                 write!(self.buff, ")")?;
+
                 Ok(())
             }
 

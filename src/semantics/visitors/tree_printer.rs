@@ -122,8 +122,9 @@ impl Visitor<()> for TreePrinter {
                 print!("Initializer: ");
                 if let Some(initializer) = initializer {
                     self.visit(initializer)?;
+                    println!();
                 } else {
-                    print!("None");
+                    println!("None");
                 }
                 self.print_tab();
                 print!("Condition: ");
@@ -317,7 +318,7 @@ impl Visitor<()> for TreePrinter {
             AstNode::FunctionCall { identifier, args } => {
                 print!("{}(", identifier.span.lexeme);
 
-                let (args, last) = args.split_at(args.len());
+                let (args, last) = args.split_at(args.len() - 1);
 
                 for arg in args {
                     self.visit(arg)?;

@@ -12,7 +12,7 @@ use utils::SimpleBuffer;
 use crate::{
     lexing::Lexer,
     parsing::{ast::Visitor, Parser},
-    semantics::visitors::{Formatter, TreePrinter, TypeChecker},
+    semantics::visitors::{Formatter, SemAnalyzer, TreePrinter},
 };
 
 #[derive(ClapParser)]
@@ -132,7 +132,7 @@ fn main() {
 
         match ast {
             Ok(ast) => {
-                let mut scope_check = TypeChecker::new();
+                let mut scope_check = SemAnalyzer::new();
                 match scope_check.visit(ast) {
                     Ok(_) => {
                         println!("{} analyzed successfully.", style(file.display()).cyan());

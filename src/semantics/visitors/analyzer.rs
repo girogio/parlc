@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct TypeChecker {
+pub struct SemAnalyzer {
     /// Stack of symbol tables, each representing a scope
     symbol_table: Vec<SymbolTable>,
     /// Flag to denote that the current scope lies within a function
@@ -18,9 +18,9 @@ pub struct TypeChecker {
     scope_peek_limit: usize,
 }
 
-impl TypeChecker {
+impl SemAnalyzer {
     pub fn new() -> Self {
-        TypeChecker {
+        SemAnalyzer {
             symbol_table: Vec::new(),
             inside_function: false,
             scope_peek_limit: 0,
@@ -165,7 +165,7 @@ impl TypeChecker {
     }
 }
 
-impl Visitor<Type> for TypeChecker {
+impl Visitor<Type> for SemAnalyzer {
     fn visit(&mut self, node: &AstNode) -> Result<Type> {
         match node {
             AstNode::Program { statements } => {
@@ -696,7 +696,7 @@ mod tests {
         let mut parser = Parser::new(&tokens, Path::new(""));
         let ast = parser.parse()?;
 
-        let mut scope_checker = TypeChecker::new();
+        let mut scope_checker = SemAnalyzer::new();
         scope_checker.visit(ast)?;
 
         Ok(())
