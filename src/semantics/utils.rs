@@ -25,19 +25,6 @@ impl Display for Type {
 pub enum SymbolType {
     Variable(Type),
     Function(Signature),
-    Void,
-}
-
-impl SymbolType {
-    pub fn new() -> Self {
-        SymbolType::Variable(Type::Void)
-    }
-
-    pub fn push_parameter(&mut self, parameter: Type, name: String) {
-        if let SymbolType::Function(sig) = self {
-            sig.parameters.push((parameter, name));
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]

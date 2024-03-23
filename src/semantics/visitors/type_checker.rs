@@ -52,7 +52,6 @@ impl TypeChecker {
             .map(|s| match &s.symbol_type {
                 SymbolType::Variable(t) => *t,
                 SymbolType::Function(signature) => signature.return_type,
-                SymbolType::Void => Type::Void,
             })
             .ok_or_else(|| SemanticError::UndefinedVariable(symbol.clone()).into())
     }
@@ -67,7 +66,6 @@ impl TypeChecker {
     }
 
     fn check_scope(&self, symbol: &Token) -> bool {
-        dbg!(&self.current_scope());
         self.current_scope()
             .find_symbol(&symbol.span.lexeme)
             .is_some()
@@ -270,6 +268,7 @@ impl Visitor<Type> for TypeChecker {
                 let signature = self.get_signature(identifier)?.clone();
 
                 args.iter()
+                    .rev()
                     .enumerate()
                     .try_for_each(|(i, arg)| -> Result<()> {
                         let arg_type = self.visit(arg)?;
@@ -309,7 +308,6 @@ impl Visitor<Type> for TypeChecker {
                 identifier,
                 expression,
             } => {
-                dbg!(self.inside_function);
                 if self.inside_function {
                     if !self.check_up_to_scope(identifier) {
                         return Err(SemanticError::UndefinedVariable(identifier.clone()).into());
@@ -521,7 +519,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_scope_checker() {
+    fn test_type_checker() {
         let input = r#"
             let x: int = 5;
             let y: float = 3.14;

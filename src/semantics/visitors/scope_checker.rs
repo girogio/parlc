@@ -147,7 +147,6 @@ impl Visitor<()> for ScopeChecker {
             AstNode::Identifier { token } => {
                 if self.inside_function {
                     if !self.check_up_to_scope(token) {
-                        dbg!(&self.symbol_table);
                         return Err(SemanticError::UndefinedVariable(token.clone()).into());
                     }
                 } else if !self.check_scope(token) {

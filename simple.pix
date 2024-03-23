@@ -1,17 +1,13 @@
-let d: int = 2;
+let x: int = 5;
 
-fun test(a: int, b: int) -> int {
-	__print a;
-	__print b;
+let y: float = 3.14;
 
-	let some_bool: bool = a < b;
+let z: bool = true;
 
-	let f: int = test(1, a);
+let f: colour = #ff0000;
 
-	if (a < a) 	 {
-		let c: int = a + b;
-		return c;
-	}
+fun foo(x: int, y: float) -> int {
+	return x;
 }
 
- let a: int = test(1, true);
+let a: int = foo(5, 3.2,); //TODO: fix this
