@@ -12,7 +12,9 @@ Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
 ## Features
 
 - [x] Table-driven lexer
-- [x] Top-down LL(1) Parser
-- [x] AST generation/traversal
+- [x] Recursive descent LL(1) parser
+- [x] Abstract `Visitor` trait for AST traversal
 - [x] Semantic analyzer
+  - [x] Scope checking
+  - [x] Type checking
 - [ ] Assembly-like code Generation
