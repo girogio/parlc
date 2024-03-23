@@ -18,7 +18,7 @@ pub enum AstNode {
     },
     Expression {
         casted_type: Option<Token>,
-        bin_op: Ast,
+        expr: Ast,
     },
     SubExpression {
         bin_op: Ast,

@@ -299,7 +299,7 @@ impl Visitor<Type> for TypeChecker {
 
             AstNode::Expression {
                 casted_type: _,
-                bin_op,
+                expr: bin_op,
             } => self.visit(bin_op),
 
             AstNode::SubExpression { bin_op } => self.visit(bin_op),

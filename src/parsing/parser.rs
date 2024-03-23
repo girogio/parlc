@@ -309,7 +309,7 @@ impl Parser {
                 let kind = self.consume_if(TokenKind::Type)?.clone();
                 Ok(AstNode::Expression {
                     casted_type: Some(kind),
-                    bin_op: Box::new(left),
+                    expr: Box::new(left),
                 })
             }
             TokenKind::LessThan
@@ -329,7 +329,7 @@ impl Parser {
                     } else {
                         None
                     },
-                    bin_op: Box::new(AstNode::BinOp {
+                    expr: Box::new(AstNode::BinOp {
                         left: Box::new(left),
                         operator: curr,
                         right: Box::new(right),
@@ -342,7 +342,6 @@ impl Parser {
 
     fn parse_simple_expr(&mut self) -> Result<AstNode> {
         let left = self.parse_term()?;
-
         let curr = self.current_token().clone();
 
         match &curr.kind {

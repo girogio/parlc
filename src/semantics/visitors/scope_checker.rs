@@ -203,7 +203,7 @@ impl Visitor<()> for ScopeChecker {
 
             AstNode::Expression {
                 casted_type: _,
-                bin_op,
+                expr: bin_op,
             } => {
                 self.visit(bin_op)?;
                 Ok(())

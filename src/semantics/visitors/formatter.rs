@@ -153,7 +153,7 @@ impl Visitor<()> for Formatter {
 
             AstNode::Expression {
                 casted_type,
-                bin_op,
+                expr: bin_op,
             } => {
                 self.visit(bin_op)?;
                 match casted_type {
