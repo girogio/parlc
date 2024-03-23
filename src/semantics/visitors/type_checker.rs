@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ScopeChecker {
+pub struct TypeChecker {
     /// Stack of symbol tables, each representing a scope
     symbol_table: Vec<SymbolTable>,
     /// Flag to denote that the current scope lies within a function
@@ -17,9 +17,9 @@ pub struct ScopeChecker {
     scope_peek_limit: usize,
 }
 
-impl ScopeChecker {
+impl TypeChecker {
     pub fn new() -> Self {
-        ScopeChecker {
+        TypeChecker {
             symbol_table: Vec::new(),
             inside_function: false,
             scope_peek_limit: 0,
@@ -71,7 +71,7 @@ impl ScopeChecker {
     }
 }
 
-impl Visitor<()> for ScopeChecker {
+impl Visitor<()> for TypeChecker {
     fn visit(&mut self, node: &AstNode) -> Result<()> {
         match node {
             AstNode::Program { statements } => {
@@ -378,7 +378,7 @@ mod tests {
         let mut parser = Parser::new(&tokens, Path::new(""));
         let ast = parser.parse()?;
 
-        let mut scope_checker = ScopeChecker::new();
+        let mut scope_checker = TypeChecker::new();
         scope_checker.visit(ast)?;
 
         Ok(())

@@ -3,8 +3,16 @@ let d: int = 2;
 fun test(a: int, b: int) -> int {
 	__print a;
 	__print b;
+
+	a = a + 1;
+
+	let f: int = test(1, a);
 	if (a < a) 	 {
 		let c: int = a + b;
 		return c;
 	}
 }
+
+let a: int = 1;
+d = test(a, d);
+__print d;

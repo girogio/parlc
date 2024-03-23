@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-use crate::core::{TextSpan, Token, TokenKind};
+use crate::{
+    core::{TextSpan, Token, TokenKind},
+    semantics::utils::Type,
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -45,15 +48,15 @@ pub enum SemanticError {
     #[error("Variable '{}' is not defined.", .0.span.lexeme)]
     UndefinedVariable(Token),
     #[error("Variable '{}' is already defined.", .0.span.lexeme)]
-    AlreadyDefinedVariable(Token),
+    VariableRedaclaration(Token),
     #[error("Function '{}' is not defined.", .0.span.lexeme)]
     UndefinedFunction(Token),
     #[error("Function '{}' is already defined.", .0.span.lexeme)]
     AlreadyDefinedFunction(Token),
     #[error("Variable '{}' is redeclared.", .0.span.lexeme)]
     RedeclaredVariable(Token),
-    #[error("Expected {} but found {}", .0.span.lexeme, .1)]
-    TypeMismatch(Token, String),
+    #[error("'{}' is of type {:?}, expected {:?}.", .0.span.lexeme, .1, .2)]
+    TypeMismatch(Token, Type, Type),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -13,6 +13,7 @@ use crate::{
     lexing::Lexer,
     parsing::{ast::Visitor, Parser},
     semantics::visitors::{Formatter, ScopeChecker},
+    // semantics::visitors::{Formatter, ScopeChecker, TypeChecker},
 };
 
 fn main() {
@@ -111,7 +112,7 @@ fn main() {
                     match ast {
                         Ok(ast) => {
                             let mut printer = Formatter::new(file_path);
-                            printer.visit(ast);
+                            printer.visit(ast).unwrap();
                         }
                         Err(e) => {
                             eprintln!("{}", e);
@@ -163,15 +164,27 @@ fn main() {
                     match ast {
                         Ok(ast) => {
                             let mut sem = ScopeChecker::new();
+
                             match sem.visit(ast) {
                                 Ok(_) => {
-                                    println!("Semantic analysis completed successfully.");
+                                    println!("Scope checking completed successfully.");
                                 }
                                 Err(e) => {
                                     eprintln!("{}", e);
                                     std::process::exit(1);
                                 }
                             }
+
+                            // let mut type_check = TypeChecker::new();
+                            // match type_check.visit(ast) {
+                            //     Ok(_) => {
+                            //         println!("Type checking completed successfully.");
+                            //     }
+                            //     Err(e) => {
+                            //         eprintln!("{}", e);
+                            //         std::process::exit(1);
+                            //     }
+                            // }
                         }
                         Err(e) => {
                             eprintln!("{}", e);

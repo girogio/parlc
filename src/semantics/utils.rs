@@ -6,6 +6,7 @@ pub enum Type {
     Float,
     Bool,
     Colour,
+    Void,
 }
 
 impl Display for Type {
@@ -15,6 +16,40 @@ impl Display for Type {
             Type::Float => write!(f, "float"),
             Type::Bool => write!(f, "bool"),
             Type::Colour => write!(f, "colour"),
+            Type::Void => write!(f, "void"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub enum SymbolType {
+    Variable(Type),
+    Function(Signature),
+}
+
+impl SymbolType {
+    pub fn new() -> Self {
+        SymbolType::Variable(Type::Void)
+    }
+
+    pub fn push_parameter(&mut self, parameter: Type) {
+        if let SymbolType::Function(sig) = self {
+            sig.parameters.push(parameter);
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub struct Signature {
+    pub parameters: Vec<Type>,
+    pub return_type: Type,
+}
+
+impl Signature {
+    pub fn new(return_type: Type) -> Self {
+        Signature {
+            parameters: Vec::new(),
+            return_type,
         }
     }
 }
@@ -22,14 +57,14 @@ impl Display for Type {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Symbol {
     pub lexeme: String,
-    pub r#type: Option<Type>,
+    pub symbol_type: SymbolType,
 }
 
 impl Symbol {
-    pub fn new(lexeme: &str, r#type: Option<Type>) -> Self {
+    pub fn new(lexeme: &str, symbol_type: SymbolType) -> Self {
         Symbol {
             lexeme: lexeme.to_string(),
-            r#type,
+            symbol_type,
         }
     }
 }
@@ -46,19 +81,19 @@ impl SymbolTable {
         }
     }
 
-    pub fn token_to_type(&self, token: &str) -> Option<Type> {
+    pub fn token_to_type(&self, token: &str) -> Type {
         match token {
-            "int" => Some(Type::Int),
-            "float" => Some(Type::Float),
-            "bool" => Some(Type::Bool),
-            "colour" => Some(Type::Colour),
-            _ => None,
+            "int" => Type::Int,
+            "float" => Type::Float,
+            "bool" => Type::Bool,
+            "colour" => Type::Colour,
+            _ => unreachable!(),
         }
     }
 
-    pub fn add_symbol(&mut self, lexeme: &str, r#type: Option<Type>) {
+    pub fn add_symbol(&mut self, lexeme: &str, symbol_type: &SymbolType) {
         let mut index = 0;
-        let symbol = Symbol::new(lexeme, r#type);
+        let symbol = Symbol::new(lexeme, symbol_type.clone());
         for s in &self.symbols {
             if s < &symbol {
                 break;
@@ -79,9 +114,13 @@ impl SymbolTable {
         self.symbols.iter().find(|s| s.lexeme == symbol)
     }
 
-    pub fn set_type(&mut self, symbol: &str, r#type: Type) {
+    pub fn set_type(&mut self, symbol: &str, symbol_type: SymbolType) {
         if let Some(s) = self.symbols.iter_mut().find(|s| s.lexeme == symbol) {
-            s.r#type = Some(r#type);
+            s.symbol_type = symbol_type;
         }
+    }
+
+    pub fn all_symbols(&self) -> impl Iterator<Item = &Symbol> {
+        self.symbols.iter()
     }
 }
