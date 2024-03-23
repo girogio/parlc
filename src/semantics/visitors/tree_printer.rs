@@ -1,11 +1,11 @@
 use crate::parsing::ast::{AstNode, Visitor};
 use crate::utils::Result;
 
-pub struct Printer {
+pub struct TreePrinter {
     tab_level: usize,
 }
 
-impl Printer {
+impl TreePrinter {
     pub fn new() -> Self {
         Self { tab_level: 0 }
     }
@@ -18,7 +18,7 @@ impl Printer {
     }
 }
 
-impl Visitor<()> for Printer {
+impl Visitor<()> for TreePrinter {
     fn visit(&mut self, node: &AstNode) -> Result<()> {
         match node {
             AstNode::Program { statements } => {
@@ -27,6 +27,7 @@ impl Visitor<()> for Printer {
                 for statement in statements {
                     self.print_tab();
                     self.visit(statement)?;
+                    println!();
                 }
                 self.tab_level -= 1;
                 println!();
@@ -47,7 +48,6 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Expression: ");
                 self.visit(expression)?;
-                println!();
                 self.tab_level -= 1;
                 Ok(())
             }
@@ -128,13 +128,19 @@ impl Visitor<()> for Printer {
                 self.print_tab();
                 print!("Condition: ");
                 self.visit(condition)?;
+                println!();
                 self.print_tab();
                 print!("Increment: ");
                 if let Some(increment) = increment {
+                    self.tab_level += 1;
+                    println!();
+                    self.print_tab();
                     self.visit(increment)?;
+                    self.tab_level -= 1;
                 } else {
                     print!("None");
                 }
+                println!();
                 self.print_tab();
                 print!("Body: ");
                 self.visit(body)?;
@@ -144,8 +150,8 @@ impl Visitor<()> for Printer {
 
             AstNode::Return { expression } => {
                 println!("Return");
-                self.print_tab();
                 self.tab_level += 1;
+                self.print_tab();
                 print!("Expression: ");
                 self.visit(expression)?;
                 self.tab_level -= 1;
@@ -158,6 +164,7 @@ impl Visitor<()> for Printer {
                 for statement in statements {
                     self.print_tab();
                     self.visit(statement)?;
+                    println!();
                 }
                 self.tab_level -= 1;
                 Ok(())
