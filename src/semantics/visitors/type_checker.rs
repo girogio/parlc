@@ -1,4 +1,4 @@
-use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType};
+use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType, Type};
 use crate::utils::errors::SemanticError;
 use crate::utils::Result;
 use crate::{
@@ -71,8 +71,8 @@ impl TypeChecker {
     }
 }
 
-impl Visitor<()> for TypeChecker {
-    fn visit(&mut self, node: &AstNode) -> Result<()> {
+impl Visitor<SymbolType> for TypeChecker {
+    fn visit(&mut self, node: &AstNode) -> Result<SymbolType> {
         match node {
             AstNode::Program { statements } => {
                 self.push_scope();
