@@ -118,7 +118,7 @@ impl Visitor<()> for ScopeChecker {
 
                 for param in self.current_scope().all_symbols() {
                     if let SymbolType::Variable(t) = param.symbol_type {
-                        signature.parameters.push(t);
+                        signature.parameters.push((t, param.lexeme.clone()));
                     }
                 }
 

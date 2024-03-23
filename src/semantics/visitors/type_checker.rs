@@ -57,7 +57,17 @@ impl TypeChecker {
             .ok_or_else(|| SemanticError::UndefinedVariable(symbol.clone()).into())
     }
 
+    fn get_signature(&self, symbol: &Token) -> Result<&Signature> {
+        self.find_symbol(symbol)
+            .map(|s| match &s.symbol_type {
+                SymbolType::Function(signature) => signature,
+                _ => panic!("Symbol is not a function"),
+            })
+            .ok_or_else(|| SemanticError::UndefinedFunction(symbol.clone()).into())
+    }
+
     fn check_scope(&self, symbol: &Token) -> bool {
+        dbg!(&self.current_scope());
         self.current_scope()
             .find_symbol(&symbol.span.lexeme)
             .is_some()
@@ -112,9 +122,9 @@ impl TypeChecker {
         }
     }
 
-    fn assert_type(&self, token: &Token, expected: &Type, found: &Type) -> Result<Type> {
+    fn assert_type(&self, token: &String, expected: &Type, found: &Type) -> Result<Type> {
         if expected != found {
-            return Err(SemanticError::TypeMismatch(token.clone(), *found, *expected).into());
+            return Err(SemanticError::TypeMismatch(token.to_string(), *found, *expected).into());
         }
 
         Ok(*found)
@@ -153,7 +163,15 @@ impl Visitor<Type> for TypeChecker {
             AstNode::Block { statements } => {
                 self.push_scope();
                 for statement in statements {
-                    self.visit(statement)?;
+                    // if the statement is a return statement, we don't need to
+                    // check the rest of the block
+                    if let AstNode::Return { .. } = statement {
+                        let tmp = self.visit(statement);
+                        self.pop_scope();
+                        return tmp;
+                    } else {
+                        self.visit(statement)?;
+                    }
                 }
                 self.pop_scope();
 
@@ -186,7 +204,7 @@ impl Visitor<Type> for TypeChecker {
 
                 for param in self.current_scope().all_symbols() {
                     if let SymbolType::Variable(t) = param.symbol_type {
-                        signature.parameters.push(t);
+                        signature.parameters.push((t, param.lexeme.clone()));
                     }
                 }
 
@@ -204,8 +222,7 @@ impl Visitor<Type> for TypeChecker {
 
                 self.inside_function = true;
                 self.visit(block)?;
-                self.symbol_table.pop();
-
+                self.pop_scope();
                 self.inside_function = false;
                 self.scope_peek_limit = 0;
 
@@ -221,15 +238,7 @@ impl Visitor<Type> for TypeChecker {
                     return Err(SemanticError::UndefinedVariable(token.clone()).into());
                 }
 
-                self.symbol_table
-                    .iter()
-                    .rev()
-                    .find_map(|table| table.find_symbol(&token.span.lexeme))
-                    .map(|s| match &s.symbol_type {
-                        SymbolType::Variable(t) => Ok(t.clone()),
-                        _ => Err(SemanticError::UndefinedVariable(token.clone()).into()),
-                    })
-                    .unwrap()
+                self.get_symbol_type(token)
             }
 
             AstNode::VarDec {
@@ -258,16 +267,21 @@ impl Visitor<Type> for TypeChecker {
                     return Err(SemanticError::UndefinedFunction(identifier.clone()).into());
                 }
 
-                for arg in args {
-                    self.visit(arg)?;
-                }
+                let signature = self.get_signature(identifier)?.clone();
 
-                self.find_symbol(identifier)
-                    .map(|s| match &s.symbol_type {
-                        SymbolType::Function(signature) => Ok(signature.return_type),
-                        _ => Err(SemanticError::UndefinedFunction(identifier.clone()).into()),
-                    })
-                    .unwrap()
+                args.iter()
+                    .enumerate()
+                    .try_for_each(|(i, arg)| -> Result<()> {
+                        let arg_type = self.visit(arg)?;
+                        self.assert_type(
+                            &signature.parameters[i].1,
+                            &signature.parameters[i].0,
+                            &arg_type,
+                        )
+                        .map(|_| ())
+                    })?;
+
+                self.get_symbol_type(identifier)
             }
 
             AstNode::FormalParam {
@@ -295,6 +309,7 @@ impl Visitor<Type> for TypeChecker {
                 identifier,
                 expression,
             } => {
+                dbg!(self.inside_function);
                 if self.inside_function {
                     if !self.check_up_to_scope(identifier) {
                         return Err(SemanticError::UndefinedVariable(identifier.clone()).into());
@@ -306,7 +321,7 @@ impl Visitor<Type> for TypeChecker {
                 let identifier_type = self.get_symbol_type(identifier)?;
                 let expression_type = self.visit(expression)?;
 
-                self.assert_type(identifier, &identifier_type, &expression_type)
+                self.assert_type(&identifier.span.lexeme, &identifier_type, &expression_type)
             }
 
             AstNode::BinOp {

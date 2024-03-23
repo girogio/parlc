@@ -6,9 +6,6 @@ fun test(a: int, b: int) -> int {
 
 	let some_bool: bool = a < b;
 
-	let asd: int = a + 1;
-	asd = 0.04;
-
 	let f: int = test(1, a);
 
 	if (a < a) 	 {
@@ -17,8 +14,4 @@ fun test(a: int, b: int) -> int {
 	}
 }
 
-let a: int = 1;
-
-d = test(a, d);
-
-__print d;
+ let a: int = test(1, true);

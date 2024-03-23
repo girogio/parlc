@@ -55,8 +55,8 @@ pub enum SemanticError {
     AlreadyDefinedFunction(Token),
     #[error("Variable '{}' is redeclared.", .0.span.lexeme)]
     RedeclaredVariable(Token),
-    #[error("'{}' is of type {:?}, expected {:?}.", .0.span.lexeme, .1, .2)]
-    TypeMismatch(Token, Type, Type),
+    #[error("'{}' is of type {:?}, expected {:?}.", .0, .1, .2)]
+    TypeMismatch(String, Type, Type),
     #[error("Invalid operation: {:?}", .0)]
     InvalidOperation(Token),
 }

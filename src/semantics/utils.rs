@@ -33,16 +33,16 @@ impl SymbolType {
         SymbolType::Variable(Type::Void)
     }
 
-    pub fn push_parameter(&mut self, parameter: Type) {
+    pub fn push_parameter(&mut self, parameter: Type, name: String) {
         if let SymbolType::Function(sig) = self {
-            sig.parameters.push(parameter);
+            sig.parameters.push((parameter, name));
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Signature {
-    pub parameters: Vec<Type>,
+    pub parameters: Vec<(Type, String)>,
     pub return_type: Type,
 }
 
