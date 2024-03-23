@@ -13,6 +13,6 @@ Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
 
 - [x] Table-driven lexer
 - [x] Top-down LL(1) Parser
-- [ ] AST generation/traversal
-- [ ] Semantic analyzer
+- [x] AST generation/traversal
+- [x] Semantic analyzer
 - [ ] Assembly-like code Generation
