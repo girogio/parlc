@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::semantics::utils::MemLoc;
+
 #[derive(Debug)]
 pub struct Program {
     pub instructions: Vec<Instruction>,
@@ -17,10 +19,10 @@ impl Display for Program {
 #[derive(Debug, Clone)]
 pub enum Instruction {
     FunctionLabel(String),
-    PushValue(String),
+    PushValue(u32),
     PushFunction(String),
     PushOffset(i32),
-    PushFromStack(usize, usize),
+    PushFromStack(MemLoc),
     Store,
     NoOperation,
     Drop,
@@ -56,6 +58,7 @@ pub enum Instruction {
     WriteBox,
     Clear,
     Width,
+    Read,
     Height,
     Print,
 }
@@ -63,7 +66,8 @@ pub enum Instruction {
 impl Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Instruction::FunctionLabel(name) => writeln!(f, "{}:", name),
+            Instruction::Read => writeln!(f, "read"),
+            Instruction::FunctionLabel(name) => writeln!(f, ".{}", name),
             Instruction::PushValue(value) => writeln!(f, "push {}", value),
             Instruction::PushFunction(name) => writeln!(f, "push {}", name),
             Instruction::PushOffset(offset) => {
@@ -74,8 +78,8 @@ impl Display for Instruction {
                     std::cmp::Ordering::Greater => writeln!(f, "#PC+{}", offset),
                 }
             }
-            Instruction::PushFromStack(frame_index, offset) => {
-                writeln!(f, "push [{}:{}]", frame_index, offset)
+            Instruction::PushFromStack(mem_loc) => {
+                writeln!(f, "push [{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
             }
             Instruction::Store => writeln!(f, "st"),
             Instruction::NoOperation => writeln!(f, "nop"),

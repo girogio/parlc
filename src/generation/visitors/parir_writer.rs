@@ -1,6 +1,3 @@
-use std::fmt::Write;
-
-use crate::core::TokenKind;
 use crate::generation::instructions::{Instruction, Program};
 use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType, Type};
 use crate::utils::errors::SemanticError;
@@ -8,37 +5,7 @@ use crate::{
     core::Token,
     parsing::ast::{AstNode, Visitor},
 };
-
-#[derive(Debug)]
-pub struct SemanticResult {
-    pub errors: Vec<SemanticError>,
-    pub warnings: Vec<SemanticError>,
-}
-
-impl SemanticResult {
-    fn new() -> Self {
-        SemanticResult {
-            errors: Vec::new(),
-            warnings: Vec::new(),
-        }
-    }
-
-    fn add_error(&mut self, error: SemanticError) {
-        self.errors.push(error);
-    }
-
-    fn add_warning(&mut self, warning: SemanticError) {
-        self.warnings.push(warning);
-    }
-
-    pub fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    pub fn has_warnings(&self) -> bool {
-        !self.warnings.is_empty()
-    }
-}
+use crate::{core::TokenKind, semantics::utils::MemLoc};
 
 #[derive(Debug)]
 pub struct PArIRWriter {
@@ -49,12 +16,14 @@ pub struct PArIRWriter {
     /// If this is 0, we can check for the existence of the symbol in any
     /// scope, up to the global scope.
     scope_peek_limit: usize,
-    /// The results of the semantic analysis
-    results: SemanticResult,
     /// String containing the program's contents
     program: Program,
     /// Pointer to the current instruction
     instr_ptr: usize,
+    /// The current stack level
+    stack_level: usize,
+    /// The current stack offset
+    frame_index: usize,
 }
 
 impl PArIRWriter {
@@ -63,11 +32,12 @@ impl PArIRWriter {
             symbol_table: Vec::new(),
             inside_function: false,
             scope_peek_limit: 0,
-            results: SemanticResult::new(),
             program: Program {
                 instructions: Vec::new(),
             },
             instr_ptr: 0,
+            stack_level: 0,
+            frame_index: 0,
         }
     }
 
@@ -76,9 +46,10 @@ impl PArIRWriter {
         format!("{}", self.program)
     }
 
-    fn add_instruction(&mut self, instruction: Instruction) {
+    fn add_instruction(&mut self, instruction: Instruction) -> usize {
         self.program.instructions.push(instruction);
         self.instr_ptr += 1;
+        self.instr_ptr - 1
     }
 
     fn get_scope_var_count(&self) -> usize {
@@ -89,11 +60,22 @@ impl PArIRWriter {
             .count()
     }
 
+    fn get_stack_level(&self) -> usize {
+        self.symbol_table.len()
+    }
+
     fn find_symbol(&self, symbol: &Token) -> Option<&Symbol> {
         self.symbol_table
             .iter()
             .rev()
             .find_map(|table| table.find_symbol(&symbol.span.lexeme))
+    }
+
+    fn mut_find_symbol(&mut self, symbol: &Token) -> Option<&mut Symbol> {
+        self.symbol_table
+            .iter_mut()
+            .rev()
+            .find_map(|table| table.find_symbol_mut(&symbol.span.lexeme))
     }
 
     fn current_scope(&self) -> &SymbolTable {
@@ -104,9 +86,9 @@ impl PArIRWriter {
         self.symbol_table.last_mut().unwrap()
     }
 
-    fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType) {
+    fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType, mem_loc: Option<MemLoc>) {
         self.mut_current_scope()
-            .add_symbol(&symbol.span.lexeme, symbol_type);
+            .add_symbol(&symbol.span.lexeme, symbol_type, mem_loc);
     }
 
     fn get_symbol_type(&self, symbol: &Token) -> Type {
@@ -133,16 +115,17 @@ impl PArIRWriter {
             .is_some()
     }
 
+    fn get_memory_location(&self, symbol: &Token) -> Option<MemLoc> {
+        self.find_symbol(symbol)
+            .and_then(|s| s.memory_location.clone())
+    }
+
     fn get_unary_op_type(&mut self, op: &Token, expr: &Type) -> Type {
         match (op.kind, expr) {
             (TokenKind::Minus, Type::Int) => Type::Int,
             (TokenKind::Minus, Type::Float) => Type::Float,
             (TokenKind::Not, Type::Bool) => Type::Bool,
-            _ => {
-                self.results
-                    .add_error(SemanticError::InvalidOperation(op.clone()));
-                Type::Unknown
-            }
+            _ => Type::Unknown,
         }
     }
 
@@ -184,25 +167,8 @@ impl PArIRWriter {
             (TokenKind::GreaterThanEqual, Type::Colour, Type::Colour) => Type::Bool,
             (TokenKind::And, Type::Bool, Type::Bool) => Type::Bool,
             (TokenKind::Or, Type::Bool, Type::Bool) => Type::Bool,
-            _ => {
-                self.results
-                    .add_error(SemanticError::InvalidOperation(op.clone()));
-
-                Type::Unknown
-            }
+            _ => Type::Unknown,
         }
-    }
-
-    fn assert_type(&mut self, token: &String, expected: &Type, found: &Type) -> Type {
-        if expected != found {
-            self.results.add_error(SemanticError::TypeMismatch(
-                token.to_string(),
-                *found,
-                *expected,
-            ));
-        }
-
-        *found
     }
 
     fn push_scope(&mut self) {
@@ -233,22 +199,19 @@ impl PArIRWriter {
             (Type::Colour, Type::Int) => Type::Int,   // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
             (Type::Bool, Type::Int) => Type::Int,     // false -> 0, true -> 1
             (Type::Bool, Type::Float) => Type::Float, // false -> 0.0, true -> 1.0
-            _ => {
-                self.results.add_error(SemanticError::InvalidCast(from, to));
-                Type::Unknown
-            }
+            _ => Type::Unknown,
         }
     }
 }
 
-impl Visitor<Type> for PArIRWriter {
-    fn visit(&mut self, node: &AstNode) -> Type {
+impl Visitor<usize> for PArIRWriter {
+    fn visit(&mut self, node: &AstNode) -> usize {
         match node {
             AstNode::Program { statements } => {
                 self.push_scope();
                 self.add_instruction(Instruction::FunctionLabel("main".to_string()));
                 let ir = self.instr_ptr;
-                self.add_instruction(Instruction::PushValue("".to_string()));
+                self.add_instruction(Instruction::PushValue(0));
                 self.add_instruction(Instruction::NewFrame);
 
                 for statement in statements {
@@ -256,12 +219,12 @@ impl Visitor<Type> for PArIRWriter {
                 }
 
                 self.program.instructions[ir] =
-                    Instruction::PushValue(self.get_scope_var_count().to_string());
+                    Instruction::PushValue(self.get_scope_var_count() as u32);
                 self.add_instruction(Instruction::PopFrame);
                 self.add_instruction(Instruction::Halt);
 
                 self.pop_scope();
-                Type::Void
+                self.instr_ptr
             }
 
             AstNode::Block { statements } => {
@@ -272,7 +235,7 @@ impl Visitor<Type> for PArIRWriter {
                     // if the statement is a return statement, we don't need to
                     // check the rest of the block
                     let ir = self.instr_ptr;
-                    self.add_instruction(Instruction::PushValue("".to_string()));
+                    self.add_instruction(Instruction::PushValue(0));
                     self.add_instruction(Instruction::NewFrame);
                     if let AstNode::Return { expression } = statement {
                         let tmp = self.visit(expression);
@@ -283,18 +246,14 @@ impl Visitor<Type> for PArIRWriter {
                     }
 
                     self.program.instructions[ir] =
-                        Instruction::PushValue(self.get_scope_var_count().to_string());
-                    self.add_instruction(Instruction::PopFrame);
+                        Instruction::PushValue(self.get_scope_var_count() as u32);
                 }
+
                 if !self.inside_function {
                     self.pop_scope();
                 }
 
-                self.add_instruction(Instruction::NewFrame);
-                self.add_instruction(Instruction::PopFrame);
-
-                self.pop_scope();
-                Type::Void
+                self.add_instruction(Instruction::PopFrame)
             }
 
             AstNode::FunctionDecl {
@@ -303,12 +262,6 @@ impl Visitor<Type> for PArIRWriter {
                 return_type,
                 block,
             } => {
-                // Check that function name isn't already defined
-                if self.check_scope(identifier) {
-                    self.results
-                        .add_error(SemanticError::AlreadyDefinedFunction(identifier.clone()));
-                }
-
                 self.push_scope();
                 self.scope_peek_limit = self.symbol_table.len() - 1;
 
@@ -338,39 +291,24 @@ impl Visitor<Type> for PArIRWriter {
                     .add_symbol(
                         &identifier.span.lexeme,
                         &SymbolType::Function(signature.clone()),
+                        None,
                     );
 
                 self.inside_function = true;
-                let return_type = self.visit(block);
-
-                if signature.return_type != return_type {
-                    self.results
-                        .add_error(SemanticError::FunctionReturnTypeMismatch(
-                            identifier.clone(),
-                            signature.return_type,
-                            return_type,
-                        ));
-                }
+                let block_end = self.visit(block);
 
                 self.pop_scope();
                 self.inside_function = false;
                 self.scope_peek_limit = 0;
-
-                Type::Void
+                block_end
             }
 
             AstNode::Identifier { token } => {
-                if self.inside_function {
-                    if !self.check_up_to_scope(token) {
-                        self.results
-                            .add_error(SemanticError::UndefinedVariable(token.clone()));
-                    }
-                } else if !self.check_scope(token) {
-                    self.results
-                        .add_error(SemanticError::UndefinedVariable(token.clone()));
+                if let Some(mem_loc) = self.get_memory_location(token) {
+                    return self.add_instruction(Instruction::PushFromStack(mem_loc));
                 }
 
-                self.get_symbol_type(token)
+                self.instr_ptr
             }
 
             AstNode::VarDec {
@@ -378,74 +316,41 @@ impl Visitor<Type> for PArIRWriter {
                 r#type: var_type,
                 expression,
             } => {
-                let expr_type = self.visit(expression);
+                self.visit(expression);
 
-                if self.check_scope(identifier) {
-                    // get old type of the variable
-                    let old_type = self.get_symbol_type(identifier);
-                    // if changing types, add error, if not add warning
-                    if old_type != expr_type {
-                        self.results.add_error(SemanticError::TypeMismatch(
-                            identifier.span.lexeme.clone(),
-                            old_type,
-                            expr_type,
-                        ));
-                    } else {
-                        self.results
-                            .add_warning(SemanticError::VariableRedaclaration(identifier.clone()));
-                    }
-                } else {
+                if !self.check_scope(identifier) {
                     self.add_symbol(
                         identifier,
                         &SymbolType::Variable(
                             self.current_scope().token_to_type(&var_type.span.lexeme),
                         ),
+                        Some(MemLoc {
+                            stack_level: self.stack_level,
+                            frame_index: self.frame_index,
+                        }),
                     );
                 }
 
-                self.assert_type(
-                    &identifier.span.lexeme,
-                    &self.current_scope().token_to_type(&var_type.span.lexeme),
-                    &expr_type,
-                );
-
-                Type::Void
+                self.add_instruction(Instruction::PushValue(self.frame_index as u32));
+                self.add_instruction(Instruction::PushValue(self.stack_level as u32));
+                self.frame_index += 1;
+                self.add_instruction(Instruction::Store)
             }
 
-            AstNode::FunctionCall { identifier, args } => {
-                if self.find_symbol(identifier).is_none() {
-                    self.results
-                        .add_error(SemanticError::UndefinedFunction(identifier.clone()))
-                }
+            // AstNode::FunctionCall { identifier, args } => {
+            //     let signature = self.get_signature(identifier);
 
-                let signature = self.get_signature(identifier);
+            //     let arg_types = args
+            //         .iter()
+            //         .map(|arg| self.visit(arg))
+            //         .collect::<Vec<usize>>();
 
-                let arg_types = args
-                    .iter()
-                    .map(|arg| self.visit(arg))
-                    .collect::<Vec<Type>>();
+            //     for (idx, b) in args.iter().rev().enumerate() {
+            //         let arg_type = self.visit(b);
+            //     }
 
-                if signature.parameters.is_empty() && !arg_types.is_empty() {
-                    self.results.add_error(SemanticError::FunctionCallNoParams(
-                        identifier.span.lexeme.clone(),
-                        arg_types,
-                    ));
-                }
-
-                // Make sure each argument is of the correct type
-                for (idx, b) in args.iter().rev().enumerate() {
-                    let arg_type = self.visit(b);
-
-                    self.assert_type(
-                        &signature.parameters[idx].1,
-                        &signature.parameters[idx].0,
-                        &arg_type,
-                    );
-                }
-
-                self.get_symbol_type(identifier)
-            }
-
+            //     self.get_symbol_type(identifier)
+            // }
             AstNode::FormalParam {
                 identifier,
                 param_type,
@@ -455,49 +360,31 @@ impl Visitor<Type> for PArIRWriter {
                     &SymbolType::Variable(
                         self.current_scope().token_to_type(&param_type.span.lexeme),
                     ),
+                    None,
                 );
 
-                Type::Void
+                self.instr_ptr
             }
 
-            AstNode::Expression { casted_type, expr } => {
-                let expr_type = self.visit(expr);
-
-                match casted_type {
-                    Some(casted_type) => self.check_cast(casted_type, expr_type),
-                    None => expr_type,
-                }
-            }
+            AstNode::Expression {
+                casted_type: _,
+                expr,
+            } => self.visit(expr),
 
             AstNode::SubExpression { bin_op } => self.visit(bin_op),
 
             AstNode::Assignment {
-                identifier,
+                identifier: _,
                 expression,
-            } => {
-                if self.inside_function {
-                    if !self.check_up_to_scope(identifier) {
-                        self.results
-                            .add_error(SemanticError::UndefinedVariable(identifier.clone()));
-                    }
-                } else if !self.check_scope(identifier) {
-                    self.results
-                        .add_error(SemanticError::UndefinedVariable(identifier.clone()));
-                }
-
-                let identifier_type = self.get_symbol_type(identifier);
-                let expression_type = self.visit(expression);
-
-                self.assert_type(&identifier.span.lexeme, &identifier_type, &expression_type)
-            }
+            } => self.visit(expression),
 
             AstNode::BinOp {
                 left,
                 operator,
                 right,
             } => {
-                let left_type = self.visit(left);
-                let right_type = self.visit(right);
+                self.visit(left);
+                self.visit(right);
 
                 self.add_instruction(match operator.kind {
                     TokenKind::Plus => Instruction::Add,
@@ -512,94 +399,74 @@ impl Visitor<Type> for PArIRWriter {
                     TokenKind::And => Instruction::And,
                     TokenKind::Or => Instruction::Or,
                     _ => Instruction::NoOperation,
-                });
-
-                self.get_bin_op_type(operator, &left_type, &right_type)
+                })
             }
 
             AstNode::UnaryOp { operator, expr } => {
-                let expr_type = self.visit(expr);
+                self.visit(expr);
 
-                self.get_unary_op_type(operator, &expr_type)
+                match operator.kind {
+                    TokenKind::Minus => self.add_instruction(Instruction::Sub),
+                    TokenKind::Not => self.add_instruction(Instruction::Not),
+                    _ => unreachable!(),
+                }
             }
 
-            AstNode::PadWidth => Type::Int,
+            AstNode::PadWidth => self.add_instruction(Instruction::Width),
 
             AstNode::PadRandI { upper_bound } => {
-                let upper_bound_type = self.visit(upper_bound);
+                self.visit(upper_bound);
 
-                if upper_bound_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "upper_bound".to_string(),
-                        upper_bound_type,
-                        Type::Int,
-                    ));
-                }
-
-                Type::Int
+                self.add_instruction(Instruction::RandInt)
             }
 
-            AstNode::PadHeight => Type::Int,
+            AstNode::PadHeight => self.add_instruction(Instruction::Height),
 
             AstNode::PadRead { x, y } => {
-                let x_type = self.visit(x);
-                let y_type = self.visit(y);
+                self.visit(y);
+                self.visit(x);
 
-                if x_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "__read <x>, y".to_string(),
-                        x_type,
-                        Type::Int,
-                    ));
-                }
-
-                if y_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "__read x, <y>".to_string(),
-                        y_type,
-                        Type::Int,
-                    ));
-                }
-
-                Type::Int
+                self.add_instruction(Instruction::Read)
             }
 
             AstNode::IntLiteral(l) => {
-                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()));
-                Type::Int
+                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()))
             }
 
             AstNode::FloatLiteral(l) => {
-                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()));
-                Type::Float
+                //TODO: Fix into string
+                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()))
             }
 
-            AstNode::BoolLiteral(_) => Type::Bool,
+            AstNode::BoolLiteral(l) => match l.span.lexeme.as_str() {
+                "true" => self.add_instruction(Instruction::PushValue(1)),
+                "false" => self.add_instruction(Instruction::PushValue(0)),
+                _ => unreachable!(),
+            },
 
-            AstNode::ColourLiteral(_) => Type::Colour,
+            AstNode::ColourLiteral(l) => {
+                let colour = u32::from_str_radix(&l.span.lexeme[1..], 16).unwrap();
+
+                self.add_instruction(Instruction::PushValue(colour))
+            }
 
             AstNode::ActualParams { params } => {
                 for param in params {
                     self.visit(param);
                 }
-
-                Type::Void
+                self.instr_ptr
             }
+
             AstNode::Delay { expression } => {
-                let delay_ms_type = self.visit(expression);
-
-                if delay_ms_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "delay".to_string(),
-                        delay_ms_type,
-                        Type::Int,
-                    ));
-                }
-
-                Type::Void
+                self.visit(expression);
+                self.add_instruction(Instruction::Delay)
             }
 
-            AstNode::Return { expression } => self.visit(expression),
+            AstNode::Return { expression } => {
+                self.visit(expression);
+
+                self.add_instruction(Instruction::Return)
+            }
 
             AstNode::PadWriteBox {
                 loc_x,
@@ -608,53 +475,13 @@ impl Visitor<Type> for PArIRWriter {
                 height,
                 colour,
             } => {
-                let loc_x_type = self.visit(loc_x);
-                let loc_y_type = self.visit(loc_y);
-                let width_type = self.visit(width);
-                let height_type = self.visit(height);
-                let colour_type = self.visit(colour);
+                self.visit(colour);
+                self.visit(height);
+                self.visit(width);
+                self.visit(loc_y);
+                self.visit(loc_x);
 
-                if loc_x_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "loc_x".to_string(),
-                        loc_x_type,
-                        Type::Int,
-                    ));
-                }
-
-                if loc_y_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "loc_y".to_string(),
-                        loc_y_type,
-                        Type::Int,
-                    ));
-                }
-
-                if width_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "width".to_string(),
-                        width_type,
-                        Type::Int,
-                    ));
-                }
-
-                if height_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "height".to_string(),
-                        height_type,
-                        Type::Int,
-                    ));
-                }
-
-                if colour_type != Type::Colour {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "colour".to_string(),
-                        colour_type,
-                        Type::Colour,
-                    ));
-                }
-
-                Type::Void
+                self.add_instruction(Instruction::WriteBox)
             }
 
             AstNode::PadWrite {
@@ -662,35 +489,11 @@ impl Visitor<Type> for PArIRWriter {
                 loc_y,
                 colour,
             } => {
-                let loc_x_type = self.visit(loc_x);
-                let loc_y_type = self.visit(loc_y);
-                let colour_type = self.visit(colour);
+                self.visit(colour);
+                self.visit(loc_y);
+                self.visit(loc_x);
 
-                if loc_x_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "loc_x".to_string(),
-                        loc_x_type,
-                        Type::Int,
-                    ));
-                }
-
-                if loc_y_type != Type::Int {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "loc_y".to_string(),
-                        loc_y_type,
-                        Type::Int,
-                    ));
-                }
-
-                if colour_type != Type::Colour {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "colour".to_string(),
-                        colour_type,
-                        Type::Colour,
-                    ));
-                }
-
-                Type::Void
+                self.add_instruction(Instruction::Write)
             }
 
             AstNode::If {
@@ -699,22 +502,29 @@ impl Visitor<Type> for PArIRWriter {
                 if_false,
             } => {
                 self.visit(condition);
-                let true_branch_return_type = self.visit(if_true);
+
+                let jump_to_true = self.add_instruction(Instruction::PushValue(0));
+
+                self.add_instruction(Instruction::JumpIfNotZero);
+
                 if let Some(if_false) = if_false {
-                    let false_branch_return_type = self.visit(if_false);
+                    self.visit(if_false)
+                } else {
+                    self.add_instruction(Instruction::NoOperation)
+                };
 
-                    if true_branch_return_type != false_branch_return_type {
-                        self.results.add_error(SemanticError::TypeMismatch(
-                            "if".to_string(),
-                            true_branch_return_type,
-                            false_branch_return_type,
-                        ));
-                    }
-                }
+                let jump_to_end = self.add_instruction(Instruction::PushValue(0));
+                let end_if = self.add_instruction(Instruction::Jump);
 
-                true_branch_return_type
+                self.program.instructions[jump_to_true] = Instruction::PushValue(end_if as u32 + 1);
+
+                let after_if_true = self.visit(if_true);
+
+                self.program.instructions[jump_to_end] =
+                    Instruction::PushValue(after_if_true as u32);
+
+                self.instr_ptr
             }
-
             AstNode::For {
                 initializer,
                 condition,
@@ -729,15 +539,7 @@ impl Visitor<Type> for PArIRWriter {
                     self.visit(initializer);
                 }
 
-                let condition_type = self.visit(condition);
-
-                if condition_type != Type::Bool {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "for condition".to_string(),
-                        condition_type,
-                        Type::Bool,
-                    ));
-                }
+                self.visit(condition);
 
                 if let Some(increment) = increment {
                     self.visit(increment);
@@ -749,48 +551,31 @@ impl Visitor<Type> for PArIRWriter {
                 body_type
             }
 
-            AstNode::While { condition, body } => {
-                let condition_type = self.visit(condition);
-                if condition_type != Type::Bool {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "while".to_string(),
-                        condition_type,
-                        Type::Bool,
-                    ));
-                }
+            // AstNode::While { condition, body } => {
+            //     let condition_type = self.visit(condition);
+            //     if condition_type != Type::Bool {
+            //         self.results.add_error(SemanticError::TypeMismatch(
+            //             "while".to_string(),
+            //             condition_type,
+            //             Type::Bool,
+            //         ));
+            //     }
 
-                self.visit(body)
-            }
-
+            //     self.visit(body)
+            // }
             AstNode::Print { expression } => {
-                let print_expr_type = self.visit(expression);
-
-                if print_expr_type == Type::Void || print_expr_type == Type::Unknown {
-                    self.results.add_error(SemanticError::TypeMismatchUnion(
-                        "__print <expr>".to_string(),
-                        print_expr_type,
-                        vec![Type::Int, Type::Float, Type::Bool, Type::Colour],
-                    ));
-                }
-
-                Type::Void
+                self.visit(expression);
+                self.add_instruction(Instruction::Print)
             }
 
             AstNode::PadClear { expr } => {
-                let clear_expr_type = self.visit(expr);
-
-                if clear_expr_type != Type::Colour {
-                    self.results.add_error(SemanticError::TypeMismatch(
-                        "__clear <expr>".to_string(),
-                        clear_expr_type,
-                        Type::Colour,
-                    ));
-                }
-
-                Type::Void
+                self.visit(expr);
+                self.add_instruction(Instruction::Clear)
             }
 
-            AstNode::EndOfFile => Type::Void,
+            AstNode::FunctionCall { identifier, args } => todo!(),
+            AstNode::While { condition, body } => todo!(),
+            AstNode::EndOfFile => todo!(),
         }
     }
 }
@@ -827,9 +612,9 @@ mod tests {
     fn test_symbol_table() {
         let mut symbol_table = SymbolTable::new();
 
-        symbol_table.add_symbol("x", &SymbolType::Variable(Type::Int));
-        symbol_table.add_symbol("y", &SymbolType::Variable(Type::Float));
-        symbol_table.add_symbol("z", &SymbolType::Variable(Type::Bool));
+        symbol_table.add_symbol("x", &SymbolType::Variable(Type::Int), None);
+        symbol_table.add_symbol("y", &SymbolType::Variable(Type::Float), None);
+        symbol_table.add_symbol("z", &SymbolType::Variable(Type::Bool), None);
 
         assert_matches!(
             symbol_table.find_symbol("x").unwrap().symbol_type,

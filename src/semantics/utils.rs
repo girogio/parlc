@@ -33,6 +33,7 @@ pub enum SymbolType {
 pub struct Signature {
     pub parameters: Vec<(Type, String)>,
     pub return_type: Type,
+    pub instruction_index: Option<usize>,
 }
 
 impl Signature {
@@ -40,21 +41,50 @@ impl Signature {
         Signature {
             parameters: Vec::new(),
             return_type,
+            instruction_index: None,
         }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Clone)]
+pub struct MemLoc {
+    pub stack_level: usize,
+    pub frame_index: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct Symbol {
     pub lexeme: String,
     pub symbol_type: SymbolType,
+    pub memory_location: Option<MemLoc>,
+}
+
+impl PartialEq for Symbol {
+    fn eq(&self, other: &Self) -> bool {
+        self.lexeme == other.lexeme
+    }
+}
+
+impl Eq for Symbol {}
+
+impl PartialOrd for Symbol {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.lexeme.cmp(&other.lexeme))
+    }
+}
+
+impl Ord for Symbol {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.lexeme.cmp(&other.lexeme)
+    }
 }
 
 impl Symbol {
-    pub fn new(lexeme: &str, symbol_type: SymbolType) -> Self {
+    pub fn new(lexeme: &str, symbol_type: SymbolType, mem_loc: Option<MemLoc>) -> Self {
         Symbol {
             lexeme: lexeme.to_string(),
             symbol_type,
+            memory_location: mem_loc,
         }
     }
 }
@@ -81,9 +111,9 @@ impl SymbolTable {
         }
     }
 
-    pub fn add_symbol(&mut self, lexeme: &str, symbol_type: &SymbolType) {
+    pub fn add_symbol(&mut self, lexeme: &str, symbol_type: &SymbolType, mem_loc: Option<MemLoc>) {
         let mut index = 0;
-        let symbol = Symbol::new(lexeme, symbol_type.clone());
+        let symbol = Symbol::new(lexeme, symbol_type.clone(), mem_loc);
         for s in &self.symbols {
             if s < &symbol {
                 break;
@@ -102,6 +132,10 @@ impl SymbolTable {
 
     pub fn find_symbol(&self, symbol: &str) -> Option<&Symbol> {
         self.symbols.iter().find(|s| s.lexeme == symbol)
+    }
+
+    pub fn find_symbol_mut(&mut self, symbol: &str) -> Option<&mut Symbol> {
+        self.symbols.iter_mut().find(|s| s.lexeme == symbol)
     }
 
     pub fn all_symbols(&self) -> impl Iterator<Item = &Symbol> {

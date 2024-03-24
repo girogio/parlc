@@ -76,7 +76,7 @@ impl Visitor<Result<()>> for Formatter {
                 self.visit(if_true)?;
                 self.tab_level = tmp_tab_level;
                 if let Some(if_false) = if_false {
-                    write!(self.buff, " else ")?;
+                    write!(self.buff, " else")?;
                     self.visit(if_false)?;
                 }
 

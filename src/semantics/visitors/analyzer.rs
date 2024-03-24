@@ -82,7 +82,7 @@ impl SemAnalyzer {
 
     fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType) {
         self.mut_current_scope()
-            .add_symbol(&symbol.span.lexeme, symbol_type);
+            .add_symbol(&symbol.span.lexeme, symbol_type, None);
     }
 
     fn get_symbol_type(&self, symbol: &Token) -> Type {
@@ -289,6 +289,7 @@ impl Visitor<Type> for SemAnalyzer {
                     .add_symbol(
                         &identifier.span.lexeme,
                         &SymbolType::Function(signature.clone()),
+                        None,
                     );
 
                 self.inside_function = true;
@@ -758,9 +759,9 @@ mod tests {
     fn test_symbol_table() {
         let mut symbol_table = SymbolTable::new();
 
-        symbol_table.add_symbol("x", &SymbolType::Variable(Type::Int));
-        symbol_table.add_symbol("y", &SymbolType::Variable(Type::Float));
-        symbol_table.add_symbol("z", &SymbolType::Variable(Type::Bool));
+        symbol_table.add_symbol("x", &SymbolType::Variable(Type::Int), None);
+        symbol_table.add_symbol("y", &SymbolType::Variable(Type::Float), None);
+        symbol_table.add_symbol("z", &SymbolType::Variable(Type::Bool), None);
 
         assert_matches!(
             symbol_table.find_symbol("x").unwrap().symbol_type,
