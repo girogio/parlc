@@ -372,6 +372,10 @@ impl Visitor<Type> for SemAnalyzer {
 
                 let signature = self.get_signature(identifier);
 
+                if signature.return_type == Type::Unknown {
+                    return Type::Unknown;
+                }
+
                 let arg_types = args
                     .iter()
                     .map(|arg| self.visit(arg))
