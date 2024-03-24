@@ -1,6 +1,7 @@
-use std::path::PathBuf;
+use std::fmt::Write;
 
 use crate::core::TokenKind;
+use crate::generation::instructions::{Instruction, Program};
 use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType, Type};
 use crate::utils::errors::SemanticError;
 use crate::{
@@ -50,23 +51,42 @@ pub struct PArIRWriter {
     scope_peek_limit: usize,
     /// The results of the semantic analysis
     results: SemanticResult,
-    output_file: PathBuf,
+    /// String containing the program's contents
+    program: Program,
+    /// Pointer to the current instruction
+    instr_ptr: usize,
 }
 
 impl PArIRWriter {
-    pub fn new(output_file: PathBuf) -> Self {
+    pub fn new() -> Self {
         PArIRWriter {
             symbol_table: Vec::new(),
             inside_function: false,
             scope_peek_limit: 0,
             results: SemanticResult::new(),
-            output_file,
+            program: Program {
+                instructions: Vec::new(),
+            },
+            instr_ptr: 0,
         }
     }
 
-    pub fn write(&mut self, ast: &AstNode) -> &SemanticResult {
+    pub fn get_program(&mut self, ast: &AstNode) -> String {
         self.visit(ast);
-        &self.results
+        format!("{}", self.program)
+    }
+
+    fn add_instruction(&mut self, instruction: Instruction) {
+        self.program.instructions.push(instruction);
+        self.instr_ptr += 1;
+    }
+
+    fn get_scope_var_count(&self) -> usize {
+        self.current_scope()
+            .symbols
+            .iter()
+            .filter(|s| matches!(s.symbol_type, SymbolType::Variable(_)))
+            .count()
     }
 
     fn find_symbol(&self, symbol: &Token) -> Option<&Symbol> {
@@ -226,19 +246,34 @@ impl Visitor<Type> for PArIRWriter {
         match node {
             AstNode::Program { statements } => {
                 self.push_scope();
+                self.add_instruction(Instruction::FunctionLabel("main".to_string()));
+                let ir = self.instr_ptr;
+                self.add_instruction(Instruction::PushValue("".to_string()));
+                self.add_instruction(Instruction::NewFrame);
+
                 for statement in statements {
                     self.visit(statement);
                 }
-                self.pop_scope();
 
+                self.program.instructions[ir] =
+                    Instruction::PushValue(self.get_scope_var_count().to_string());
+                self.add_instruction(Instruction::PopFrame);
+                self.add_instruction(Instruction::Halt);
+
+                self.pop_scope();
                 Type::Void
             }
 
             AstNode::Block { statements } => {
-                self.push_scope();
+                if !self.inside_function {
+                    self.push_scope();
+                }
                 for statement in statements {
                     // if the statement is a return statement, we don't need to
                     // check the rest of the block
+                    let ir = self.instr_ptr;
+                    self.add_instruction(Instruction::PushValue("".to_string()));
+                    self.add_instruction(Instruction::NewFrame);
                     if let AstNode::Return { expression } = statement {
                         let tmp = self.visit(expression);
                         self.pop_scope();
@@ -246,9 +281,19 @@ impl Visitor<Type> for PArIRWriter {
                     } else {
                         self.visit(statement);
                     }
-                }
-                self.pop_scope();
 
+                    self.program.instructions[ir] =
+                        Instruction::PushValue(self.get_scope_var_count().to_string());
+                    self.add_instruction(Instruction::PopFrame);
+                }
+                if !self.inside_function {
+                    self.pop_scope();
+                }
+
+                self.add_instruction(Instruction::NewFrame);
+                self.add_instruction(Instruction::PopFrame);
+
+                self.pop_scope();
                 Type::Void
             }
 
@@ -454,6 +499,21 @@ impl Visitor<Type> for PArIRWriter {
                 let left_type = self.visit(left);
                 let right_type = self.visit(right);
 
+                self.add_instruction(match operator.kind {
+                    TokenKind::Plus => Instruction::Add,
+                    TokenKind::Minus => Instruction::Sub,
+                    TokenKind::Multiply => Instruction::Mul,
+                    TokenKind::Divide => Instruction::Div,
+                    TokenKind::EqEq => Instruction::Equal,
+                    TokenKind::LessThan => Instruction::LessThan,
+                    TokenKind::LessThanEqual => Instruction::LessThanOrEqual,
+                    TokenKind::GreaterThan => Instruction::GreaterThan,
+                    TokenKind::GreaterThanEqual => Instruction::GreaterThanOrEqual,
+                    TokenKind::And => Instruction::And,
+                    TokenKind::Or => Instruction::Or,
+                    _ => Instruction::NoOperation,
+                });
+
                 self.get_bin_op_type(operator, &left_type, &right_type)
             }
 
@@ -504,9 +564,15 @@ impl Visitor<Type> for PArIRWriter {
                 Type::Int
             }
 
-            AstNode::IntLiteral(_) => Type::Int,
+            AstNode::IntLiteral(l) => {
+                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()));
+                Type::Int
+            }
 
-            AstNode::FloatLiteral(_) => Type::Float,
+            AstNode::FloatLiteral(l) => {
+                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()));
+                Type::Float
+            }
 
             AstNode::BoolLiteral(_) => Type::Bool,
 
@@ -655,7 +721,7 @@ impl Visitor<Type> for PArIRWriter {
                 increment,
                 body,
             } => {
-                self.symbol_table.push(SymbolTable::new());
+                self.push_scope();
                 self.scope_peek_limit = 0;
                 self.inside_function = true;
 
@@ -679,7 +745,6 @@ impl Visitor<Type> for PArIRWriter {
 
                 let body_type = self.visit(body);
                 self.inside_function = false;
-                self.symbol_table.pop();
 
                 body_type
             }
@@ -752,7 +817,7 @@ mod tests {
         let mut parser = Parser::new(&tokens, Path::new(""));
         let ast = parser.parse()?;
 
-        let mut scope_checker = PArIRWriter::new("path".into());
+        let mut scope_checker = PArIRWriter::new();
         scope_checker.visit(ast);
 
         Ok(())

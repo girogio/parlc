@@ -61,7 +61,7 @@ impl Symbol {
 
 #[derive(Debug)]
 pub struct SymbolTable {
-    symbols: LinkedList<Symbol>,
+    pub symbols: LinkedList<Symbol>,
 }
 
 impl SymbolTable {

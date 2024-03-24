@@ -46,7 +46,13 @@ enum Commands {
     /// Runs the PArL semantic analyzer on the given file.
     #[clap(name = "sem")]
     Semantic {
-        /// The file to analyze.
+        /// The PArL source file to analyze.
+        file: PathBuf,
+    },
+    #[clap(name = "compile")]
+    /// Compiles the given file to PArIR instructions.
+    Compile {
+        /// The PArL source file to compile.
         file: PathBuf,
     },
 }
@@ -59,6 +65,7 @@ fn main() {
         Commands::Format { file } => file,
         Commands::Semantic { file } => file,
         Commands::Parse { file } => file,
+        Commands::Compile { file } => file,
     };
 
     if !file.exists() {
@@ -86,6 +93,7 @@ fn main() {
             Commands::Format { .. } => "Formatting",
             Commands::Semantic { .. } => "Analyzing",
             Commands::Parse { .. } => "Printing",
+            Commands::Compile { .. } => "Compiling",
         })
         .green()
         .bold(),
@@ -104,72 +112,94 @@ fn main() {
         }
     };
 
-    if let Commands::Lexer { .. } = &cli.subcmd {
-        for token in &tokens {
-            println!("{:?}", token);
-        }
-    }
-
-    if let Commands::Format { .. } = &cli.subcmd {
-        let mut parser = Parser::new(&tokens, file);
-        let ast = parser.parse();
-
-        match ast {
-            Ok(ast) => {
-                let mut printer = Formatter::new(file);
-                printer.visit(ast).unwrap();
-                println!("{} formatted successfully.", style(file.display()).cyan());
+    match &cli.subcmd {
+        Commands::Lexer { .. } => {
+            println!("{} lexed successfully.", style(file.display()).cyan());
+            for token in &tokens {
+                println!("{:?}", token);
             }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
+            std::process::exit(0);
         }
-    }
 
-    if let Commands::Semantic { .. } = &cli.subcmd {
-        let mut parser = Parser::new(&tokens, file);
-        let ast = parser.parse();
+        Commands::Format { file } => {
+            let mut parser = Parser::new(&tokens, file);
+            let ast = parser.parse();
 
-        match ast {
-            Ok(ast) => {
-                let mut sem_analyzer = SemAnalyzer::new();
-                let result = sem_analyzer.analyze(ast);
-
-                if result.has_warnings() {
-                    for warn in &result.warnings {
-                        eprintln!("{}", warn);
-                    }
+            match ast {
+                Ok(ast) => {
+                    let mut printer = Formatter::new(file);
+                    printer.visit(ast).unwrap();
+                    println!("{} formatted successfully.", style(file.display()).cyan());
                 }
-
-                if result.has_errors() {
-                    for err in &result.errors {
-                        eprintln!("{}", err);
-                    }
+                Err(e) => {
+                    eprintln!("{}", e);
                     std::process::exit(1);
                 }
-
-                println!("{} analyzed successfully.", style(file.display()).cyan());
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
             }
         }
-    }
 
-    if let Commands::Parse { .. } = &cli.subcmd {
-        let mut parser = Parser::new(&tokens, file);
-        let ast = parser.parse();
+        Commands::Semantic { file } => {
+            let mut parser = Parser::new(&tokens, file);
+            let ast = parser.parse();
 
-        match ast {
-            Ok(ast) => {
-                let mut printer = TreePrinter::new();
-                printer.visit(ast).unwrap();
+            match ast {
+                Ok(ast) => {
+                    let mut sem_analyzer = SemAnalyzer::new();
+                    let result = sem_analyzer.analyze(ast);
+
+                    if result.has_warnings() {
+                        for warn in &result.warnings {
+                            eprintln!("{}", warn);
+                        }
+                    }
+
+                    if result.has_errors() {
+                        for err in &result.errors {
+                            eprintln!("{}", err);
+                        }
+                        std::process::exit(1);
+                    }
+
+                    println!("{} analyzed successfully.", style(file.display()).cyan());
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                }
             }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
+        }
+
+        Commands::Parse { file } => {
+            let mut parser = Parser::new(&tokens, file);
+            let ast = parser.parse();
+
+            match ast {
+                Ok(ast) => {
+                    let mut printer = TreePrinter::new();
+                    printer.visit(ast).unwrap();
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        Commands::Compile { file } => {
+            let mut parser = Parser::new(&tokens, file);
+            let ast = parser.parse();
+
+            match ast {
+                Ok(ast) => {
+                    let mut gen = generation::PArIRWriter::new();
+                    let par_ir_instr = gen.get_program(ast);
+                    println!("{}", par_ir_instr);
+                    println!("{} compiled successfully.", style(file.display()).cyan());
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                }
             }
         }
     }
