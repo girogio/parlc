@@ -1,0 +1,31 @@
+.main
+push 2
+oframe
+height
+push 0
+push 0
+st
+width
+push 1
+push 0
+st
+push 2000
+delay
+push 16777215
+push [0:0]
+push [1:0]
+push 2
+push [0:0]
+div
+push 0
+writebox
+push 16711680
+push 2
+push [0:0]
+div
+push [1:0]
+push 0
+push 0
+writebox
+cframe
+halt

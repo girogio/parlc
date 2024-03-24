@@ -1,0 +1,50 @@
+fun add(x: int, y: int) -> float {
+    return x + y;
+}
+
+fun mod(x: int, y: int) -> int {
+    {
+        while (x >= y) {
+            x = x - y;
+
+            if (x < y) {
+                return x;
+            }
+        }
+    }
+}
+
+{
+    fun div(x: float, y: float) -> float {
+        return x / y;
+    }
+
+    fun div(x: int, y: float) -> int {
+        return x / y;
+    }
+
+    {
+        fun sub(x: int, y: int) -> int {
+            return x - y;
+        }
+    }
+
+    let result_: int = sub(10.0, 10.0);
+}
+
+
+fun div(x: float, y: float) -> float {
+    return x / y;
+}
+
+fun f(x: float) -> float {
+    fun f(x: int) -> int {
+        if (x <= 0) {
+            return x;
+        }
+
+        return f(x - 1) + f(x - 1);
+    }
+
+    return f(5);
+}

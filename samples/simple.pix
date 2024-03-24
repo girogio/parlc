@@ -1,8 +1,0 @@
-let b: bool = true;
-
-if (b) {
-	__write 5, 5, #000000;
-} else {
-	__print 420;
-}
-
