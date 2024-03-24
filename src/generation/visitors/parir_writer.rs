@@ -60,10 +60,6 @@ impl PArIRWriter {
             .count()
     }
 
-    fn get_stack_level(&self) -> usize {
-        self.symbol_table.len()
-    }
-
     fn find_symbol(&self, symbol: &Token) -> Option<&Symbol> {
         self.symbol_table
             .iter()
@@ -91,24 +87,6 @@ impl PArIRWriter {
             .add_symbol(&symbol.span.lexeme, symbol_type, mem_loc);
     }
 
-    fn get_symbol_type(&self, symbol: &Token) -> Type {
-        self.find_symbol(symbol)
-            .map(|s| match &s.symbol_type {
-                SymbolType::Variable(t) => *t,
-                SymbolType::Function(signature) => signature.return_type,
-            })
-            .unwrap_or(Type::Unknown)
-    }
-
-    fn get_signature(&self, symbol: &Token) -> Signature {
-        self.find_symbol(symbol)
-            .map(|s| match &s.symbol_type {
-                SymbolType::Function(signature) => signature.clone(),
-                _ => unreachable!(),
-            })
-            .unwrap_or(Signature::new(Type::Unknown))
-    }
-
     fn check_scope(&self, symbol: &Token) -> bool {
         self.current_scope()
             .find_symbol(&symbol.span.lexeme)
@@ -118,57 +96,6 @@ impl PArIRWriter {
     fn get_memory_location(&self, symbol: &Token) -> Option<MemLoc> {
         self.find_symbol(symbol)
             .and_then(|s| s.memory_location.clone())
-    }
-
-    fn get_unary_op_type(&mut self, op: &Token, expr: &Type) -> Type {
-        match (op.kind, expr) {
-            (TokenKind::Minus, Type::Int) => Type::Int,
-            (TokenKind::Minus, Type::Float) => Type::Float,
-            (TokenKind::Not, Type::Bool) => Type::Bool,
-            _ => Type::Unknown,
-        }
-    }
-
-    fn get_bin_op_type(&mut self, op: &Token, left: &Type, right: &Type) -> Type {
-        match (op.kind, left, right) {
-            (TokenKind::Plus, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Plus, Type::Float, Type::Int) => Type::Float,
-            (TokenKind::Plus, Type::Int, Type::Float) => Type::Float,
-            (TokenKind::Plus, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Plus, Type::Colour, Type::Colour) => Type::Colour,
-            (TokenKind::Minus, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Minus, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Minus, Type::Colour, Type::Colour) => Type::Colour,
-            (TokenKind::Multiply, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Multiply, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Multiply, Type::Colour, Type::Colour) => Type::Colour,
-            (TokenKind::Divide, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Divide, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Divide, Type::Colour, Type::Colour) => Type::Colour,
-            (TokenKind::EqEq, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::EqEq, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::EqEq, Type::Bool, Type::Bool) => Type::Bool,
-            (TokenKind::EqEq, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::NotEqual, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::NotEqual, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::NotEqual, Type::Bool, Type::Bool) => Type::Bool,
-            (TokenKind::NotEqual, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::LessThan, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::LessThan, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::LessThan, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::LessThanEqual, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::LessThanEqual, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::LessThanEqual, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::GreaterThan, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::GreaterThan, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::GreaterThan, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::GreaterThanEqual, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::GreaterThanEqual, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::GreaterThanEqual, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::And, Type::Bool, Type::Bool) => Type::Bool,
-            (TokenKind::Or, Type::Bool, Type::Bool) => Type::Bool,
-            _ => Type::Unknown,
-        }
     }
 
     fn push_scope(&mut self) {
@@ -185,22 +112,6 @@ impl PArIRWriter {
             .skip(self.scope_peek_limit)
             .find_map(|table| table.find_symbol(&symbol.span.lexeme))
             .is_some()
-    }
-
-    fn check_cast(&mut self, to: &Token, from: Type) -> Type {
-        let to = self.current_scope().token_to_type(&to.span.lexeme);
-
-        if from == to {
-            return from;
-        }
-
-        match (from, to) {
-            (Type::Int, Type::Float) => Type::Float,  // 5 -> 5.0
-            (Type::Colour, Type::Int) => Type::Int,   // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
-            (Type::Bool, Type::Int) => Type::Int,     // false -> 0, true -> 1
-            (Type::Bool, Type::Float) => Type::Float, // false -> 0.0, true -> 1.0
-            _ => Type::Unknown,
-        }
     }
 }
 
@@ -249,9 +160,7 @@ impl Visitor<usize> for PArIRWriter {
                         Instruction::PushValue(self.get_scope_var_count() as u32);
                 }
 
-                if !self.inside_function {
-                    self.pop_scope();
-                }
+                self.pop_scope();
 
                 self.add_instruction(Instruction::PopFrame)
             }
@@ -383,8 +292,8 @@ impl Visitor<usize> for PArIRWriter {
                 operator,
                 right,
             } => {
-                self.visit(left);
                 self.visit(right);
+                self.visit(left);
 
                 self.add_instruction(match operator.kind {
                     TokenKind::Plus => Instruction::Add,
@@ -525,6 +434,7 @@ impl Visitor<usize> for PArIRWriter {
 
                 self.instr_ptr
             }
+
             AstNode::For {
                 initializer,
                 condition,
@@ -534,7 +444,6 @@ impl Visitor<usize> for PArIRWriter {
                 self.push_scope();
                 self.scope_peek_limit = 0;
                 self.inside_function = true;
-
                 if let Some(initializer) = initializer {
                     self.visit(initializer);
                 }
