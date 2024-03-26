@@ -9,7 +9,7 @@ degree of [B.Sc. (Hons.) Mathematics and Computer
 Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
 [University of Malta](https://um.edu.mt/).
 
-## Features
+## Tasks
 
 - [x] Table-driven lexer
 - [x] Recursive descent LL(1) parser
@@ -18,3 +18,16 @@ Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
   - [x] Scope checking
   - [x] Type checking
 - [x] Assembly-like code generation
+- [ ] Array support
+
+## Features
+
+- [x] Syncronization during compilation stages, i.e. the compiler should not
+crash on the first error, but should keep processing on a best-effort basis to
+report as many errors as possible
+  - [x] Lexer syncronization
+  - [ ] Parser syncronization
+  - [x] Semantic analyzer syncronization
+- [x] Errors are reported with line and column numbers
+- [x] Basic types like `int`, `float`, `bool`, 'colour', as well as helper types like `void` and `unknown`
+- [x] Recursion!
