@@ -127,6 +127,7 @@ impl Visitor<usize> for PArIRWriter {
 
                 self.program.instructions[var_count_push] =
                     Instruction::PushValue(self.get_scope_var_count());
+
                 self.add_instruction(Instruction::PopFrame);
                 self.add_instruction(Instruction::Halt);
                 self.pop_scope();
@@ -434,7 +435,7 @@ impl Visitor<usize> for PArIRWriter {
                 self.add_instruction(Instruction::JumpIfNotZero);
 
                 if let Some(if_false) = if_false {
-                    self.visit(if_false);
+                    self.visit_unscoped_block(if_false);
                 }
 
                 let jump_to_end = self.add_instruction(Instruction::PushOffset(
@@ -446,7 +447,7 @@ impl Visitor<usize> for PArIRWriter {
                 self.program.instructions[jump_to_true] =
                     Instruction::PushOffset(self.instr_ptr as i32 - jump_to_true as i32);
 
-                self.visit(if_true);
+                self.visit_unscoped_block(if_true);
 
                 self.program.instructions[jump_to_end] =
                     Instruction::PushOffset(self.instr_ptr as i32 - jump_to_end as i32);
