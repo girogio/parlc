@@ -17,4 +17,4 @@ Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
 - [x] Semantic analyzer
   - [x] Scope checking
   - [x] Type checking
-- [ ] Assembly-like code generation
+- [x] Assembly-like code generation
