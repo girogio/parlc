@@ -5,10 +5,14 @@ use crate::semantics::utils::MemLoc;
 #[derive(Debug)]
 pub struct Program {
     pub instructions: Vec<Instruction>,
+    pub functions: Vec<Instruction>,
 }
 
 impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for instruction in &self.functions {
+            write!(f, "{}", instruction)?;
+        }
         for instruction in &self.instructions {
             write!(f, "{}", instruction)?;
         }
@@ -69,7 +73,7 @@ impl Display for Instruction {
             Instruction::Read => writeln!(f, "read"),
             Instruction::FunctionLabel(name) => writeln!(f, ".{}", name),
             Instruction::PushValue(value) => writeln!(f, "push {}", value),
-            Instruction::PushFunction(name) => writeln!(f, "push {}", name),
+            Instruction::PushFunction(name) => writeln!(f, "push .{}", name),
             Instruction::PushOffset(offset) => {
                 write!(f, "push ")?;
                 match Ord::cmp(offset, &0) {

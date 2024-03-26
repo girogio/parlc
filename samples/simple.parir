@@ -1,101 +1,21 @@
+.test
+push 2
+alloc
+push [1:0]
+push [0:0]
+add
+ret
 .main
-push 2
-oframe
-width
-push 0
-push 0
-st
-height
 push 1
-push 0
-st
-push 1
-oframe
-push 0
-push 0
-push 0
-st
-push [0:1]
-push [0:0]
-lt
-not
-push #PC+77
-cjmp
-push 0
-oframe
-push 1
-oframe
-push 0
-push 0
-push 0
-st
-push [1:3]
-push [0:0]
-lt
-not
-push #PC+53
-cjmp
-push 1
-oframe
-push [0:1]
-push [0:3]
-add
-push 0
-push 0
-st
-push 0
 oframe
 push 2
-push [0:1]
-ge
-not
-push #PC+13
-cjmp
-push 0
-oframe
-push 2
-push [0:2]
-sub
-push 0
-push 2
-st
-cframe
-push #PC-15
-jmp
-cframe
-push 0
-push [0:0]
-eq
-push #PC+4
-cjmp
-push #PC+9
-jmp
-push 0
-oframe
-push 7771734
-push [0:2]
-push [0:4]
-write
-cframe
-cframe
-push 1
-push [0:0]
-add
 push 0
 push 0
 st
-push #PC-55
-jmp
-cframe
-cframe
-push 1
+push .test
 push [0:0]
-add
-push 0
-push 0
-st
-push #PC-79
-jmp
-cframe
+push 3
+call
+print
 cframe
 halt

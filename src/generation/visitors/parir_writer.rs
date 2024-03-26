@@ -11,11 +11,6 @@ use crate::{core::TokenKind, semantics::utils::MemLoc};
 pub struct PArIRWriter {
     /// Stack of symbol tables, each representing a scope
     symbol_table: Vec<SymbolTable>,
-    /// Flag to denote that the current scope lies within a function
-    inside_function: bool,
-    /// If this is 0, we can check for the existence of the symbol in any
-    /// scope, up to the global scope.
-    scope_peek_limit: usize,
     /// String containing the program's contents
     program: Program,
     /// Pointer to the current instruction
@@ -30,10 +25,9 @@ impl PArIRWriter {
     pub fn new() -> Self {
         PArIRWriter {
             symbol_table: Vec::new(),
-            inside_function: false,
-            scope_peek_limit: 0,
             program: Program {
                 instructions: Vec::new(),
+                functions: Vec::new(),
             },
             instr_ptr: 0,
             stack_level: 0,
@@ -104,16 +98,16 @@ impl PArIRWriter {
         self.symbol_table.pop();
     }
 
-    fn check_up_to_scope(&self, symbol: &Token) -> bool {
-        self.symbol_table
-            .iter()
-            .skip(self.scope_peek_limit)
-            .find_map(|table| table.find_symbol(&symbol.span.lexeme))
-            .is_some()
-    }
-
     fn visit_unscoped_block(&mut self, block_node: &AstNode) -> usize {
-        self.visit(block_node)
+        match block_node {
+            AstNode::Block { statements } => {
+                for statement in statements {
+                    self.visit(statement);
+                }
+                self.instr_ptr
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -123,20 +117,19 @@ impl Visitor<usize> for PArIRWriter {
             AstNode::Program { statements } => {
                 self.push_scope();
                 self.add_instruction(Instruction::FunctionLabel("main".to_string()));
-                let ir = self.instr_ptr;
-                self.add_instruction(Instruction::PushValue(0));
+
+                let var_count_push = self.add_instruction(Instruction::PushValue(0));
                 self.add_instruction(Instruction::NewFrame);
 
                 for statement in statements {
                     self.visit(statement);
                 }
 
-                self.program.instructions[ir] = Instruction::PushValue(self.get_scope_var_count());
+                self.program.instructions[var_count_push] =
+                    Instruction::PushValue(self.get_scope_var_count());
                 self.add_instruction(Instruction::PopFrame);
                 self.add_instruction(Instruction::Halt);
-
                 self.pop_scope();
-                self.instr_ptr
             }
 
             AstNode::Block { statements } => {
@@ -163,8 +156,6 @@ impl Visitor<usize> for PArIRWriter {
                 self.add_instruction(Instruction::PopFrame);
                 self.stack_level -= 1;
                 self.pop_scope();
-
-                self.instr_ptr
             }
 
             AstNode::FunctionDecl {
@@ -173,8 +164,17 @@ impl Visitor<usize> for PArIRWriter {
                 return_type,
                 block,
             } => {
+                self.add_symbol(
+                    identifier,
+                    &SymbolType::Function(Signature::new(
+                        self.current_scope().token_to_type(&return_type.span.lexeme),
+                    )),
+                    None,
+                );
+
                 self.push_scope();
-                self.scope_peek_limit = self.symbol_table.len() - 1;
+                self.stack_level += 1;
+                self.frame_index = 0;
 
                 // Add the parameter symbols to the symbol table in this scope
                 for param in params {
@@ -192,37 +192,39 @@ impl Visitor<usize> for PArIRWriter {
                     }
                 }
 
-                // set the signature of the function in the symbol table
-                // add the function symbol to the previous scope to support recursion
-                self.symbol_table
-                    .iter_mut()
-                    .rev()
-                    .nth(1)
-                    .unwrap()
-                    .add_symbol(
-                        &identifier.span.lexeme,
-                        &SymbolType::Function(signature.clone()),
-                        None,
-                    );
+                let start = self.instr_ptr;
+                let end = self.visit_unscoped_block(block);
+                let var_count = self.get_scope_var_count();
 
-                self.inside_function = true;
-                let block_end = self.visit(block);
+                self.program.functions.extend([
+                    Instruction::FunctionLabel(identifier.span.lexeme.clone()),
+                    Instruction::PushValue(var_count),
+                    Instruction::Alloc,
+                ]);
+
+                self.program
+                    .functions
+                    .extend(self.program.instructions.drain(start..end));
 
                 self.pop_scope();
-                self.inside_function = false;
-                self.scope_peek_limit = 0;
-                block_end
+                self.stack_level = 0;
+                self.frame_index = 0;
+            }
+
+            AstNode::FunctionCall { identifier, args } => {
+                self.add_instruction(Instruction::PushFunction(identifier.span.lexeme.clone()));
+
+                for arg in args {
+                    self.visit(arg);
+                }
+
+                self.add_instruction(Instruction::Call);
             }
 
             AstNode::Identifier { token } => {
-                dbg!(&token.span.lexeme);
-                dbg!(self.get_memory_location(token));
-
                 if let Some(mem_loc) = self.get_memory_location(token) {
                     return self.add_instruction(Instruction::PushFromStack(mem_loc));
                 }
-
-                self.instr_ptr
             }
 
             AstNode::VarDec {
@@ -248,23 +250,9 @@ impl Visitor<usize> for PArIRWriter {
                 self.add_instruction(Instruction::PushValue(self.frame_index));
                 self.add_instruction(Instruction::PushValue(0));
                 self.frame_index += 1;
-                self.add_instruction(Instruction::Store)
+                self.add_instruction(Instruction::Store);
             }
 
-            // AstNode::FunctionCall { identifier, args } => {
-            //     let signature = self.get_signature(identifier);
-
-            //     let arg_types = args
-            //         .iter()
-            //         .map(|arg| self.visit(arg))
-            //         .collect::<Vec<usize>>();
-
-            //     for (idx, b) in args.iter().rev().enumerate() {
-            //         let arg_type = self.visit(b);
-            //     }
-
-            //     self.get_symbol_type(identifier)
-            // }
             AstNode::FormalParam {
                 identifier,
                 param_type,
@@ -274,18 +262,24 @@ impl Visitor<usize> for PArIRWriter {
                     &SymbolType::Variable(
                         self.current_scope().token_to_type(&param_type.span.lexeme),
                     ),
-                    None,
+                    Some(MemLoc {
+                        stack_level: self.stack_level,
+                        frame_index: self.frame_index,
+                    }),
                 );
-
-                self.instr_ptr
+                self.frame_index += 1;
             }
 
             AstNode::Expression {
                 casted_type: _,
                 expr,
-            } => self.visit(expr),
+            } => {
+                self.visit(expr);
+            }
 
-            AstNode::SubExpression { bin_op } => self.visit(bin_op),
+            AstNode::SubExpression { bin_op } => {
+                self.visit(bin_op);
+            }
 
             AstNode::Assignment {
                 identifier,
@@ -299,8 +293,6 @@ impl Visitor<usize> for PArIRWriter {
                     self.add_instruction(Instruction::PushValue(mem_loc.stack_level));
                     self.add_instruction(Instruction::Store);
                 }
-
-                self.instr_ptr
             }
 
             AstNode::BinOp {
@@ -324,7 +316,7 @@ impl Visitor<usize> for PArIRWriter {
                     TokenKind::And => Instruction::And,
                     TokenKind::Or => Instruction::Or,
                     _ => Instruction::NoOperation,
-                })
+                });
             }
 
             AstNode::UnaryOp { operator, expr } => {
@@ -334,63 +326,68 @@ impl Visitor<usize> for PArIRWriter {
                     TokenKind::Minus => self.add_instruction(Instruction::Sub),
                     TokenKind::Not => self.add_instruction(Instruction::Not),
                     _ => unreachable!(),
-                }
+                };
             }
 
-            AstNode::PadWidth => self.add_instruction(Instruction::Width),
+            AstNode::PadWidth => {
+                self.add_instruction(Instruction::Width);
+            }
 
             AstNode::PadRandI { upper_bound } => {
                 self.visit(upper_bound);
 
-                self.add_instruction(Instruction::RandInt)
+                self.add_instruction(Instruction::RandInt);
             }
 
-            AstNode::PadHeight => self.add_instruction(Instruction::Height),
+            AstNode::PadHeight => {
+                self.add_instruction(Instruction::Height);
+            }
 
             AstNode::PadRead { x, y } => {
                 self.visit(y);
                 self.visit(x);
 
-                self.add_instruction(Instruction::Read)
+                self.add_instruction(Instruction::Read);
             }
 
             AstNode::IntLiteral(l) => {
-                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()))
+                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()));
             }
 
             AstNode::FloatLiteral(l) => {
                 // TODO: Fix into string
-                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()))
+                self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()));
             }
 
-            AstNode::BoolLiteral(l) => match l.span.lexeme.as_str() {
-                "true" => self.add_instruction(Instruction::PushValue(1)),
-                "false" => self.add_instruction(Instruction::PushValue(0)),
-                _ => unreachable!(),
-            },
+            AstNode::BoolLiteral(l) => {
+                match l.span.lexeme.as_str() {
+                    "true" => self.add_instruction(Instruction::PushValue(1)),
+                    "false" => self.add_instruction(Instruction::PushValue(0)),
+                    _ => unreachable!(),
+                };
+            }
 
             AstNode::ColourLiteral(l) => {
                 let colour = u32::from_str_radix(&l.span.lexeme[1..], 16).unwrap();
 
-                self.add_instruction(Instruction::PushValue(colour as usize))
+                self.add_instruction(Instruction::PushValue(colour as usize));
             }
 
             AstNode::ActualParams { params } => {
                 for param in params {
                     self.visit(param);
                 }
-                self.instr_ptr
             }
 
             AstNode::Delay { expression } => {
                 self.visit(expression);
-                self.add_instruction(Instruction::Delay)
+                self.add_instruction(Instruction::Delay);
             }
 
             AstNode::Return { expression } => {
                 self.visit(expression);
 
-                self.add_instruction(Instruction::Return)
+                self.add_instruction(Instruction::Return);
             }
 
             AstNode::PadWriteBox {
@@ -406,7 +403,7 @@ impl Visitor<usize> for PArIRWriter {
                 self.visit(loc_y);
                 self.visit(loc_x);
 
-                self.add_instruction(Instruction::WriteBox)
+                self.add_instruction(Instruction::WriteBox);
             }
 
             AstNode::PadWrite {
@@ -418,7 +415,7 @@ impl Visitor<usize> for PArIRWriter {
                 self.visit(loc_y);
                 self.visit(loc_x);
 
-                self.add_instruction(Instruction::Write)
+                self.add_instruction(Instruction::Write);
             }
 
             AstNode::If {
@@ -448,8 +445,6 @@ impl Visitor<usize> for PArIRWriter {
 
                 self.program.instructions[jump_to_end] =
                     Instruction::PushOffset(self.instr_ptr as i32 - jump_to_end as i32);
-
-                self.instr_ptr
             }
 
             AstNode::For {
@@ -493,8 +488,6 @@ impl Visitor<usize> for PArIRWriter {
                     Instruction::PushOffset(pop as i32 - jump_to_end_placeholder as i32);
                 self.pop_scope();
                 self.stack_level -= 1;
-
-                self.instr_ptr
             }
 
             AstNode::While { condition, body } => {
@@ -526,23 +519,21 @@ impl Visitor<usize> for PArIRWriter {
                     Instruction::PushOffset(pop as i32 - jump_to_end as i32);
 
                 self.pop_scope();
-
-                self.instr_ptr
             }
 
             AstNode::Print { expression } => {
                 self.visit(expression);
-                self.add_instruction(Instruction::Print)
+                self.add_instruction(Instruction::Print);
             }
 
             AstNode::PadClear { expr } => {
                 self.visit(expr);
-                self.add_instruction(Instruction::Clear)
+                self.add_instruction(Instruction::Clear);
             }
 
-            AstNode::EndOfFile => todo!(),
-            _ => todo!(),
+            AstNode::EndOfFile => {}
         }
+        self.instr_ptr
     }
 }
 
