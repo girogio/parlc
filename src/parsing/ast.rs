@@ -1,6 +1,5 @@
 use crate::core::Token;
 
-
 pub type Ast = Box<AstNode>;
 
 #[derive(Debug)]

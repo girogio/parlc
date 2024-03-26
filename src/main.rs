@@ -209,8 +209,8 @@ fn main() {
             let result = sem_analyzer.analyze(ast);
 
             // Print "warninngs" in yellow
-            let warnings_yellow = style("Warnings").yellow().bold();
-            let errors_red = style("Errors").red().bold();
+            let warnings_yellow = style("warning").yellow().bold();
+            let errors_red = style("errors").red().bold();
 
             if result.has_warnings() {
                 println!("{}\n:", warnings_yellow);
@@ -221,8 +221,6 @@ fn main() {
             }
 
             if result.has_errors() {
-                println!("{}:\n", errors_red);
-
                 for err in &result.errors {
                     eprintln!("{}: {}", errors_red, err);
                 }

@@ -205,10 +205,11 @@ impl SemAnalyzer {
         }
 
         match (from, to) {
-            (Type::Int, Type::Float) => Type::Float,  // 5 -> 5.0
-            (Type::Colour, Type::Int) => Type::Int,   // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
-            (Type::Bool, Type::Int) => Type::Int,     // false -> 0, true -> 1
-            (Type::Bool, Type::Float) => Type::Float, // false -> 0.0, true -> 1.0
+            (Type::Int, Type::Float) => Type::Float,   // 5 -> 5.0
+            (Type::Colour, Type::Int) => Type::Int,    // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
+            (Type::Bool, Type::Int) => Type::Int,      // false -> 0, true -> 1
+            (Type::Int, Type::Colour) => Type::Colour, // 0xRR + 0xGG + 0xBB -> 0xRRGGBB
+            (Type::Bool, Type::Float) => Type::Float,  // false -> 0.0, true -> 1.0
             _ => {
                 self.results.add_error(SemanticError::InvalidCast(from, to));
                 Type::Unknown
@@ -317,11 +318,10 @@ impl Visitor<Type> for SemAnalyzer {
                         self.results
                             .add_error(SemanticError::UndefinedVariable(token.clone()));
                     }
-                } else if !self.check_scope(token) {
+                } else if self.find_symbol(token).is_none() {
                     self.results
                         .add_error(SemanticError::UndefinedVariable(token.clone()));
                 }
-
                 self.get_symbol_type(token)
             }
 
@@ -436,7 +436,7 @@ impl Visitor<Type> for SemAnalyzer {
                         self.results
                             .add_error(SemanticError::UndefinedVariable(identifier.clone()));
                     }
-                } else if !self.check_scope(identifier) {
+                } else if self.find_symbol(identifier).is_none() {
                     self.results
                         .add_error(SemanticError::UndefinedVariable(identifier.clone()));
                 }

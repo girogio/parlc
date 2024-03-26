@@ -365,7 +365,9 @@ impl Visitor<Result<()>> for TreePrinter {
                 print!("__height");
                 Ok(())
             }
+
             AstNode::ActualParams { params: _ } => Ok(()),
+
             AstNode::EndOfFile => Ok(()),
         }
     }

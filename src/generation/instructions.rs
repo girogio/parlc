@@ -19,7 +19,7 @@ impl Display for Program {
 #[derive(Debug, Clone)]
 pub enum Instruction {
     FunctionLabel(String),
-    PushValue(u32),
+    PushValue(usize),
     PushFunction(String),
     PushOffset(i32),
     PushFromStack(MemLoc),

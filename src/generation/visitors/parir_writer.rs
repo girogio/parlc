@@ -67,13 +67,6 @@ impl PArIRWriter {
             .find_map(|table| table.find_symbol(&symbol.span.lexeme))
     }
 
-    fn mut_find_symbol(&mut self, symbol: &Token) -> Option<&mut Symbol> {
-        self.symbol_table
-            .iter_mut()
-            .rev()
-            .find_map(|table| table.find_symbol_mut(&symbol.span.lexeme))
-    }
-
     fn current_scope(&self) -> &SymbolTable {
         self.symbol_table.last().unwrap()
     }
@@ -94,8 +87,13 @@ impl PArIRWriter {
     }
 
     fn get_memory_location(&self, symbol: &Token) -> Option<MemLoc> {
-        self.find_symbol(symbol)
-            .and_then(|s| s.memory_location.clone())
+        self.find_symbol(symbol).and_then(|s| {
+            let relative_mem_loc = s.memory_location.clone();
+            relative_mem_loc.map(|mem_loc| MemLoc {
+                stack_level: self.stack_level - mem_loc.stack_level,
+                frame_index: mem_loc.frame_index,
+            })
+        })
     }
 
     fn push_scope(&mut self) {
@@ -113,6 +111,10 @@ impl PArIRWriter {
             .find_map(|table| table.find_symbol(&symbol.span.lexeme))
             .is_some()
     }
+
+    fn visit_unscoped_block(&mut self, block_node: &AstNode) -> usize {
+        self.visit(block_node)
+    }
 }
 
 impl Visitor<usize> for PArIRWriter {
@@ -129,8 +131,7 @@ impl Visitor<usize> for PArIRWriter {
                     self.visit(statement);
                 }
 
-                self.program.instructions[ir] =
-                    Instruction::PushValue(self.get_scope_var_count() as u32);
+                self.program.instructions[ir] = Instruction::PushValue(self.get_scope_var_count());
                 self.add_instruction(Instruction::PopFrame);
                 self.add_instruction(Instruction::Halt);
 
@@ -139,15 +140,14 @@ impl Visitor<usize> for PArIRWriter {
             }
 
             AstNode::Block { statements } => {
-                if !self.inside_function {
-                    self.push_scope();
-                }
+                self.push_scope();
+                let var_dec_count = self.add_instruction(Instruction::PushValue(0));
+                self.add_instruction(Instruction::NewFrame);
+                self.stack_level += 1;
+                self.frame_index = 0;
                 for statement in statements {
                     // if the statement is a return statement, we don't need to
                     // check the rest of the block
-                    let ir = self.instr_ptr;
-                    self.add_instruction(Instruction::PushValue(0));
-                    self.add_instruction(Instruction::NewFrame);
                     if let AstNode::Return { expression } = statement {
                         let tmp = self.visit(expression);
                         self.pop_scope();
@@ -155,14 +155,16 @@ impl Visitor<usize> for PArIRWriter {
                     } else {
                         self.visit(statement);
                     }
-
-                    self.program.instructions[ir] =
-                        Instruction::PushValue(self.get_scope_var_count() as u32);
                 }
 
+                self.program.instructions[var_dec_count] =
+                    Instruction::PushValue(self.get_scope_var_count());
+
+                self.add_instruction(Instruction::PopFrame);
+                self.stack_level -= 1;
                 self.pop_scope();
 
-                self.add_instruction(Instruction::PopFrame)
+                self.instr_ptr
             }
 
             AstNode::FunctionDecl {
@@ -213,6 +215,9 @@ impl Visitor<usize> for PArIRWriter {
             }
 
             AstNode::Identifier { token } => {
+                dbg!(&token.span.lexeme);
+                dbg!(self.get_memory_location(token));
+
                 if let Some(mem_loc) = self.get_memory_location(token) {
                     return self.add_instruction(Instruction::PushFromStack(mem_loc));
                 }
@@ -222,7 +227,7 @@ impl Visitor<usize> for PArIRWriter {
 
             AstNode::VarDec {
                 identifier,
-                r#type: var_type,
+                r#type,
                 expression,
             } => {
                 self.visit(expression);
@@ -231,7 +236,7 @@ impl Visitor<usize> for PArIRWriter {
                     self.add_symbol(
                         identifier,
                         &SymbolType::Variable(
-                            self.current_scope().token_to_type(&var_type.span.lexeme),
+                            self.current_scope().token_to_type(&r#type.span.lexeme),
                         ),
                         Some(MemLoc {
                             stack_level: self.stack_level,
@@ -240,8 +245,8 @@ impl Visitor<usize> for PArIRWriter {
                     );
                 }
 
-                self.add_instruction(Instruction::PushValue(self.frame_index as u32));
-                self.add_instruction(Instruction::PushValue(self.stack_level as u32));
+                self.add_instruction(Instruction::PushValue(self.frame_index));
+                self.add_instruction(Instruction::PushValue(0));
                 self.frame_index += 1;
                 self.add_instruction(Instruction::Store)
             }
@@ -283,9 +288,20 @@ impl Visitor<usize> for PArIRWriter {
             AstNode::SubExpression { bin_op } => self.visit(bin_op),
 
             AstNode::Assignment {
-                identifier: _,
+                identifier,
                 expression,
-            } => self.visit(expression),
+            } => {
+                self.visit(expression);
+                let mem_loc = self.get_memory_location(identifier);
+
+                if let Some(mem_loc) = mem_loc {
+                    self.add_instruction(Instruction::PushValue(mem_loc.frame_index));
+                    self.add_instruction(Instruction::PushValue(mem_loc.stack_level));
+                    self.add_instruction(Instruction::Store);
+                }
+
+                self.instr_ptr
+            }
 
             AstNode::BinOp {
                 left,
@@ -343,7 +359,7 @@ impl Visitor<usize> for PArIRWriter {
             }
 
             AstNode::FloatLiteral(l) => {
-                //TODO: Fix into string
+                // TODO: Fix into string
                 self.add_instruction(Instruction::PushValue(l.span.lexeme.parse().unwrap()))
             }
 
@@ -356,7 +372,7 @@ impl Visitor<usize> for PArIRWriter {
             AstNode::ColourLiteral(l) => {
                 let colour = u32::from_str_radix(&l.span.lexeme[1..], 16).unwrap();
 
-                self.add_instruction(Instruction::PushValue(colour))
+                self.add_instruction(Instruction::PushValue(colour as usize))
             }
 
             AstNode::ActualParams { params } => {
@@ -412,25 +428,26 @@ impl Visitor<usize> for PArIRWriter {
             } => {
                 self.visit(condition);
 
-                let jump_to_true = self.add_instruction(Instruction::PushValue(0));
-
+                let jump_to_true = self.add_instruction(Instruction::PushOffset(0));
                 self.add_instruction(Instruction::JumpIfNotZero);
 
                 if let Some(if_false) = if_false {
-                    self.visit(if_false)
-                } else {
-                    self.add_instruction(Instruction::NoOperation)
-                };
+                    self.visit(if_false);
+                }
 
-                let jump_to_end = self.add_instruction(Instruction::PushValue(0));
-                let end_if = self.add_instruction(Instruction::Jump);
+                let jump_to_end = self.add_instruction(Instruction::PushOffset(
+                    self.instr_ptr as i32 - jump_to_true as i32,
+                ));
 
-                self.program.instructions[jump_to_true] = Instruction::PushValue(end_if as u32 + 1);
+                self.add_instruction(Instruction::Jump);
 
-                let after_if_true = self.visit(if_true);
+                self.program.instructions[jump_to_true] =
+                    Instruction::PushOffset(self.instr_ptr as i32 - jump_to_true as i32);
+
+                self.visit(if_true);
 
                 self.program.instructions[jump_to_end] =
-                    Instruction::PushValue(after_if_true as u32);
+                    Instruction::PushOffset(self.instr_ptr as i32 - jump_to_end as i32);
 
                 self.instr_ptr
             }
@@ -442,36 +459,77 @@ impl Visitor<usize> for PArIRWriter {
                 body,
             } => {
                 self.push_scope();
-                self.scope_peek_limit = 0;
-                self.inside_function = true;
+                let push_var_count_placeholder = self.add_instruction(Instruction::PushValue(0));
+                self.add_instruction(Instruction::NewFrame);
+                self.stack_level += 1;
+                self.frame_index = 0;
+
                 if let Some(initializer) = initializer {
                     self.visit(initializer);
                 }
 
+                let before_condition = self.instr_ptr;
                 self.visit(condition);
+                self.add_instruction(Instruction::Not);
+
+                let jump_to_end_placeholder = self.add_instruction(Instruction::PushValue(0));
+                self.add_instruction(Instruction::JumpIfNotZero);
+                self.visit_unscoped_block(body);
 
                 if let Some(increment) = increment {
                     self.visit(increment);
                 }
 
-                let body_type = self.visit(body);
-                self.inside_function = false;
+                self.add_instruction(Instruction::PushOffset(
+                    before_condition as i32 - self.instr_ptr as i32,
+                ));
+                self.add_instruction(Instruction::Jump);
 
-                body_type
+                self.program.instructions[push_var_count_placeholder] =
+                    Instruction::PushValue(self.get_scope_var_count());
+
+                let pop = self.add_instruction(Instruction::PopFrame);
+                self.program.instructions[jump_to_end_placeholder] =
+                    Instruction::PushOffset(pop as i32 - jump_to_end_placeholder as i32);
+                self.pop_scope();
+                self.stack_level -= 1;
+
+                self.instr_ptr
             }
 
-            // AstNode::While { condition, body } => {
-            //     let condition_type = self.visit(condition);
-            //     if condition_type != Type::Bool {
-            //         self.results.add_error(SemanticError::TypeMismatch(
-            //             "while".to_string(),
-            //             condition_type,
-            //             Type::Bool,
-            //         ));
-            //     }
+            AstNode::While { condition, body } => {
+                self.push_scope();
+                self.stack_level += 1;
+                self.frame_index = 0;
 
-            //     self.visit(body)
-            // }
+                let var_count_push = self.add_instruction(Instruction::PushValue(0));
+                self.add_instruction(Instruction::NewFrame);
+
+                let before_condition = self.instr_ptr;
+                self.visit(condition);
+                self.add_instruction(Instruction::Not);
+                let jump_to_end = self.add_instruction(Instruction::PushValue(0));
+
+                self.add_instruction(Instruction::JumpIfNotZero);
+                self.visit_unscoped_block(body);
+                self.add_instruction(Instruction::PushOffset(
+                    before_condition as i32 - self.instr_ptr as i32,
+                ));
+                self.add_instruction(Instruction::Jump);
+
+                self.program.instructions[var_count_push] =
+                    Instruction::PushValue(self.get_scope_var_count());
+
+                self.stack_level -= 1;
+                let pop = self.add_instruction(Instruction::PopFrame);
+                self.program.instructions[jump_to_end] =
+                    Instruction::PushOffset(pop as i32 - jump_to_end as i32);
+
+                self.pop_scope();
+
+                self.instr_ptr
+            }
+
             AstNode::Print { expression } => {
                 self.visit(expression);
                 self.add_instruction(Instruction::Print)
@@ -482,9 +540,8 @@ impl Visitor<usize> for PArIRWriter {
                 self.add_instruction(Instruction::Clear)
             }
 
-            AstNode::FunctionCall { identifier, args } => todo!(),
-            AstNode::While { condition, body } => todo!(),
             AstNode::EndOfFile => todo!(),
+            _ => todo!(),
         }
     }
 }
