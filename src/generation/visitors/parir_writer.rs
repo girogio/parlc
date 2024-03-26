@@ -1,6 +1,6 @@
 use crate::generation::instructions::{Instruction, Program};
-use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType, Type};
-use crate::utils::errors::SemanticError;
+use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType};
+
 use crate::{
     core::Token,
     parsing::ast::{AstNode, Visitor},
