@@ -13,7 +13,7 @@ Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
 
 - [x] Table-driven lexer
 - [x] Recursive descent LL(1) parser
-- [x] Abstract `Visitor` trait for AST traversal
+- [x] `Visitor` trait for AST traversal
 - [x] Semantic analyzer
   - [x] Scope checking
   - [x] Type checking
@@ -24,7 +24,7 @@ Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
 
 - [x] Syncronization during compilation stages, i.e. the compiler should not
 crash on the first error, but should keep processing on a best-effort basis to
-report as many errors as possible
+report as many *real* errors as possible
   - [x] Lexer syncronization
   - [ ] Parser syncronization
   - [x] Semantic analyzer syncronization
