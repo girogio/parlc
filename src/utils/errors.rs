@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use clap::error;
 use thiserror::Error;
 
 use crate::{
@@ -52,7 +53,7 @@ pub enum SemanticError {
     #[error("Function '{}' is not defined.", .0.span.lexeme)]
     UndefinedFunction(Token),
     #[error("Function '{}' is already defined.", .0.span.lexeme)]
-    AlreadyDefinedFunction(Token),
+    FunctionAlreadyDefined(Token),
     // #[error("Variable '{}' is redeclared.", .0.span.lexeme)]
     // RedeclaredVariable(Token),
     #[error("'{}' is of type {:?}, expected {:?}.", .0, .1, .2)]
@@ -67,6 +68,8 @@ pub enum SemanticError {
     FunctionReturnTypeMismatch(Token, Type, Type),
     #[error("Function '{}' takes no parameters, supplied {:?}.", .0, .1)]
     FunctionCallNoParams(String, Vec<Type>),
+    #[error("Variable '{}' was not defined in the current scope.", .0.span.lexeme)]
+    VarUndefinedInFunc(Token),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

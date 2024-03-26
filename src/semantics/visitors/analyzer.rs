@@ -72,6 +72,13 @@ impl SemAnalyzer {
             .find_map(|table| table.find_symbol(&symbol.span.lexeme))
     }
 
+    fn find_symbol_mut(&mut self, symbol: &Token) -> Option<&mut Symbol> {
+        self.symbol_table
+            .iter_mut()
+            .rev()
+            .find_map(|table| table.find_symbol_mut(&symbol.span.lexeme))
+    }
+
     fn current_scope(&self) -> &SymbolTable {
         self.symbol_table.last().unwrap()
     }
@@ -181,20 +188,35 @@ impl SemAnalyzer {
         *found
     }
 
-    fn push_scope(&mut self) {
-        self.symbol_table.push(SymbolTable::new());
-    }
-
-    fn pop_scope(&mut self) {
-        self.symbol_table.pop();
-    }
-
     fn check_up_to_scope(&self, symbol: &Token) -> bool {
         self.symbol_table
             .iter()
             .skip(self.scope_peek_limit)
             .find_map(|table| table.find_symbol(&symbol.span.lexeme))
             .is_some()
+    }
+
+    fn visit_unscoped_block(&mut self, block: &AstNode) -> Type {
+        match block {
+            AstNode::Block { statements } => {
+                let last = Type::Void;
+                for statement in statements {
+                    let last = self.visit(statement);
+                    if let AstNode::Return { .. } = statement {
+                        return last;
+                    }
+                }
+                last
+            }
+            _ => unreachable!(), // Unless called with a non-block node
+        }
+    }
+    fn push_scope(&mut self) {
+        self.symbol_table.push(SymbolTable::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.symbol_table.pop();
     }
 
     fn check_cast(&mut self, to: &Token, from: Type) -> Type {
@@ -233,20 +255,19 @@ impl Visitor<Type> for SemAnalyzer {
 
             AstNode::Block { statements } => {
                 self.push_scope();
+                let mut last = Type::Void;
                 for statement in statements {
                     // if the statement is a return statement, we don't need to
                     // check the rest of the block
                     if let AstNode::Return { expression } = statement {
-                        let tmp = self.visit(expression);
-                        self.pop_scope();
-                        return tmp;
+                        last = self.visit(expression);
+                        break;
                     } else {
                         self.visit(statement);
                     }
                 }
                 self.pop_scope();
-
-                Type::Void
+                last
             }
 
             AstNode::FunctionDecl {
@@ -258,56 +279,53 @@ impl Visitor<Type> for SemAnalyzer {
                 // Check that function name isn't already defined
                 if self.check_scope(identifier) {
                     self.results
-                        .add_error(SemanticError::AlreadyDefinedFunction(identifier.clone()));
+                        .add_error(SemanticError::FunctionAlreadyDefined(identifier.clone()));
+                } else {
+                    // Add the function to the symbol table in the current scope
+                    self.add_symbol(
+                        identifier,
+                        &SymbolType::Function(Signature::new(Type::Unknown)),
+                    );
                 }
 
                 self.push_scope();
-                self.scope_peek_limit = self.symbol_table.len() - 1;
-
-                // Add the parameter symbols to the symbol table in this scope
-                for param in params {
-                    self.visit(param);
-                }
 
                 // all the parameters are added to the symbol table
                 // now we add them to the function signature
                 let mut signature =
                     Signature::new(self.current_scope().token_to_type(&return_type.span.lexeme));
 
-                for param in self.current_scope().all_symbols() {
-                    if let SymbolType::Variable(t) = param.symbol_type {
-                        signature.parameters.push((t, param.lexeme.clone()));
+                for param in params.iter().rev() {
+                    let param_type = self.visit(param);
+
+                    match param {
+                        AstNode::FormalParam { identifier, .. } => {
+                            signature
+                                .parameters
+                                .push((param_type, identifier.span.lexeme.clone()));
+                        }
+                        _ => unreachable!(),
                     }
                 }
 
-                // set the signature of the function in the symbol table
-                // add the function symbol to the previous scope to support recursion
-                self.symbol_table
-                    .iter_mut()
-                    .rev()
-                    .nth(1)
-                    .unwrap()
-                    .add_symbol(
-                        &identifier.span.lexeme,
-                        &SymbolType::Function(signature.clone()),
-                        None,
-                    );
+                self.find_symbol_mut(identifier).unwrap().symbol_type =
+                    SymbolType::Function(signature.clone());
 
                 self.inside_function = true;
-                let return_type = self.visit(block);
+                self.scope_peek_limit = self.symbol_table.len() - 1;
+                let block_return_type = self.visit_unscoped_block(block);
+                self.inside_function = false;
 
-                if signature.return_type != return_type {
+                if signature.return_type != block_return_type {
                     self.results
                         .add_error(SemanticError::FunctionReturnTypeMismatch(
                             identifier.clone(),
                             signature.return_type,
-                            return_type,
+                            block_return_type,
                         ));
                 }
 
                 self.pop_scope();
-                self.inside_function = false;
-                self.scope_peek_limit = 0;
 
                 Type::Void
             }
@@ -316,12 +334,13 @@ impl Visitor<Type> for SemAnalyzer {
                 if self.inside_function {
                     if !self.check_up_to_scope(token) {
                         self.results
-                            .add_error(SemanticError::UndefinedVariable(token.clone()));
+                            .add_error(SemanticError::VarUndefinedInFunc(token.clone()));
                     }
                 } else if self.find_symbol(token).is_none() {
                     self.results
                         .add_error(SemanticError::UndefinedVariable(token.clone()));
                 }
+
                 self.get_symbol_type(token)
             }
 
@@ -413,7 +432,7 @@ impl Visitor<Type> for SemAnalyzer {
                     ),
                 );
 
-                Type::Void
+                self.current_scope().token_to_type(&param_type.span.lexeme)
             }
 
             AstNode::Expression { casted_type, expr } => {
@@ -434,7 +453,7 @@ impl Visitor<Type> for SemAnalyzer {
                 if self.inside_function {
                     if !self.check_up_to_scope(identifier) {
                         self.results
-                            .add_error(SemanticError::UndefinedVariable(identifier.clone()));
+                            .add_error(SemanticError::VarUndefinedInFunc(identifier.clone()));
                     }
                 } else if self.find_symbol(identifier).is_none() {
                     self.results
@@ -634,9 +653,9 @@ impl Visitor<Type> for SemAnalyzer {
                 if_false,
             } => {
                 self.visit(condition);
-                let true_branch_return_type = self.visit(if_true);
+                let true_branch_return_type = self.visit_unscoped_block(if_true);
                 if let Some(if_false) = if_false {
-                    let false_branch_return_type = self.visit(if_false);
+                    let false_branch_return_type = self.visit_unscoped_block(if_false);
 
                     if true_branch_return_type != false_branch_return_type {
                         self.results.add_error(SemanticError::TypeMismatch(
@@ -656,9 +675,7 @@ impl Visitor<Type> for SemAnalyzer {
                 increment,
                 body,
             } => {
-                self.symbol_table.push(SymbolTable::new());
-                self.scope_peek_limit = 0;
-                self.inside_function = true;
+                self.push_scope();
 
                 if let Some(initializer) = initializer {
                     self.visit(initializer);
@@ -678,14 +695,14 @@ impl Visitor<Type> for SemAnalyzer {
                     self.visit(increment);
                 }
 
-                let body_type = self.visit(body);
-                self.inside_function = false;
+                let body_type = self.visit_unscoped_block(body);
                 self.symbol_table.pop();
 
                 body_type
             }
 
             AstNode::While { condition, body } => {
+                self.push_scope();
                 let condition_type = self.visit(condition);
                 if condition_type != Type::Bool {
                     self.results.add_error(SemanticError::TypeMismatch(
@@ -694,8 +711,10 @@ impl Visitor<Type> for SemAnalyzer {
                         Type::Bool,
                     ));
                 }
+                let body_return_type = self.visit_unscoped_block(body);
+                self.pop_scope();
 
-                self.visit(body)
+                body_return_type
             }
 
             AstNode::Print { expression } => {

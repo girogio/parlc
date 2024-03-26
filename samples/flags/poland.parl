@@ -1,11 +1,9 @@
-let a: int = 1;
+// Print the polish flag!
 
-fun factorial(n: int) -> int {
-	if (n == 0) {
-		return 1;
-	}
-	return n * factorial(n - 1);
+fun polska(w: int, h: int) -> int {
+    let w: float = 0.0;
+    __print w;
+    return w;
 }
 
-__print factorial(3);
-
+__print polska(5, 5);
