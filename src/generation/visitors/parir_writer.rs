@@ -142,9 +142,14 @@ impl Visitor<usize> for PArIRWriter {
                     // if the statement is a return statement, we don't need to
                     // check the rest of the block
                     if let AstNode::Return { expression } = statement {
-                        let tmp = self.visit(expression);
+                        self.visit(expression);
+                        self.program.instructions[var_dec_count] =
+                            Instruction::PushValue(self.get_scope_var_count());
+                        self.add_instruction(Instruction::Return);
+                        self.add_instruction(Instruction::PopFrame);
+                        self.stack_level -= 1;
                         self.pop_scope();
-                        return tmp;
+                        return self.instr_ptr;
                     } else {
                         self.visit(statement);
                     }
@@ -208,16 +213,16 @@ impl Visitor<usize> for PArIRWriter {
 
                 self.pop_scope();
                 self.stack_level = 0;
+                self.instr_ptr -= end - start;
                 self.frame_index = 0;
             }
 
             AstNode::FunctionCall { identifier, args } => {
-                self.add_instruction(Instruction::PushFunction(identifier.span.lexeme.clone()));
-
-                for arg in args {
+                for arg in args.iter().rev() {
                     self.visit(arg);
                 }
-
+                self.add_instruction(Instruction::PushValue(args.len()));
+                self.add_instruction(Instruction::PushFunction(identifier.clone()));
                 self.add_instruction(Instruction::Call);
             }
 

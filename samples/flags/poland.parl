@@ -1,0 +1,19 @@
+// This is a simple example of how to use
+// the __write_box function to draw a box 
+// on the screen. 
+
+// For maximum polska, enjoyment, set the 
+//canvas width and height to 200 and 100.
+
+
+fun draw_polish_flag(w: int, h: int) -> bool {
+    let red: colour = #ff0000;
+    let white: colour = #ffffff;
+    
+    __write_box 0, 0, w, h / 2, red;
+    __write_box 0, h / 2, w, h / 2, white;
+
+    return true;
+}
+
+__print draw_polish_flag(__width, __height);

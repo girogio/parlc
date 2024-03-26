@@ -24,6 +24,6 @@ impl Display for Token {
 
 impl Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self.kind)
+        write!(f, "{}", self.span.lexeme)
     }
 }
