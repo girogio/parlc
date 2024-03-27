@@ -24,6 +24,7 @@ pub enum Category {
     Equals,
     Slash,
     Plus,
+    Percent,
     LessThan,
     GreaterThan,
     Minus,

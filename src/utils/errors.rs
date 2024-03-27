@@ -34,7 +34,7 @@ pub enum ParseError {
         found: Token,
         source_file: PathBuf,
     },
-    #[error("Unexpected token found at {}:{}:{} \nExpected one of these types: {:?}", .source_file.display(), .found.span.from_line, .found.span.from_col, .expected)]
+    #[error("Unexpected token found at {}:{}:{} \nExpected one of these types: {:?}\nFound: {found}", .source_file.display(), .found.span.from_line, .found.span.from_col, .expected)]
     UnexpectedTokenList {
         source_file: PathBuf,
         found: Token,

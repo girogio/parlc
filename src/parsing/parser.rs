@@ -32,8 +32,61 @@ impl Parser {
         self.tokens.get(self.current).unwrap_or(&eof_token).clone()
     }
 
+    fn current_token_kind(&self) -> &TokenKind {
+        match self.tokens.get(self.current) {
+            Some(k) => &k.kind,
+            None => &TokenKind::EndOfFile,
+        }
+    }
+
     fn peek_token(&self) -> Option<&Token> {
         self.tokens.get(self.current + 1)
+    }
+
+    fn assert_token_is(&self, kind: TokenKind) -> Result<()> {
+        if self.current_token().kind != kind {
+            Err(ParseError::UnexpectedToken {
+                expected: kind,
+                found: self.current_token(),
+                source_file: self.source_file.clone(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn consume_if(&mut self, kind: TokenKind) -> Result<&Token> {
+        if self.current_token().kind == kind {
+            Ok(self.consume())
+        } else {
+            Err(ParseError::UnexpectedToken {
+                expected: kind,
+                source_file: self.source_file.clone(),
+                found: self.current_token().clone(),
+            }
+            .into())
+        }
+    }
+
+    fn assert_token_is_any<T: Clone + IntoIterator<Item = TokenKind>>(
+        &self,
+        possible_kinds: T,
+    ) -> Result<()> {
+        if !possible_kinds
+            .clone()
+            .into_iter()
+            .any(|kind| self.current_token().kind == kind)
+        {
+            Err(ParseError::UnexpectedTokenList {
+                source_file: self.source_file.clone(),
+                found: self.current_token(),
+                expected: possible_kinds.into_iter().collect(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
     }
 
     pub fn parse(&mut self) -> Result<&AstNode> {
@@ -56,24 +109,36 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<AstNode> {
-        let current_token = self.current_token();
+        self.assert_token_is_any([
+            TokenKind::Let,
+            TokenKind::Print,
+            TokenKind::Delay,
+            TokenKind::PadWrite,
+            TokenKind::PadWriteBox,
+            TokenKind::PadClear,
+            TokenKind::If,
+            TokenKind::Identifier,
+            TokenKind::For,
+            TokenKind::While,
+            TokenKind::Function,
+            TokenKind::Return,
+            TokenKind::LBrace,
+            TokenKind::EndOfFile,
+        ])?;
 
-        match &current_token.kind {
+        match self.current_token_kind() {
             TokenKind::Let => self.parse_var_decl(),
-            TokenKind::Identifier => {
-                let next_tok = self.peek_token();
-                match next_tok {
-                    Some(tok) => match tok.kind {
-                        TokenKind::Equals => {
-                            let a = self.parse_assignment_statement();
-                            self.consume_if(TokenKind::Semicolon)?;
-                            a
-                        }
-                        _ => self.parse_identifier(),
-                    },
-                    None => self.parse_identifier(),
-                }
-            }
+            TokenKind::Identifier => match self.peek_token() {
+                Some(tok) => match tok.kind {
+                    TokenKind::Equals => {
+                        let a = self.parse_assignment_statement();
+                        self.consume_if(TokenKind::Semicolon)?;
+                        a
+                    }
+                    _ => self.parse_identifier(),
+                },
+                None => self.parse_identifier(),
+            },
             TokenKind::Print => self.parse_print_statement(),
             TokenKind::Delay => self.parse_delay(),
             TokenKind::PadWrite => self.parse_write(),
@@ -89,7 +154,7 @@ impl Parser {
             _ => Err(Error::Parse(ParseError::UnexpectedToken {
                 expected: TokenKind::Invalid,
                 source_file: self.source_file.clone(),
-                found: current_token.clone(),
+                found: self.current_token(),
             })),
         }
     }
@@ -397,7 +462,7 @@ impl Parser {
         let curr = self.current_token().clone();
 
         match &curr.kind {
-            TokenKind::Multiply | TokenKind::Divide => {
+            TokenKind::Multiply | TokenKind::Divide | TokenKind::Mod => {
                 let operator = self.consume().clone();
                 let right = self.parse_factor()?;
                 Ok(AstNode::BinOp {
@@ -427,9 +492,20 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<AstNode> {
-        let curr = self.current_token();
+        self.assert_token_is_any([
+            TokenKind::Identifier,
+            TokenKind::IntLiteral,
+            TokenKind::FloatLiteral,
+            TokenKind::BoolLiteral,
+            TokenKind::ColourLiteral,
+            TokenKind::PadHeight,
+            TokenKind::PadWidth,
+            TokenKind::PadRead,
+            TokenKind::PadRandI,
+            TokenKind::LParen,
+        ])?;
 
-        match curr.kind {
+        match self.current_token_kind() {
             TokenKind::Identifier => {
                 let ident = self.consume_if(TokenKind::Identifier)?.clone();
 
@@ -455,6 +531,7 @@ impl Parser {
                     })
                 }
             }
+
             TokenKind::IntLiteral
             | TokenKind::FloatLiteral
             | TokenKind::BoolLiteral
@@ -464,22 +541,7 @@ impl Parser {
             TokenKind::PadRead => self.parse_pad_read(),
             TokenKind::PadRandI => self.parse_pad_rand_i(),
             TokenKind::LParen => self.parse_sub_expr(),
-            _ => Err(ParseError::UnexpectedTokenList {
-                source_file: self.source_file.clone(),
-                expected: vec![
-                    TokenKind::Identifier,
-                    TokenKind::IntLiteral,
-                    TokenKind::FloatLiteral,
-                    TokenKind::BoolLiteral,
-                    TokenKind::ColourLiteral,
-                    TokenKind::PadHeight,
-                    TokenKind::PadWidth,
-                    TokenKind::PadRead,
-                    TokenKind::PadRandI,
-                ],
-                found: curr.clone(),
-            }
-            .into()),
+            _ => unreachable!(),
         }
     }
 
@@ -579,39 +641,6 @@ impl Parser {
         self.current += 1;
         &self.tokens[self.current - 1]
     }
-
-    fn consume_if(&mut self, kind: TokenKind) -> Result<&Token> {
-        if self.current_token().kind == kind {
-            Ok(self.consume())
-        } else {
-            Err(ParseError::UnexpectedToken {
-                expected: kind,
-                source_file: self.source_file.clone(),
-                found: self.current_token().clone(),
-            }
-            .into())
-        }
-    }
-
-    // fn consume_if_any<T: Clone + IntoIterator<Item = TokenKind>>(
-    //     &mut self,
-    //     kinds: T,
-    // ) -> Result<Token> {
-    //     let found = kinds
-    //         .clone()
-    //         .into_iter()
-    //         .any(|kind| self.current_token().kind == kind);
-    //     if found {
-    //         Ok(self.consume().clone())
-    //     } else {
-    //         Err(ParseError::UnexpectedTokenList {
-    //             expected: kinds.into_iter().collect(),
-    //             found: self.current_token().clone(),
-    //             source_file: self.source_file.clone(),
-    //         }
-    //         .into())
-    //     }
-    // }
 
     fn parse_literal(&mut self) -> Result<AstNode> {
         let token = self.consume().clone();

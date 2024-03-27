@@ -49,8 +49,8 @@ reached by any of the players. Winner printed on console. */
 fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
     let p1score: int = 0;
     let p2score: int = 0;
-    // while (Max(p1score, p2score) < scoremax) // Alternative loop
-    while (p1score < scoremax and p2score < scoremax) {
+     while (Max(p1score, p2score) < scoremax) { // Alternative loop
+    //while (p1score < scoremax and p2score < scoremax) {
         let p1toss: int = __randi 1000;
         let p2toss: int = __randi 1000;
         if (p1toss > p2toss) {
