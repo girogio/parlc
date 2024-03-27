@@ -138,6 +138,7 @@ impl SemAnalyzer {
             (TokenKind::Divide, Type::Int, Type::Int) => Type::Int,
             (TokenKind::Divide, Type::Float, Type::Float) => Type::Float,
             (TokenKind::Divide, Type::Colour, Type::Colour) => Type::Colour,
+            (TokenKind::Mod, Type::Int, Type::Int) => Type::Int,
             (TokenKind::EqEq, Type::Int, Type::Int) => Type::Bool,
             (TokenKind::EqEq, Type::Float, Type::Float) => Type::Bool,
             (TokenKind::EqEq, Type::Bool, Type::Bool) => Type::Bool,

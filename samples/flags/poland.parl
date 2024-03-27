@@ -5,7 +5,6 @@
 // For maximum polska, enjoyment, set the 
 //canvas width and height to 200 and 100.
 
-
 fun draw_polish_flag(w: int, h: int) -> bool {
     let red: colour = #ff0000;
     let white: colour = #ffffff;

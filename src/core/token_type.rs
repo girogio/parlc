@@ -41,6 +41,7 @@ pub enum TokenKind {
     Multiply,
     Or,
     Not,
+    Mod,
     Plus,
     // Relational operators
     EqEq,

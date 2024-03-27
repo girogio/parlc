@@ -312,6 +312,7 @@ impl Visitor<usize> for PArIRWriter {
                     TokenKind::Plus => Instruction::Add,
                     TokenKind::Minus => Instruction::Sub,
                     TokenKind::Multiply => Instruction::Mul,
+                    TokenKind::Mod => Instruction::Mod,
                     TokenKind::Divide => Instruction::Div,
                     TokenKind::EqEq => Instruction::Equal,
                     TokenKind::LessThan => Instruction::LessThan,

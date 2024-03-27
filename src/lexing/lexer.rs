@@ -45,6 +45,7 @@ impl<B: Stream + Clone> Lexer<B> {
                         ('*', Category::Asterisk, TokenKind::Multiply),
                         (',', Category::Comma, TokenKind::Comma),
                         ('\0', Category::Eof, TokenKind::EndOfFile),
+                        ('%', Category::Percent, TokenKind::Mod),
                     ])
                     .add_whitespace_logic()
                     .add_comment_functionality()
