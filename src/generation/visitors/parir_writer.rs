@@ -50,8 +50,12 @@ impl PArIRWriter {
         self.current_scope()
             .symbols
             .iter()
-            .filter(|s| matches!(s.symbol_type, SymbolType::Variable(_)))
-            .count()
+            .map(|s| match s.symbol_type {
+                SymbolType::Array(_, size) => size,
+                SymbolType::Variable(_) => 1,
+                _ => 0,
+            })
+            .sum()
     }
 
     fn find_symbol(&self, symbol: &Token) -> Option<&Symbol> {
@@ -133,6 +137,40 @@ impl Visitor<usize> for PArIRWriter {
                 self.pop_scope();
             }
 
+            AstNode::VarDecArray {
+                identifier,
+                element_type,
+                size,
+                elements,
+            } => {
+                for element in elements.iter().rev() {
+                    self.visit(element);
+                }
+
+                let element_type = self
+                    .current_scope()
+                    .token_to_type(&element_type.span.lexeme);
+
+                let size: usize = size.span.lexeme.parse().unwrap();
+
+                if !self.check_scope(identifier) {
+                    self.add_symbol(
+                        identifier,
+                        &SymbolType::Array(element_type, size),
+                        Some(MemLoc {
+                            stack_level: self.stack_level,
+                            frame_index: self.frame_index,
+                        }),
+                    );
+                }
+                self.add_instruction(Instruction::PushValue(size));
+
+                self.add_instruction(Instruction::PushValue(self.frame_index));
+                self.add_instruction(Instruction::PushValue(0));
+                self.frame_index += size;
+
+                self.add_instruction(Instruction::StoreArray);
+            }
             AstNode::Block { statements } => {
                 self.push_scope();
                 let var_dec_count = self.add_instruction(Instruction::PushValue(0));
@@ -432,26 +470,26 @@ impl Visitor<usize> for PArIRWriter {
             } => {
                 self.visit(condition);
 
-                let jump_to_true = self.add_instruction(Instruction::PushOffset(0));
+                let jump_to_true = self.add_instruction(Instruction::PushOffsetFromPC(0));
                 self.add_instruction(Instruction::JumpIfNotZero);
 
                 if let Some(if_false) = if_false {
                     self.visit_unscoped_block(if_false);
                 }
 
-                let jump_to_end = self.add_instruction(Instruction::PushOffset(
+                let jump_to_end = self.add_instruction(Instruction::PushOffsetFromPC(
                     self.instr_ptr as i32 - jump_to_true as i32,
                 ));
 
                 self.add_instruction(Instruction::Jump);
 
                 self.program.instructions[jump_to_true] =
-                    Instruction::PushOffset(self.instr_ptr as i32 - jump_to_true as i32);
+                    Instruction::PushOffsetFromPC(self.instr_ptr as i32 - jump_to_true as i32);
 
                 self.visit_unscoped_block(if_true);
 
                 self.program.instructions[jump_to_end] =
-                    Instruction::PushOffset(self.instr_ptr as i32 - jump_to_end as i32);
+                    Instruction::PushOffsetFromPC(self.instr_ptr as i32 - jump_to_end as i32);
             }
 
             AstNode::For {
@@ -482,7 +520,7 @@ impl Visitor<usize> for PArIRWriter {
                     self.visit(increment);
                 }
 
-                self.add_instruction(Instruction::PushOffset(
+                self.add_instruction(Instruction::PushOffsetFromPC(
                     before_condition as i32 - self.instr_ptr as i32,
                 ));
                 self.add_instruction(Instruction::Jump);
@@ -492,7 +530,7 @@ impl Visitor<usize> for PArIRWriter {
 
                 let pop = self.add_instruction(Instruction::PopFrame);
                 self.program.instructions[jump_to_end_placeholder] =
-                    Instruction::PushOffset(pop as i32 - jump_to_end_placeholder as i32);
+                    Instruction::PushOffsetFromPC(pop as i32 - jump_to_end_placeholder as i32);
                 self.pop_scope();
                 self.stack_level -= 1;
             }
@@ -512,7 +550,7 @@ impl Visitor<usize> for PArIRWriter {
 
                 self.add_instruction(Instruction::JumpIfNotZero);
                 self.visit_unscoped_block(body);
-                self.add_instruction(Instruction::PushOffset(
+                self.add_instruction(Instruction::PushOffsetFromPC(
                     before_condition as i32 - self.instr_ptr as i32,
                 ));
                 self.add_instruction(Instruction::Jump);
@@ -523,7 +561,7 @@ impl Visitor<usize> for PArIRWriter {
                 self.stack_level -= 1;
                 let pop = self.add_instruction(Instruction::PopFrame);
                 self.program.instructions[jump_to_end] =
-                    Instruction::PushOffset(pop as i32 - jump_to_end as i32);
+                    Instruction::PushOffsetFromPC(pop as i32 - jump_to_end as i32);
 
                 self.pop_scope();
             }

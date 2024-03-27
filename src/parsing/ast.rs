@@ -108,6 +108,12 @@ pub enum AstNode {
     PadClear {
         expr: Ast,
     },
+    VarDecArray {
+        identifier: Token,
+        element_type: Token,
+        size: Token,
+        elements: Vec<AstNode>,
+    },
 }
 
 pub trait Visitor<T> {
