@@ -23,14 +23,18 @@ impl Display for Program {
 #[derive(Debug, Clone)]
 pub enum Instruction {
     FunctionLabel(String),
-    PushValue(usize),
-    PushFunction(Token),
-    PushOffset(i32),
+    PushArray(MemLoc),
     PushFromStack(MemLoc),
+    PushFunction(Token),
+    PushOffsetFromPC(i32),
+    PushOffsetFromOpS(MemLoc),
+    PushValue(usize),
     Store,
+    StoreArray,
     NoOperation,
     Drop,
     Dup,
+    Dupa,
     Add,
     Sub,
     Mul,
@@ -53,6 +57,7 @@ pub enum Instruction {
     JumpIfNotZero,      // Pop a, b; if b != 0, jump to a
     Call,
     Return,
+    ReturnArray,
     Halt,
     NewFrame,
     PopFrame,
@@ -65,6 +70,7 @@ pub enum Instruction {
     Read,
     Height,
     Print,
+    PrintArray,
 }
 
 impl Display for Instruction {
@@ -73,8 +79,11 @@ impl Display for Instruction {
             Instruction::Read => writeln!(f, "read"),
             Instruction::FunctionLabel(name) => writeln!(f, ".{}", name),
             Instruction::PushValue(value) => writeln!(f, "push {}", value),
+            Instruction::PushArray(mem_loc) => {
+                writeln!(f, "push [{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
+            }
             Instruction::PushFunction(name) => writeln!(f, "push .{}", name),
-            Instruction::PushOffset(offset) => {
+            Instruction::PushOffsetFromPC(offset) => {
                 write!(f, "push ")?;
                 match Ord::cmp(offset, &0) {
                     std::cmp::Ordering::Less => writeln!(f, "#PC-{}", offset.abs()),
@@ -85,10 +94,15 @@ impl Display for Instruction {
             Instruction::PushFromStack(mem_loc) => {
                 writeln!(f, "push [{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
             }
+            Instruction::PushOffsetFromOpS(mem_loc) => {
+                write!(f, "push +[{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
+            }
             Instruction::Store => writeln!(f, "st"),
+            Instruction::StoreArray => writeln!(f, "sta"),
             Instruction::NoOperation => writeln!(f, "nop"),
             Instruction::Drop => writeln!(f, "drop"),
             Instruction::Dup => writeln!(f, "dup"),
+            Instruction::Dupa => writeln!(f, "dupa"),
             Instruction::Add => writeln!(f, "add"),
             Instruction::Sub => writeln!(f, "sub"),
             Instruction::Mul => writeln!(f, "mul"),
@@ -111,6 +125,7 @@ impl Display for Instruction {
             Instruction::JumpIfNotZero => writeln!(f, "cjmp"),
             Instruction::Call => writeln!(f, "call"),
             Instruction::Return => writeln!(f, "ret"),
+            Instruction::ReturnArray => writeln!(f, "reta"),
             Instruction::Halt => writeln!(f, "halt"),
             Instruction::NewFrame => writeln!(f, "oframe"),
             Instruction::PopFrame => writeln!(f, "cframe"),
@@ -122,6 +137,7 @@ impl Display for Instruction {
             Instruction::Width => writeln!(f, "width"),
             Instruction::Height => writeln!(f, "height"),
             Instruction::Print => writeln!(f, "print"),
+            Instruction::PrintArray => writeln!(f, "printa"),
         }
     }
 }
