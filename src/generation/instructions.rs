@@ -95,7 +95,7 @@ impl Display for Instruction {
                 writeln!(f, "push [{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
             }
             Instruction::PushOffsetFromOpS(mem_loc) => {
-                write!(f, "push +[{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
+                writeln!(f, "push +[{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
             }
             Instruction::Store => writeln!(f, "st"),
             Instruction::StoreArray => writeln!(f, "sta"),
