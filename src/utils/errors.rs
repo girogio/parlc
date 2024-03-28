@@ -70,6 +70,8 @@ pub enum SemanticError {
     FunctionCallNoParams(String, Vec<Type>),
     #[error("Variable '{}' was not defined in the current scope.", .0.span.lexeme)]
     VarUndefinedInFunc(Token),
+    #[error("Array access out of bounds: '{}[{}]' has a size of {}.", .0.span.lexeme, .1, .2)]
+    ArrayOverflow(Token, Type, usize, usize),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

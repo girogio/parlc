@@ -97,6 +97,7 @@ impl SemAnalyzer {
             .map(|s| match &s.symbol_type {
                 SymbolType::Variable(t) => *t,
                 SymbolType::Function(signature) => signature.return_type,
+                SymbolType::Array(t, _) => *t,
             })
             .unwrap_or(Type::Unknown)
     }
@@ -257,6 +258,11 @@ impl Visitor<Type> for SemAnalyzer {
                 let identifier_type = self.get_symbol_type(identifier);
                 let index_type = self.visit(index);
 
+                if self.find_symbol(identifier).is_none() {
+                    self.results
+                        .add_error(SemanticError::UndefinedVariable(identifier.clone()));
+                }
+
                 if index_type != Type::Int {
                     self.results.add_error(SemanticError::TypeMismatch(
                         "index".to_string(),
@@ -397,6 +403,7 @@ impl Visitor<Type> for SemAnalyzer {
 
                 Type::Void
             }
+
             AstNode::VarDecArray {
                 identifier,
                 element_type,
@@ -413,7 +420,6 @@ impl Visitor<Type> for SemAnalyzer {
                 } else {
                     self.add_symbol(identifier, &SymbolType::Array(element_type, *size));
                 }
-                dbg!(&self.scope_stack);
 
                 if elements.len() > *size {
                     self.results.add_error(SemanticError::ArrayOverflow(

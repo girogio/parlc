@@ -37,6 +37,30 @@ impl Visitor<Result<()>> for Formatter {
                 Ok(())
             }
 
+            AstNode::ArrayAccess { identifier, index } => {
+                write!(self.buff, "{}[", identifier.span.lexeme)?;
+                self.visit(index)?;
+                write!(self.buff, "]")?;
+                Ok(())
+            }
+
+            AstNode::VarDecArray {
+                identifier,
+                element_type,
+                size,
+                elements,
+            } => {
+                write!(self.buff, "let {} = [", identifier.span.lexeme)?;
+                for (i, element) in elements.iter().enumerate() {
+                    self.visit(element)?;
+                    if i != elements.len() - 1 {
+                        write!(self.buff, ", ")?;
+                    }
+                }
+                write!(self.buff, "];")?;
+                Ok(())
+            }
+
             AstNode::VarDec {
                 identifier,
                 r#type: var_type,
