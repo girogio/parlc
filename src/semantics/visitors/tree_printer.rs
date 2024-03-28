@@ -34,6 +34,44 @@ impl Visitor<Result<()>> for TreePrinter {
                 Ok(())
             }
 
+            AstNode::ArrayAccess { identifier, index } => {
+                println!("ArrayAccess");
+                self.tab_level += 1;
+                self.print_tab();
+                println!("Identifier: {}", identifier);
+                self.print_tab();
+                self.visit(index)?;
+                self.tab_level -= 1;
+                Ok(())
+            }
+
+            AstNode::VarDecArray {
+                identifier,
+                element_type,
+                size,
+                elements,
+            } => {
+                println!("VarDecArray");
+                self.tab_level += 1;
+                self.print_tab();
+                println!("Identifier: {}", identifier);
+                self.print_tab();
+                println!("Element Type: {}", element_type);
+                self.print_tab();
+                println!("Size: {}", size);
+                self.print_tab();
+                println!("Elements: ");
+                self.tab_level += 1;
+                for element in elements {
+                    self.print_tab();
+                    self.visit(element)?;
+                    println!();
+                }
+                self.tab_level -= 1;
+                self.tab_level -= 1;
+                Ok(())
+            }
+
             AstNode::VarDec {
                 identifier,
                 r#type: var_type,

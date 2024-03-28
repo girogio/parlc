@@ -253,6 +253,20 @@ impl Visitor<Type> for SemAnalyzer {
 
                 Type::Void
             }
+            AstNode::ArrayAccess { identifier, index } => {
+                let identifier_type = self.get_symbol_type(identifier);
+                let index_type = self.visit(index);
+
+                if index_type != Type::Int {
+                    self.results.add_error(SemanticError::TypeMismatch(
+                        "index".to_string(),
+                        index_type,
+                        Type::Int,
+                    ));
+                }
+
+                identifier_type
+            }
 
             AstNode::Block { statements } => {
                 self.push_scope();
@@ -380,6 +394,47 @@ impl Visitor<Type> for SemAnalyzer {
                     &self.current_scope().token_to_type(&var_type.span.lexeme),
                     &expr_type,
                 );
+
+                Type::Void
+            }
+            AstNode::VarDecArray {
+                identifier,
+                element_type,
+                size,
+                elements,
+            } => {
+                let element_type = self
+                    .current_scope()
+                    .token_to_type(&element_type.span.lexeme);
+
+                if self.check_scope(identifier) {
+                    self.results
+                        .add_error(SemanticError::VariableRedaclaration(identifier.clone()));
+                } else {
+                    self.add_symbol(identifier, &SymbolType::Array(element_type, *size));
+                }
+                dbg!(&self.scope_stack);
+
+                if elements.len() > *size {
+                    self.results.add_error(SemanticError::ArrayOverflow(
+                        identifier.clone(),
+                        element_type,
+                        *size,
+                        elements.len(),
+                    ));
+                }
+
+                for element in elements {
+                    let current_element_type = self.visit(element);
+
+                    if element_type != current_element_type {
+                        self.results.add_error(SemanticError::TypeMismatch(
+                            "element".to_string(),
+                            element_type,
+                            element_type,
+                        ));
+                    }
+                }
 
                 Type::Void
             }

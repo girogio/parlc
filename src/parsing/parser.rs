@@ -525,6 +525,15 @@ impl Parser {
                             args,
                         })
                     }
+                } else if let TokenKind::LBracket = self.current_token_kind() {
+                    self.consume();
+                    let index = self.parse_expression()?;
+                    self.consume_if(TokenKind::RBracket)?;
+
+                    return Ok(AstNode::ArrayAccess {
+                        identifier: ident.clone(),
+                        index: Box::new(index),
+                    });
                 } else {
                     Ok(AstNode::Identifier {
                         token: ident.clone(),
@@ -555,7 +564,7 @@ impl Parser {
     }
 
     fn parse_identifier(&mut self) -> Result<AstNode> {
-        let ident = self.consume_if(TokenKind::Identifier)?;
+        let ident = self.consume_if(TokenKind::Identifier)?.clone();
 
         Ok(AstNode::Identifier {
             token: ident.clone(),
@@ -604,15 +613,57 @@ impl Parser {
         self.consume_if(TokenKind::Let)?;
         let identifier = self.consume_if(TokenKind::Identifier)?.clone();
         self.consume_if(TokenKind::Colon)?;
-        let kind = self.consume_if(TokenKind::Type)?.clone();
-        self.consume_if(TokenKind::Equals)?;
-        let expression = self.parse_expression()?;
-        self.consume_if(TokenKind::Semicolon)?;
-        Ok(AstNode::VarDec {
-            identifier: identifier.clone(),
-            r#type: kind,
-            expression: Box::new(expression),
-        })
+        let element_type = self.consume_if(TokenKind::Type)?.clone();
+
+        self.assert_token_is_any([TokenKind::Equals, TokenKind::LBracket])?;
+
+        match self.current_token_kind() {
+            TokenKind::Equals => {
+                self.consume();
+                let expression = self.parse_expression()?;
+                self.consume_if(TokenKind::Semicolon)?;
+                Ok(AstNode::VarDec {
+                    identifier: identifier.clone(),
+                    r#type: element_type,
+                    expression: Box::new(expression),
+                })
+            }
+            TokenKind::LBracket => {
+                self.consume();
+                self.consume_if(TokenKind::RBracket)?;
+                self.consume_if(TokenKind::Equals)?;
+                self.consume_if(TokenKind::LBracket)?;
+                let elements = self.parse_array_elements()?;
+                let size = elements.len();
+                self.consume_if(TokenKind::RBracket)?;
+                self.consume_if(TokenKind::Semicolon)?;
+                Ok(AstNode::VarDecArray {
+                    identifier,
+                    element_type,
+                    size,
+                    elements,
+                })
+            }
+            _ => Err(ParseError::UnexpectedTokenList {
+                expected: vec![TokenKind::Equals, TokenKind::LBracket],
+                source_file: self.source_file.clone(),
+                found: self.current_token().clone(),
+            }
+            .into()),
+        }
+    }
+
+    fn parse_array_elements(&mut self) -> Result<Vec<AstNode>> {
+        let mut elements = vec![];
+        let first_elem = self.parse_literal()?;
+        elements.push(first_elem);
+
+        if let TokenKind::Comma = self.current_token().kind {
+            self.consume();
+            elements.extend(self.parse_array_elements()?);
+        }
+
+        Ok(elements)
     }
 
     fn parse_print_statement(&mut self) -> Result<AstNode> {

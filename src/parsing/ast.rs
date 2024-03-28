@@ -111,8 +111,12 @@ pub enum AstNode {
     VarDecArray {
         identifier: Token,
         element_type: Token,
-        size: Token,
+        size: usize,
         elements: Vec<AstNode>,
+    },
+    ArrayAccess {
+        identifier: Token,
+        index: Ast,
     },
 }
 

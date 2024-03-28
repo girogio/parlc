@@ -137,6 +137,15 @@ impl Visitor<usize> for PArIRWriter {
                 self.pop_scope();
             }
 
+            AstNode::ArrayAccess { identifier, index } => {
+                self.visit(index);
+                let mem_loc = self.get_memory_location(identifier);
+
+                if let Some(mem_loc) = mem_loc {
+                    self.add_instruction(Instruction::PushOffsetFromOpS(mem_loc));
+                }
+            }
+
             AstNode::VarDecArray {
                 identifier,
                 element_type,
@@ -151,19 +160,17 @@ impl Visitor<usize> for PArIRWriter {
                     .current_scope()
                     .token_to_type(&element_type.span.lexeme);
 
-                let size: usize = size.span.lexeme.parse().unwrap();
-
                 if !self.check_scope(identifier) {
                     self.add_symbol(
                         identifier,
-                        &SymbolType::Array(element_type, size),
+                        &SymbolType::Array(element_type, *size),
                         Some(MemLoc {
                             stack_level: self.stack_level,
                             frame_index: self.frame_index,
                         }),
                     );
                 }
-                self.add_instruction(Instruction::PushValue(size));
+                self.add_instruction(Instruction::PushValue(*size));
 
                 self.add_instruction(Instruction::PushValue(self.frame_index));
                 self.add_instruction(Instruction::PushValue(0));
