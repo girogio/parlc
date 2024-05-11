@@ -43,19 +43,6 @@ impl Parser {
         self.tokens.get(self.current + 1)
     }
 
-    fn assert_token_is(&self, kind: TokenKind) -> Result<()> {
-        if self.current_token().kind != kind {
-            Err(ParseError::UnexpectedToken {
-                expected: kind,
-                found: self.current_token(),
-                source_file: self.source_file.clone(),
-            }
-            .into())
-        } else {
-            Ok(())
-        }
-    }
-
     fn consume_if(&mut self, kind: TokenKind) -> Result<&Token> {
         if self.current_token().kind == kind {
             Ok(self.consume())
@@ -204,6 +191,15 @@ impl Parser {
         let identifier = self.consume_if(TokenKind::Identifier)?.clone();
         self.consume_if(TokenKind::Colon)?;
         let param_type = self.consume_if(TokenKind::Type)?.clone();
+
+        if let TokenKind::LBracket = self.current_token().kind {
+            self.consume_if(TokenKind::LBracket)?;
+
+            let index = self.consume_if(TokenKind::IntLiteral)?;
+
+            self.consume_if(TokenKind::RBracket)?;
+        }
+
         Ok(AstNode::FormalParam {
             identifier: identifier.clone(),
             param_type,
