@@ -1,0 +1,5 @@
+let a: int[] = [1, 2, 3, 4, 5];
+
+for (let i: int = 0; i < 5; i = i + 1) {
+    __print a[i];
+}

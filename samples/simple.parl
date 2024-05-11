@@ -36,10 +36,6 @@ fun Max(x: int, y: int) -> int {
 __write 10, 14, #00ff00;
 __delay 100;
 __write_box 10, 14, 2, 2, #0000ff;
-for (let i: int = 0; i < 10; i = i + 1) {
-    __print i;
-    __delay 500;
-}
 
 /* This function takes two colours (players) and a max score.
 A while loop is used to iteratively draw random numbers for the two

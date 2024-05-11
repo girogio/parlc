@@ -1,0 +1,5 @@
+fun max(x: int[8]) -> int {
+    return 2;
+}
+
+__print max([1, 2, 3, 4, 5, 6, 7, 8]);
