@@ -59,6 +59,9 @@ enum Commands {
         /// The PArL source file to compile.
         #[clap(name = "file")]
         in_file: PathBuf,
+        #[clap(short, long)]
+        /// The PArIR output file.
+        output: Option<PathBuf>,
     },
 }
 
@@ -70,7 +73,7 @@ fn main() {
         Commands::Format { in_file } => in_file,
         Commands::Semantic { in_file } => in_file,
         Commands::Parse { in_file } => in_file,
-        Commands::Compile { in_file } => in_file,
+        Commands::Compile { in_file, output } => in_file,
     };
 
     if !in_file.exists() {
@@ -91,19 +94,19 @@ fn main() {
         }
     };
 
-    println!(
-        "\n{} {}\n",
-        style(match &cli.subcmd {
-            Commands::Lexer { .. } => "Lexing",
-            Commands::Format { .. } => "Formatting",
-            Commands::Semantic { .. } => "Analyzing",
-            Commands::Parse { .. } => "Printing",
-            Commands::Compile { .. } => "Compiling",
-        })
-        .green()
-        .bold(),
-        style(in_file.display())
-    );
+    // println!(
+    //     "\n{} {}\n",
+    //     style(match &cli.subcmd {
+    //         Commands::Lexer { .. } => "Lexing",
+    //         Commands::Format { .. } => "Formatting",
+    //         Commands::Semantic { .. } => "Analyzing",
+    //         Commands::Parse { .. } => "Printing",
+    //         Commands::Compile { .. } => "Compiling",
+    //     })
+    //     .green()
+    //     .bold(),
+    //     style(in_file.display())
+    // );
 
     let mut lexer: Lexer<SimpleBuffer> = Lexer::new(&input, in_file, None);
 
@@ -193,7 +196,7 @@ fn main() {
             }
         }
 
-        Commands::Compile { in_file } => {
+        Commands::Compile { in_file, output } => {
             let mut parser = Parser::new(&tokens, in_file);
             let ast = parser.parse();
 
@@ -229,15 +232,23 @@ fn main() {
 
             let mut gen = generation::PArIRWriter::new();
             let par_ir_instr = gen.get_program(ast);
-            // get in_file, strip suffix, add .parir
-            let out_file = in_file.with_extension("parir");
-            let mut out_file = std::fs::File::create(out_file).unwrap();
 
-            out_file
-                .write_all(par_ir_instr.to_string().as_bytes())
-                .unwrap();
+            if let Some(output) = output {
+                let mut out_file = std::fs::File::create(output).unwrap();
+                out_file
+                    .write_all(par_ir_instr.to_string().as_bytes())
+                    .unwrap();
+            } else {
+                println!("{}", par_ir_instr);
+            }
 
-            println!("{} compiled successfully.", style(in_file.display()).cyan());
+            if let Some(output) = output {
+                println!(
+                    "{} compiled successfully. Output written to `{}`.",
+                    style(in_file.display()).cyan(),
+                    style(output.display()).cyan()
+                );
+            }
         }
     }
 }
