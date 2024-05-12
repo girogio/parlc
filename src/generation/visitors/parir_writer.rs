@@ -139,6 +139,7 @@ impl Visitor<usize> for PArIRWriter {
 
             AstNode::ArrayAccess { identifier, index } => {
                 self.visit(index);
+
                 let mem_loc = self.get_memory_location(identifier);
 
                 if let Some(mem_loc) = mem_loc {
@@ -152,7 +153,7 @@ impl Visitor<usize> for PArIRWriter {
                 size,
                 elements,
             } => {
-                for element in elements.iter().rev() {
+                for element in elements.iter() {
                     self.visit(element);
                 }
 
@@ -264,17 +265,54 @@ impl Visitor<usize> for PArIRWriter {
             }
 
             AstNode::FunctionCall { identifier, args } => {
+                let mut len = 0;
+
                 for arg in args.iter().rev() {
+                    if let AstNode::Expression { expr, .. } = arg.as_ref() {
+                        if let AstNode::Identifier { token } = expr.as_ref() {
+                            let symbol = self.find_symbol(token).unwrap();
+                            if let SymbolType::Array(_type, s) = symbol.symbol_type {
+                                len += s;
+                            }
+                        } else {
+                            len += 1;
+                        }
+                    }
+
                     self.visit(arg);
                 }
-                self.add_instruction(Instruction::PushValue(args.len()));
+
+                self.add_instruction(Instruction::PushValue(len));
                 self.add_instruction(Instruction::PushFunction(identifier.clone()));
                 self.add_instruction(Instruction::Call);
             }
 
             AstNode::Identifier { token } => {
-                if let Some(mem_loc) = self.get_memory_location(token) {
-                    return self.add_instruction(Instruction::PushFromStack(mem_loc));
+                let symbol = self.find_symbol(token).unwrap();
+
+                match symbol.symbol_type {
+                    SymbolType::Array(_, s) => {
+                        if let Some(mem_loc) = self.get_memory_location(token) {
+                            self.add_instruction(Instruction::PushValue(s));
+                            self.add_instruction(Instruction::PushArray(mem_loc));
+                            // workaround
+                            self.add_instruction(Instruction::PushValue(s)); // push s
+                            self.add_instruction(Instruction::NewFrame); // oframe
+                            self.add_instruction(Instruction::PushValue(s)); // push s
+                            self.add_instruction(Instruction::PushValue(0)); // push 0
+                            self.add_instruction(Instruction::PushValue(0)); // push 0
+                            self.add_instruction(Instruction::StoreArray);
+                            self.add_instruction(Instruction::PushValue(s));
+                            self.add_instruction(Instruction::PushArray(mem_loc));
+                            self.add_instruction(Instruction::PopFrame);
+                            // end workaround
+                        }
+                    }
+                    _ => {
+                        if let Some(mem_loc) = self.get_memory_location(token) {
+                            return self.add_instruction(Instruction::PushFromStack(mem_loc));
+                        }
+                    }
                 }
             }
 
@@ -307,19 +345,39 @@ impl Visitor<usize> for PArIRWriter {
             AstNode::FormalParam {
                 identifier,
                 param_type,
-            } => {
-                self.add_symbol(
-                    identifier,
-                    &SymbolType::Variable(
-                        self.current_scope().token_to_type(&param_type.span.lexeme),
-                    ),
-                    Some(MemLoc {
-                        stack_level: self.stack_level,
-                        frame_index: self.frame_index,
-                    }),
-                );
-                self.frame_index += 1;
-            }
+                index,
+            } => match index {
+                None => {
+                    self.add_symbol(
+                        identifier,
+                        &SymbolType::Variable(
+                            self.current_scope().token_to_type(&param_type.span.lexeme),
+                        ),
+                        Some(MemLoc {
+                            stack_level: self.stack_level,
+                            frame_index: self.frame_index,
+                        }),
+                    );
+                    self.frame_index += 1;
+                }
+                Some(index) => {
+                    let size: usize = index.span.lexeme.parse().unwrap();
+
+                    self.add_symbol(
+                        identifier,
+                        &SymbolType::Array(
+                            self.current_scope().token_to_type(&param_type.span.lexeme),
+                            size,
+                        ),
+                        Some(MemLoc {
+                            stack_level: self.stack_level,
+                            frame_index: self.frame_index,
+                        }),
+                    );
+
+                    self.frame_index += size;
+                }
+            },
 
             AstNode::Expression {
                 casted_type: _,
@@ -426,6 +484,7 @@ impl Visitor<usize> for PArIRWriter {
             }
 
             AstNode::ActualParams { params } => {
+                dbg!(params);
                 for param in params {
                     self.visit(param);
                 }

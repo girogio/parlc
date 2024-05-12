@@ -342,8 +342,12 @@ impl Visitor<Result<()>> for TreePrinter {
             AstNode::FormalParam {
                 identifier,
                 param_type,
+                index,
             } => {
                 print!("{}: {}", identifier.span.lexeme, param_type.span.lexeme);
+                if let Some(index) = index {
+                    print!("[{}]", index);
+                }
                 Ok(())
             }
 

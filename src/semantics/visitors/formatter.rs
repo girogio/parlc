@@ -46,8 +46,8 @@ impl Visitor<Result<()>> for Formatter {
 
             AstNode::VarDecArray {
                 identifier,
-                element_type,
-                size,
+                element_type: _,
+                size: _,
                 elements,
             } => {
                 write!(self.buff, "let {} = [", identifier.span.lexeme)?;
@@ -311,12 +311,18 @@ impl Visitor<Result<()>> for Formatter {
             AstNode::FormalParam {
                 identifier,
                 param_type,
+                index,
             } => {
                 write!(
                     self.buff,
                     "{}: {}",
                     identifier.span.lexeme, param_type.span.lexeme
                 )?;
+
+                if let Some(index) = index {
+                    write!(self.buff, "[{}]", index)?;
+                }
+
                 Ok(())
             }
 

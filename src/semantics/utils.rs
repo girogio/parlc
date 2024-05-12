@@ -47,7 +47,7 @@ impl Signature {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct MemLoc {
     pub stack_level: usize,
     pub frame_index: usize,

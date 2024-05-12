@@ -80,7 +80,7 @@ impl Display for Instruction {
             Instruction::FunctionLabel(name) => writeln!(f, ".{}", name),
             Instruction::PushValue(value) => writeln!(f, "push {}", value),
             Instruction::PushArray(mem_loc) => {
-                writeln!(f, "push [{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
+                writeln!(f, "pusha [{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
             }
             Instruction::PushFunction(name) => writeln!(f, "push .{}", name),
             Instruction::PushOffsetFromPC(offset) => {

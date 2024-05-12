@@ -90,6 +90,7 @@ pub enum AstNode {
     FormalParam {
         identifier: Token,
         param_type: Token,
+        index: Option<Token>,
     },
     FunctionDecl {
         identifier: Token,

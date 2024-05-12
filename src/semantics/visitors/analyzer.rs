@@ -486,13 +486,28 @@ impl Visitor<Type> for SemAnalyzer {
             AstNode::FormalParam {
                 identifier,
                 param_type,
+                index,
             } => {
-                self.add_symbol(
-                    identifier,
-                    &SymbolType::Variable(
-                        self.current_scope().token_to_type(&param_type.span.lexeme),
-                    ),
-                );
+                match index {
+                    None => {
+                        self.add_symbol(
+                            identifier,
+                            &SymbolType::Variable(
+                                self.current_scope().token_to_type(&param_type.span.lexeme),
+                            ),
+                        );
+                    }
+                    Some(index) => {
+                        let size: usize = index.span.lexeme.parse().unwrap();
+                        self.add_symbol(
+                            identifier,
+                            &SymbolType::Array(
+                                self.current_scope().token_to_type(&param_type.span.lexeme),
+                                size,
+                            ),
+                        );
+                    }
+                }
 
                 self.current_scope().token_to_type(&param_type.span.lexeme)
             }

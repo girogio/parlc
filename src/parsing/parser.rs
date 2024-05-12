@@ -192,17 +192,22 @@ impl Parser {
         self.consume_if(TokenKind::Colon)?;
         let param_type = self.consume_if(TokenKind::Type)?.clone();
 
-        if let TokenKind::LBracket = self.current_token().kind {
+        let index = if let TokenKind::LBracket = self.current_token().kind {
             self.consume_if(TokenKind::LBracket)?;
 
-            let index = self.consume_if(TokenKind::IntLiteral)?;
+            let index = self.consume_if(TokenKind::IntLiteral)?.clone();
 
             self.consume_if(TokenKind::RBracket)?;
-        }
+
+            Some(index)
+        } else {
+            None
+        };
 
         Ok(AstNode::FormalParam {
             identifier: identifier.clone(),
             param_type,
+            index,
         })
     }
 
