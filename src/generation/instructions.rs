@@ -28,7 +28,8 @@ pub enum Instruction {
     PushFunction(Token),
     PushOffsetFromPC(i32),
     PushOffsetFromOpS(MemLoc),
-    PushValue(usize),
+    PushIntValue(usize),
+    PushFloatValue(f64),
     Store,
     StoreArray,
     NoOperation,
@@ -78,7 +79,8 @@ impl Display for Instruction {
         match self {
             Instruction::Read => writeln!(f, "read"),
             Instruction::FunctionLabel(name) => writeln!(f, ".{}", name),
-            Instruction::PushValue(value) => writeln!(f, "push {}", value),
+            Instruction::PushIntValue(value) => writeln!(f, "push {}", value),
+            Instruction::PushFloatValue(value) => writeln!(f, "push {}", value),
             Instruction::PushArray(mem_loc) => {
                 writeln!(f, "pusha [{}:{}]", mem_loc.frame_index, mem_loc.stack_level)
             }
