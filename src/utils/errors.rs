@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::error;
+
 use thiserror::Error;
 
 use crate::{

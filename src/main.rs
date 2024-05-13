@@ -73,7 +73,7 @@ fn main() {
         Commands::Format { in_file } => in_file,
         Commands::Semantic { in_file } => in_file,
         Commands::Parse { in_file } => in_file,
-        Commands::Compile { in_file, output } => in_file,
+        Commands::Compile { in_file, .. } => in_file,
     };
 
     if !in_file.exists() {

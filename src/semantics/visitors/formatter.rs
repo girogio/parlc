@@ -46,11 +46,15 @@ impl Visitor<Result<()>> for Formatter {
 
             AstNode::VarDecArray {
                 identifier,
-                element_type: _,
+                element_type,
                 size: _,
                 elements,
             } => {
-                write!(self.buff, "let {} = [", identifier.span.lexeme)?;
+                write!(
+                    self.buff,
+                    "let {}: {}[] = [",
+                    identifier.span.lexeme, element_type.span.lexeme
+                )?;
                 for (i, element) in elements.iter().enumerate() {
                     self.visit(element)?;
                     if i != elements.len() - 1 {
