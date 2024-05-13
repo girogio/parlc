@@ -104,6 +104,7 @@ pub enum AstNode {
     Assignment {
         identifier: Token,
         expression: Ast,
+        index: Option<Ast>,
     },
     EndOfFile,
     PadClear {

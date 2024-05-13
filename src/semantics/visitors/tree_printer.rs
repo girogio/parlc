@@ -135,6 +135,7 @@ impl Visitor<Result<()>> for TreePrinter {
 
             AstNode::Assignment {
                 identifier,
+                index,
                 expression,
             } => {
                 println!("Assignment");
@@ -144,6 +145,13 @@ impl Visitor<Result<()>> for TreePrinter {
                 self.print_tab();
                 print!("Expression: ");
                 self.visit(expression)?;
+                println!();
+                if let Some(index) = index {
+                    self.print_tab();
+                    print!("Index: ");
+                    self.visit(index)?;
+                    println!();
+                }
                 self.tab_level -= 1;
                 Ok(())
             }
@@ -360,15 +368,17 @@ impl Visitor<Result<()>> for TreePrinter {
             AstNode::FunctionCall { identifier, args } => {
                 print!("{}(", identifier.span.lexeme);
 
-                let (args, last) = args.split_at(args.len() - 1);
+                if !args.is_empty() {
+                    let (args, last) = args.split_at(args.len() - 1);
 
-                for arg in args {
-                    self.visit(arg)?;
-                    print!(", ");
-                }
+                    for arg in args {
+                        self.visit(arg)?;
+                        print!(", ");
+                    }
 
-                if let Some(last) = last.first() {
-                    self.visit(last)?;
+                    if let Some(last) = last.first() {
+                        self.visit(last)?;
+                    }
                 }
 
                 print!(")");

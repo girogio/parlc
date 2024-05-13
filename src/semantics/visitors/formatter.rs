@@ -109,9 +109,18 @@ impl Visitor<Result<()>> for Formatter {
 
             AstNode::Assignment {
                 identifier,
+                index,
                 expression,
             } => {
-                write!(self.buff, "{} = ", identifier.span.lexeme)?;
+                write!(self.buff, "{}", identifier.span.lexeme)?;
+                if let Some(index) = index {
+                    write!(self.buff, "[")?;
+                    self.visit(index)?;
+                    write!(self.buff, "]")?;
+                }
+
+                write!(self.buff, " = ")?;
+
                 self.visit(expression)?;
                 Ok(())
             }

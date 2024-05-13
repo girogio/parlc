@@ -392,13 +392,21 @@ impl Visitor<usize> for PArIRWriter {
 
             AstNode::Assignment {
                 identifier,
+                index,
                 expression,
             } => {
                 self.visit(expression);
                 let mem_loc = self.get_memory_location(identifier);
 
                 if let Some(mem_loc) = mem_loc {
+                    if let Some(index) = index {
+                        self.visit(index);
+                    }
+
                     self.add_instruction(Instruction::PushIntValue(mem_loc.frame_index));
+                    if index.is_some() {
+                        self.add_instruction(Instruction::Add);
+                    }
                     self.add_instruction(Instruction::PushIntValue(mem_loc.stack_level));
                     self.add_instruction(Instruction::Store);
                 }
@@ -483,7 +491,6 @@ impl Visitor<usize> for PArIRWriter {
             }
 
             AstNode::ActualParams { params } => {
-                dbg!(params);
                 for param in params {
                     self.visit(param);
                 }

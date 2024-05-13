@@ -525,6 +525,7 @@ impl Visitor<Type> for SemAnalyzer {
 
             AstNode::Assignment {
                 identifier,
+                index,
                 expression,
             } => {
                 if self.inside_function {
@@ -538,6 +539,18 @@ impl Visitor<Type> for SemAnalyzer {
                 }
 
                 let identifier_type = self.get_symbol_type(identifier);
+
+                if let Some(index) = index {
+                    let index_type = self.visit(index);
+
+                    if index_type != Type::Int {
+                        self.results.add_error(SemanticError::ArrayIndexNotInt(
+                            identifier.clone(),
+                            index_type,
+                        ));
+                    }
+                }
+
                 let expression_type = self.visit(expression);
 
                 self.assert_type(&identifier.span.lexeme, &identifier_type, &expression_type)

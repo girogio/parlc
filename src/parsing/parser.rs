@@ -117,10 +117,10 @@ impl Parser {
             TokenKind::Let => self.parse_var_decl(),
             TokenKind::Identifier => match self.peek_token() {
                 Some(tok) => match tok.kind {
-                    TokenKind::Equals => {
-                        let a = self.parse_assignment_statement();
+                    TokenKind::LBracket | TokenKind::Equals => {
+                        let assignment_stmnt = self.parse_assignment_statement();
                         self.consume_if(TokenKind::Semicolon)?;
-                        a
+                        assignment_stmnt
                     }
                     _ => self.parse_identifier(),
                 },
@@ -716,12 +716,27 @@ impl Parser {
 
     fn parse_assignment_statement(&mut self) -> Result<AstNode> {
         let identifier = self.consume_if(TokenKind::Identifier)?.clone();
-        self.consume_if(TokenKind::Equals)?;
-        let expression = self.parse_expression()?;
-        Ok(AstNode::Assignment {
-            identifier: identifier.clone(),
-            expression: Box::new(expression),
-        })
+
+        if let TokenKind::LBracket = self.current_token_kind() {
+            self.consume();
+            let index = self.parse_expression()?;
+            self.consume_if(TokenKind::RBracket)?;
+            self.consume_if(TokenKind::Equals)?;
+            let expression = self.parse_expression()?;
+            Ok(AstNode::Assignment {
+                identifier: identifier.clone(),
+                index: Some(Box::new(index)),
+                expression: Box::new(expression),
+            })
+        } else {
+            self.consume_if(TokenKind::Equals)?;
+            let expression = self.parse_expression()?;
+            Ok(AstNode::Assignment {
+                identifier: identifier.clone(),
+                index: None,
+                expression: Box::new(expression),
+            })
+        }
     }
 
     fn parse_clear_statement(&mut self) -> Result<AstNode> {

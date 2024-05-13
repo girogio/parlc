@@ -72,6 +72,8 @@ pub enum SemanticError {
     VarUndefinedInFunc(Token),
     #[error("Array access out of bounds: '{}[{}]' has a size of {}.", .0.span.lexeme, .1, .2)]
     ArrayOverflow(Token, Type, usize, usize),
+    #[error("Array {} has a non-integer index. Found: {:?}.", .0.span.lexeme, .1)]
+    ArrayIndexNotInt(Token, Type),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
