@@ -18,7 +18,7 @@ Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
   - [x] Scope checking
   - [x] Type checking
 - [x] Assembly-like code generation
-- [ ] Array support
+- [x] Array support
 
 ## Features
 

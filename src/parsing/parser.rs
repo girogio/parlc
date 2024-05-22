@@ -631,18 +631,29 @@ impl Parser {
             }
             TokenKind::LBracket => {
                 self.consume();
+
+                let declared_size: usize = self
+                    .consume_if(TokenKind::IntLiteral)?
+                    .clone()
+                    .span
+                    .lexeme
+                    .parse()
+                    .unwrap();
+
                 self.consume_if(TokenKind::RBracket)?;
                 self.consume_if(TokenKind::Equals)?;
                 self.consume_if(TokenKind::LBracket)?;
+
                 let elements = self.parse_array_elements()?;
-                let size = elements.len();
+
                 self.consume_if(TokenKind::RBracket)?;
                 self.consume_if(TokenKind::Semicolon)?;
+
                 Ok(AstNode::VarDecArray {
                     identifier,
                     element_type,
-                    size,
                     elements,
+                    size: declared_size,
                 })
             }
             _ => Err(ParseError::UnexpectedTokenList {
