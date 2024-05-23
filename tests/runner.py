@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import subprocess
-from os import path
+import os
 from time import sleep
+import tempfile as tmp
 from typing import Optional
 
 from playwright.sync_api import sync_playwright
@@ -10,14 +11,12 @@ from playwright.sync_api import sync_playwright
 
 class Runner:
     vm_url = "http://16.170.124.96:3001/"
-    source_path = ""
+    source_path: str
+    source: str
 
-    def __init__(self, source_path: str):
-        if not path.exists(source_path):
-            print(f"File {source_path} does not exist")
-            exit(1)
-
+    def __init__(self, source, source_path: str = ""):
         self.source_path = source_path
+        self.source = source.replace("\n", " ")
 
     def compile(self) -> Optional[str]:
         """
@@ -25,9 +24,30 @@ class Runner:
 
         Returns the compiled program as a string.
         """
-        compiler = subprocess.run(
-            ["cargo", "run", "compile", self.source_path], stdout=subprocess.PIPE
-        )
+
+        if not self.source and not self.source_path:
+            raise ValueError("Either source or source_path must be provided.")
+
+        if self.source and not self.source_path:
+            self.source_path = "/tmp/program.parl"
+
+            with open(self.source_path, "w") as f:
+                f.write(self.source)
+
+            compiler = subprocess.run(
+                ["cargo", "run", "compile", self.source_path], stdout=subprocess.PIPE
+            )
+
+            if os.path.exists(self.source_path):
+                os.remove(self.source_path)
+
+        elif self.source_path and not self.source:
+            compiler = subprocess.run(
+                ["cargo", "run", "compile", self.source_path], stdout=subprocess.PIPE
+            )
+
+        else:
+            raise ValueError("Only one of source or source_path must be provided.")
 
         if compiler.returncode != 0:
             print(compiler.stdout.decode())
@@ -41,22 +61,17 @@ class Runner:
 
         Returns a list containing the lines outputted by the log area in the VM.
         """
-        compiler = subprocess.run(
-            ["cargo", "run", "compile", self.source_path], stdout=subprocess.PIPE
-        )
+        if not self.source and not self.source_path:
+            raise ValueError("Either source or source_path must be provided.")
 
-        if compiler.returncode != 0:
-            print(compiler.stdout.decode())
-            return None
-
-        program = compiler.stdout.decode()
+        parir = self.compile()
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.goto(self.vm_url)
             element = page.query_selector("#pad_program")
-            element.fill(program)
+            element.fill(parir)
             element = page.query_selector("#RunBtn")
             element.click()
 
