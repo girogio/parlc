@@ -35,7 +35,9 @@ class Runner:
                 f.write(self.source)
 
             compiler = subprocess.run(
-                ["cargo", "run", "compile", self.source_path], stdout=subprocess.PIPE
+                ["cargo", "run", "compile", self.source_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
 
             if os.path.exists(self.source_path):
@@ -43,7 +45,9 @@ class Runner:
 
         elif self.source_path and not self.source:
             compiler = subprocess.run(
-                ["cargo", "run", "compile", self.source_path], stdout=subprocess.PIPE
+                ["cargo", "run", "compile", self.source_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
         else:
             raise ValueError("Only one of source or source_path must be provided.")

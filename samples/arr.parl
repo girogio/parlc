@@ -1,27 +1,14 @@
-fun array_test(arr: int[5]) -> bool {
-	let arr_len: int = 5;
+fun test(x: int) -> bool {
+	let x: int = 23 ; 
 
-	for (let i: int = 0; i < arr_len; i = i + 1) {
-		__print arr[i];
+	if (x <= 50) {
+		return false;
+	} else {
+		return true;
 	}
 
-	arr[0] = 10;
+	return false;
 
-	__print arr;
-
-	return true;
 }
 
-fun custom_draw_box(c: colour, x1: int, y1: int, x2: int, y2: int) -> bool {
-	__print c;
-	__print x1;
-	__print y1;
-	__print x2;
-	__print y2;
-
-	return true;
-}
-
-let some_int_arr: int[5] = [1, 2, 3, 4, 5];
-
-__print array_test(some_int_arr);
+__print test(23);

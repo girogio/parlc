@@ -1,0 +1,140 @@
+\documentclass{article}
+
+\usepackage{subcaption}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{parskip}
+\usepackage{listings-rust}
+\usepackage[scale=0.9]{sourcecodepro}
+\usepackage{bytefield}
+\usepackage{tikz}
+\usepackage{adjustbox}
+
+
+\usetikzlibrary{arrows,calc,positioning}
+\tikzstyle{intt}=[draw,text centered,minimum size=6em,text width=5.25cm,text height=0.34cm]
+\tikzstyle{intl}=[draw,text centered,minimum size=2em,text width=2.75cm,text height=0.34cm]
+\tikzstyle{int}=[draw,minimum size=2.5em,text centered,text width=3.5cm]
+\tikzstyle{intg}=[draw,minimum size=3em,text centered,text width=6.cm]
+\tikzstyle{sum}=[draw,shape=circle,inner sep=2pt,text centered,node distance=3.5cm]
+\tikzstyle{summ}=[drawshape=circle,inner sep=4pt,text centered,node distance=3.cm]
+
+% a4 marigns
+\usepackage[a4paper, total={6in, 8in}]{geometry}
+
+\tcbset {
+  base/.style={
+    arc=0mm,
+    bottomtitle=0.5mm,
+    boxsep=1mm,
+    boxrule=0mm,
+    colbacktitle=black!10!white,
+    coltitle=black,
+    fonttitle=\bfseries,
+    left=2.5mm,
+    leftrule=1mm,
+    right=3.5mm,
+    title={#1},
+    toptitle=0.75mm,
+  },
+    sub/.style={
+        base={#1},
+        colframe=black!30!white,
+        top=-0.5mm,
+        bottom=-0.5mm,
+    },
+}
+
+\definecolor{brandblue}{rgb}{0.34, 0.7, 1}
+\newtcolorbox{mainbox}[1]{
+  colframe=brandblue,
+  base={#1}
+}
+
+\newtcolorbox{subbox}[1]{
+  colframe=black!30!white,
+  sub={#1}
+}
+
+% warning box
+\newtcolorbox{warningbox}[1]{
+  colframe=red,
+  base={#1}
+}
+
+\usepackage{lato}
+\renewcommand*\familydefault{\sfdefault}
+\newcommand{\code}[1]{\texttt{#1}}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Giorgio Grigolo}
+\lhead{CPS 2000: Compiler Theory and Practice}
+\rfoot{Page \thepage}
+
+\definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
+\definecolor{greencomments}{rgb}{0, 0.5, 0}
+\definecolor{redstrings}{rgb}{0.9, 0, 0}
+\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
+
+
+\lstset{
+    commentstyle=\color{greencomments},
+    keywordstyle=\color{bluekeywords},
+    stringstyle=\color{redstrings},
+    numberstyle=\color{graynumbers},
+    % breaklines=true,
+    basicstyle=\ttfamily,
+    language=Rust,
+    xleftmargin=.3\textwidth, xrightmargin=.3\textwidth,
+    captionpos=b
+}
+
+\title{Compiling \code{ParL} to \code{PArIR} in Rust \\{\normalsize A report on the Rust
+compiler for the \code{ParL} programming language.}}
+\author{Giorgio Grigolo - 0418803L}
+\date{}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=blue,
+}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\begin{abstract}
+    In this report, we discuss the implementation details of a
+    compiler for \code{ParL}, an expression-based strongly typed programming
+    langauge. Code written in \code{ParL} is compiled to \code{PArIR}, which is
+    the proprietary assembly-like language that is used to drive the
+    programmable pixel art displays designed by the company \code{PArDis}. The
+    \code{ParL} compiler was written in Rust, due to its strong type system and
+    performance characteristics. It nwas implemented incrementally, as
+    to ensure each component can be run in isolation, and is working correctly
+    before moving on to the next one.
+\end{abstract}
+
+\newpage
+
+\section{Lexical Analysis}
+
+The first step in the compilation process is the lexical analysis. A recurring
+theme in the implementation of this compiler is the use of \textit{abstraction}
+to achieve \textit{modularity}.
+
+
+
+
+
+\end{document}
