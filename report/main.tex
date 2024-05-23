@@ -1,6 +1,9 @@
 \documentclass{article}
 
 \usepackage{subcaption}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[backend=bibtex]{biblatex}
 \usepackage{tikz}
 \usepackage{xcolor}
 \usepackage{multicol}
@@ -12,6 +15,8 @@
 \usepackage{bytefield}
 \usepackage{tikz}
 \usepackage{adjustbox}
+
+\addbibresource{ref}
 
 
 \usetikzlibrary{arrows,calc,positioning}
@@ -50,8 +55,9 @@
 
 \definecolor{brandblue}{rgb}{0.34, 0.7, 1}
 \newtcolorbox{mainbox}[1]{
-  colframe=brandblue,
-  base={#1}
+    nobeforeafter,
+    colframe=brandblue,
+    base={#1}
 }
 
 \newtcolorbox{subbox}[1]{
@@ -59,7 +65,7 @@
   sub={#1}
 }
 
-% warning box
+% warning mainbox
 \newtcolorbox{warningbox}[1]{
   colframe=red,
   base={#1}
@@ -127,14 +133,40 @@ compiler for the \code{ParL} programming language.}}
 
 \newpage
 
+\section{Project Structure}
+
 \section{Lexical Analysis}
 
 The first step in the compilation process is the lexical analysis. A recurring
 theme in the implementation of this compiler is the use of \textit{abstraction}
-to achieve \textit{modularity}.
+to achieve \textit{modularity}, and simplify the implementation of the
+subsequent stages. The lexical analysis is no exception to this rule.
+
+At the highest level, the lexical analysis is implemented as a \code{Lexer}
+struct, which is responsible for reading the input source code, and producing a
+stream (\textit{or vector}) of tokens.
+
+We shall start by defining the \code{Token} struct, which represents the different
+types of tokens that can be found in a \code{ParL} program. The \code{Token}
+enum is defined as follows:
+
+\begin{mainbox}{}
+    \begin{lstlisting}[language=Rust]
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: TextSpan,
+}
+    \end{lstlisting}
+\end{mainbox}
 
 
 
+\cite{engineering-a-compiler}
+
+
+\newpage
+
+\printbibliography
 
 
 \end{document}
