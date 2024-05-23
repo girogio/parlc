@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import subprocess
 import os
-from time import sleep
+import subprocess
 import tempfile as tmp
+from time import sleep
 from typing import Optional
 
 from playwright.sync_api import sync_playwright
@@ -18,7 +18,7 @@ class Runner:
         self.source_path = source_path
         self.source = source.replace("\n", " ")
 
-    def compile(self) -> Optional[str]:
+    def compile(self) -> str:
         """
         Compile the program.
 
@@ -45,17 +45,16 @@ class Runner:
             compiler = subprocess.run(
                 ["cargo", "run", "compile", self.source_path], stdout=subprocess.PIPE
             )
-
         else:
             raise ValueError("Only one of source or source_path must be provided.")
 
         if compiler.returncode != 0:
             print(compiler.stdout.decode())
-            return None
+            raise ValueError("Compilation failed.")
 
         return compiler.stdout.decode()
 
-    def compile_and_run(self) -> Optional[list[str]]:
+    def compile_and_run(self) -> tuple[str, list[str]]:
         """
         Compile and run the program on the VM.
 
@@ -79,7 +78,7 @@ class Runner:
 
             logs_area = page.query_selector("#logsarea")
 
-            return list(
+            return parir, list(
                 map(
                     lambda x: x.split("-- ")[1], logs_area.inner_text().splitlines()[1:]
                 )

@@ -1,5 +1,19 @@
-let a: int[] = [1, 2, 3, 4, 5];
+let a: int = 5;
+let b: colour = #000000;
+let c: float  = 1.23;
 
-for (let i: int = 0; i < 5; i = i + 1) {
-    __print a[i];
+let d: int[5] = [1, 2, 3, 4, 5];
+
+__print a;
+__print b;
+__print c;
+__print d;
+
+// We have variable scope-shadowing here!
+{
+    let a: int = 1;
+    __print a; // should be 1
 }
+
+// should be 5
+__print a;
