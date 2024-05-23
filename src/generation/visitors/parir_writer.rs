@@ -303,7 +303,10 @@ impl Visitor<usize> for PArIRWriter {
                             self.add_instruction(Instruction::PushIntValue(0)); // push 0
                             self.add_instruction(Instruction::StoreArray);
                             self.add_instruction(Instruction::PushIntValue(s));
-                            self.add_instruction(Instruction::PushArray(mem_loc));
+                            self.add_instruction(Instruction::PushArray(MemLoc {
+                                stack_level: 0,
+                                frame_index: 0,
+                            }));
                             self.add_instruction(Instruction::PopFrame);
                             // end workaround
                         }
