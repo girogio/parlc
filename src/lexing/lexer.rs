@@ -31,7 +31,7 @@ impl<B: Stream + Clone> Lexer<B> {
                     .add_category('g'..='z', Category::Letter)
                     .add_category('G'..='Z', Category::Letter)
                     .add_category('0'..='9', Category::Digit)
-                    .add_multiple_single_final_character_symbols(vec![
+                    .add_final_character_symbols(vec![
                         ('\n', Category::Newline, TokenKind::Newline),
                         ('{', Category::LBrace, TokenKind::LBrace),
                         ('}', Category::RBrace, TokenKind::RBrace),

@@ -164,7 +164,7 @@ impl DfsaBuilder {
         Transition::new(self)
     }
 
-    pub fn add_single_final_character_symbol(
+    fn add_final_character_symbol(
         &mut self,
         character: char,
         category: Category,
@@ -179,19 +179,19 @@ impl DfsaBuilder {
         self
     }
 
-    pub fn add_multiple_single_final_character_symbols(
+    pub fn add_final_character_symbols(
         &mut self,
         things_to_add: Vec<(char, Category, TokenKind)>,
     ) -> &mut Self {
         for (character, category, token_kind) in things_to_add {
-            self.add_single_final_character_symbol(character, category, token_kind);
+            self.add_final_character_symbol(character, category, token_kind);
         }
 
         self
     }
 
     pub fn add_comment_functionality(&mut self) -> &mut Self {
-        self.add_single_final_character_symbol('\n', Category::Newline, TokenKind::Newline)
+        self.add_final_character_symbol('\n', Category::Newline, TokenKind::Newline)
             // Add required characters for comment lexing
             .add_category(['\0'], Category::Eof)
             .add_category(['/'], Category::Slash)
@@ -424,7 +424,7 @@ mod tests {
             .add_category('A'..='Z', Category::Letter)
             .add_category('0'..='9', Category::Digit)
             .add_category(['_'], Category::Underscore)
-            .add_multiple_single_final_character_symbols(vec![
+            .add_final_character_symbols(vec![
                 ('\n', Category::Newline, TokenKind::Newline),
                 ('{', Category::LBrace, TokenKind::LBrace),
                 ('}', Category::RBrace, TokenKind::RBrace),

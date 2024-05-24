@@ -5,7 +5,7 @@ use super::dfsa::{Category, DfsaBuilder};
 #[derive(Debug)]
 pub struct Transition<'a> {
     dfsa_builder: &'a mut DfsaBuilder,
-    current: i32,
+    current_state: i32,
     transitions: Vec<((Category, i32), i32)>,
     final_state_token: Vec<(i32, TokenKind)>,
 }
@@ -14,7 +14,7 @@ impl<'a> Transition<'a> {
     pub fn new(dfsa_builder: &'a mut DfsaBuilder) -> Self {
         Transition {
             dfsa_builder,
-            current: 0,
+            current_state: 0,
             transitions: vec![],
             final_state_token: vec![],
         }
@@ -25,15 +25,15 @@ impl<'a> Transition<'a> {
             self.transitions.push((
                 (
                     cat,
-                    match self.current {
+                    match self.current_state {
                         0 => 0,
-                        _ => self.current + self.dfsa_builder.max_state - 1,
+                        _ => self.current_state + self.dfsa_builder.max_state - 1,
                     },
                 ),
-                self.dfsa_builder.max_state + self.current,
+                self.dfsa_builder.max_state + self.current_state,
             ));
         }
-        self.current += 1;
+        self.current_state += 1;
         self
     }
 
@@ -55,7 +55,7 @@ impl<'a> Transition<'a> {
 
     pub fn goes_to(&mut self, token: TokenKind) -> &mut Self {
         self.final_state_token
-            .push((self.current + self.dfsa_builder.max_state - 1, token));
+            .push((self.current_state + self.dfsa_builder.max_state - 1, token));
         self
     }
 
@@ -78,7 +78,7 @@ impl<'a> Transition<'a> {
             self.dfsa_builder.accepted_states.push(*state);
         }
 
-        self.dfsa_builder.max_state += self.current - 1;
+        self.dfsa_builder.max_state += self.current_state - 1;
 
         self.dfsa_builder
     }
