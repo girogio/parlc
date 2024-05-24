@@ -8,6 +8,7 @@
 \usepackage{xcolor}
 \usepackage{multicol}
 \usepackage{listings}
+\usepackage{csquotes}
 \usepackage[most]{tcolorbox}
 \usepackage{parskip}
 \usepackage{listings-rust}
@@ -15,19 +16,13 @@
 \usepackage{bytefield}
 \usepackage{tikz}
 \usepackage{adjustbox}
+\usepackage{float}
 
 \addbibresource{ref}
 
 
-\usetikzlibrary{arrows,calc,positioning}
-\tikzstyle{intt}=[draw,text centered,minimum size=6em,text width=5.25cm,text height=0.34cm]
-\tikzstyle{intl}=[draw,text centered,minimum size=2em,text width=2.75cm,text height=0.34cm]
-\tikzstyle{int}=[draw,minimum size=2.5em,text centered,text width=3.5cm]
-\tikzstyle{intg}=[draw,minimum size=3em,text centered,text width=6.cm]
-\tikzstyle{sum}=[draw,shape=circle,inner sep=2pt,text centered,node distance=3.5cm]
-\tikzstyle{summ}=[drawshape=circle,inner sep=4pt,text centered,node distance=3.cm]
+\usetikzlibrary{arrows, automata, positioning}
 
-% a4 marigns
 \usepackage[a4paper, total={6in, 8in}]{geometry}
 
 \tcbset {
@@ -146,12 +141,12 @@ At the highest level, the lexical analysis is implemented as a \code{Lexer}
 struct, which is responsible for reading the input source code, and producing a
 stream (\textit{or vector}) of tokens.
 
-We shall start by defining the \code{Token} struct, which represents the different
-types of tokens that can be found in a \code{ParL} program. The \code{Token}
-enum is defined as follows:
+We shall start by defining the \code{Token} struct, which is a wrapper for the
+different types of tokens that can be found in a \code{ParL} program. The
+\code{Token} enum is defined as follows:
 
 \begin{mainbox}{}
-    \begin{lstlisting}[language=Rust]
+    \begin{lstlisting}
 pub struct Token {
     pub kind: TokenKind,
     pub span: TextSpan,
@@ -159,9 +154,209 @@ pub struct Token {
     \end{lstlisting}
 \end{mainbox}
 
+The \code{TextSpan} struct is mainly used to store the lexeme of the token, and
+its poosition in the source code, which is useful for error reporting. The
+\code{TokenKind} is just an enum, which represents the different types of tokens, such as \code{Identifier},
+\code{IntegerLiteral}, \code{If} and many more.
 
 
-\cite{engineering-a-compiler}
+The actual \code{Lexer} struct is defined as follows:
+
+\begin{mainbox}{}
+    \begin{lstlisting}[caption={The \code{Lexer} struct.}]
+pub struct Lexer<B: Stream> {
+    buffer: B,
+    dfsa: Dfsa,
+}
+    \end{lstlisting}
+\end{mainbox}
+
+The \code{Lexer} struct is generic over the type \code{B}, which is a trait that
+abstracts out the file reading logic from the lexer. This is useful for testing
+purposes, as we can easily mock the file reading logic, and test the lexer in
+isolation. It is also useful in case the lexer is to be improved in the future,
+by using more efficient file reading logic, such as the double buffering
+technique.
+
+The functions that a struct implementing the \code{Stream} trait, which can be
+seen in Listing \ref{lst:stream-trait}, are very similar to the ones proposed in
+the textbook \textit{Engineering a Compiler} \cite{engineering-a-compiler}, as the
+lexer algorithm also follows the pseudo-code provided in the book.
+
+\begin{mainbox}{}
+    \lstset{xleftmargin=1cm}
+    \begin{lstlisting}[language=Rust,caption={The \code{Stream} trait.}]
+pub trait Stream {
+    fn new(input: &str, path: &Path) -> Self;
+    fn rollback(&mut self);
+    fn next_char(&mut self) -> char;
+    fn get_line(&self) -> usize;
+    fn get_col(&self) -> usize;
+    fn get_input_pointer(&self) -> usize;
+    fn is_eof(&self) -> bool;
+    fn current_char(&self) -> char;
+    fn file_path(&self) -> &str;
+}
+    \end{lstlisting}
+    \label{lst:stream-trait}
+\end{mainbox}
+
+Of course, the \code{Lexer} that as implemented in the project, was required to
+be a based on a finite state automaton, with a character table. Initially, the
+DFSA was implemented manually, but as the number of tokens (and hence states)
+grew it was getting harder to keep track of the transitions.
+
+To solve this problem, together with the \code{Dfsa} struct, a
+\code{DfsaBuilder} struct was implemented, which is responsible for dynamically
+building the DFSA from a number of chained function calls. I will describe each
+method of the \code{DfsaBuilder} struct, and how it is used, by demonstrating
+the effect as it is run incrementally on an empty DFSA.
+
+\newpage
+
+\subsection{DFSA Builder}
+
+The \code{DfsaBuilder} struct is defined as follows:
+
+\begin{mainbox}{}
+    \lstset{xleftmargin=0cm}
+    \begin{lstlisting}
+pub struct DfsaBuilder {
+    pub max_state: i32,
+    pub accepted_states: Vec<i32>,
+    pub character_table: HashMap<char, Category>,
+    pub transition_table: HashMap<(i32, Category), i32>,
+    pub state_to_token: HashMap<i32, TokenKind>,
+}
+    \end{lstlisting}
+\end{mainbox}
+
+Clearly, we can see that states are represented by \code{i32} integers, and
+transitions are represented by a tuple of the current state and the category of
+the character that is being read. The category of a character is defined by the
+\code{Category} enum, containing variants such as \code{Digit}, \code{Letter},
+\code{Whitespace}, and many more.
+
+
+The first function is $$\code{add\_category(\&mut self, range: Vec<char>,
+        category: Category)}$$  This method is used to add multiple characters to the
+same category.  For example, we can add all the digits to the \code{Digit}
+category, by calling \code{add\_category('0'..='9', Category::Digit)}. Note that
+in the actual implementation, the \code{range} parameter is actually a more
+complex type, but for simplicity's sake it can be thought of a vector. It
+actually accepts anything that can be casted to an iterator, as to allow for
+more convenient usage. This is done using Rust's built in ranges like
+\code{'0'..='9'}. As it does not have any effect on the DFSA, but only modifies
+the character table, a DFSA will not be shown.
+
+Then, we have $$\code{add\_transition(\&mut self, state: i32, category:
+        Category, next\_state: i32)}$$ This method is used to add a transition from one
+state to another, given a category. For example, we can add a transition from
+state 0 to state 1, when reading a digit, by calling \code{add\_transition(0,
+    Category::Digit, 1)}. Note that it doesn't automatically make the state 1 an
+accepted state, as it is only responsible for adding transitions.
+
+
+\begin{figure}[H]
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[state, initial] (0) {0};
+        \end{tikzpicture}
+        \caption{The DFSA before adding calling \code{add\_transition}}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[state, initial] (0) {0};
+            \node[state, right of=0, xshift=2cm] (1) {1};
+            \draw (0) edge[above, ->] node{Digit} (1);
+        \end{tikzpicture}
+
+        \caption{The DFSA after adding calling \code{add\_transition}}
+    \end{subfigure}
+\end{figure}
+
+The next function is $$\code{auto\_add\_transition(\&mut self, state: i32,
+        category: Category}$$
+$$\code{to: Option<i32>, token\_kind: TokenKind) -> i32}$$
+
+This method is used used to add a transition from \code{(state, category)} to
+the state \code{to}. Since \code{to} is an \code{Option}, it can be \code{None},
+in which case the destination state is automatically set to the next state. This
+is useful for adding transitions to the same state, as well as constructing
+slightly more complicated sequences of transitions, say for tokenizing a float.
+The \code{token\_kind} parameter is used to set the token kind of the state, if
+it is an accepted state. Similarly to the \code{to} parameter, it can be
+\code{None}, in which case the destination state is not an accepted state.  We
+also note that this function returns an integer, which is the state that was just added, for
+further use in subsequent calls.
+
+If we run \code{auto\_add\_transition(2, Category::Digit, None, Category::Float)}, the resultant DFSA will be as follows:
+
+\begin{figure}[H]
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[state, initial] (0) {0};
+            \node[state, right of=0, xshift=2cm] (1) {1};
+            \node[state, below of=1, yshift=-1cm] (2) {2};
+
+            \draw (0) edge[above, ->] node{Digit} (1)
+            (1) edge[right, ->] node{Period} (2);
+        \end{tikzpicture}
+        \caption{Before running the function}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[state, initial] (0) {0};
+            \node[state, right of=0, xshift=2cm] (1) {1};
+            \node[state, below of=1, yshift=-1cm] (2) {2};
+            \node[state, accepting, below of=0, yshift=-1cm] (3) {3};
+
+            \draw (0) edge[above, ->] node{Digit} (1)
+            (1) edge[right, ->] node{Period} (2)
+            (2) edge[below, ->] node{Digit} (3);
+        \end{tikzpicture}
+        \caption{After running the function}
+    \end{subfigure}
+\end{figure}
+
+If we run \code{auto\_add\_transition(2, Category::Digit, Some(5), None)}, the
+resultant DFSA will be as follows, meaning we just want to map to an auxiliary
+state that doesn't correspond to any token kind, (and thus is not an accepted
+state), the following is the resulting DFSA.
+
+\begin{figure}[H]
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[state, initial] (0) {0};
+            \node[state, right of=0, xshift=2cm] (1) {1};
+            \node[state, below of=1, yshift=-1cm] (2) {2};
+
+            \draw (0) edge[above, ->] node{Digit} (1)
+            (1) edge[right, ->] node{Period} (2);
+        \end{tikzpicture}
+    \end{subfigure}
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \begin{tikzpicture}
+            \node[state, initial] (0) {0};
+            \node[state, right of=0, xshift=2cm] (1) {1};
+            \node[state, below of=1, yshift=-1cm] (2) {2};
+            \node[state, below of=0, yshift=-1cm] (3) {5};
+
+            \draw (0) edge[above, ->] node{Digit} (1)
+            (1) edge[right, ->] node{Period} (2)
+            (2) edge[below, ->] node{Digit} (3);
+
+        \end{tikzpicture}
+    \end{subfigure}
+\end{figure}
+
+
 
 
 \newpage

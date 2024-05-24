@@ -10,7 +10,7 @@ use crate::{
 
 use super::dfsa::{Category, Dfsa, DfsaBuilder};
 
-pub struct Lexer<B: Stream + Clone> {
+pub struct Lexer<B: Stream> {
     buffer: B,
     dfsa: Dfsa,
 }

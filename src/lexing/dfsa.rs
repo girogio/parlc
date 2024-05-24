@@ -137,15 +137,8 @@ impl DfsaBuilder {
         self
     }
 
-    pub fn add_transition<T: IntoIterator<Item = Category>>(
-        &mut self,
-        state: i32,
-        category: T,
-        next_state: i32,
-    ) -> &mut Self {
-        category.into_iter().for_each(|cat| {
-            self.transition_table.insert((state, cat), next_state);
-        });
+    pub fn add_transition(&mut self, state: i32, category: Category, next_state: i32) -> &mut Self {
+        self.transition_table.insert((state, category), next_state);
         self
     }
 
@@ -181,7 +174,7 @@ impl DfsaBuilder {
         self.character_table.insert(character, category);
         self.accepted_states.push(self.max_state);
         self.state_to_token.insert(self.max_state, token_kind);
-        self.add_transition(0, [category], self.max_state);
+        self.add_transition(0, category, self.max_state);
 
         self
     }

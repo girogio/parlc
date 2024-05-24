@@ -6,9 +6,7 @@ const EOF: char = 0 as char;
 // const N: usize = N2 / 2;
 
 pub trait Stream {
-    fn new(input: &str, path: &Path) -> Self
-    where
-        Self: Sized;
+    fn new(input: &str, path: &Path) -> Self;
     fn rollback(&mut self);
     fn next_char(&mut self) -> char;
     fn get_line(&self) -> usize;
