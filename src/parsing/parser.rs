@@ -398,6 +398,7 @@ impl Parser {
             TokenKind::As => {
                 self.consume();
                 let kind = self.consume_if(TokenKind::Type)?.clone();
+
                 Ok(AstNode::Expression {
                     casted_type: Some(kind),
                     expr: Box::new(left),
@@ -429,15 +430,15 @@ impl Parser {
 
     fn parse_equality(&mut self) -> Result<AstNode> {
         let left = self.parse_comparison()?;
-        let curr = self.current_token().clone();
+        let current_tok = self.current_token().clone();
 
-        match &curr.kind {
+        match &current_tok.kind {
             TokenKind::EqEq | TokenKind::NotEqual => {
                 self.consume();
                 let right = self.parse_comparison()?;
                 Ok(AstNode::BinOp {
                     left: Box::new(left),
-                    operator: curr,
+                    operator: current_tok,
                     right: Box::new(right),
                 })
             }
@@ -447,9 +448,9 @@ impl Parser {
 
     fn parse_comparison(&mut self) -> Result<AstNode> {
         let left = self.parse_term()?;
-        let curr = self.current_token().clone();
+        let current_tok = self.current_token().clone();
 
-        match &curr.kind {
+        match &current_tok.kind {
             TokenKind::LessThan
             | TokenKind::LessThanEqual
             | TokenKind::GreaterThan
@@ -458,7 +459,7 @@ impl Parser {
                 let right = self.parse_term()?;
                 Ok(AstNode::BinOp {
                     left: Box::new(left),
-                    operator: curr,
+                    operator: current_tok,
                     right: Box::new(right),
                 })
             }
@@ -468,9 +469,9 @@ impl Parser {
 
     fn parse_term(&mut self) -> Result<AstNode> {
         let left = self.parse_factor()?;
-        let curr = self.current_token().clone();
+        let current_tok = self.current_token().clone();
 
-        match &curr.kind {
+        match &current_tok.kind {
             TokenKind::Plus | TokenKind::Minus => {
                 let operator = self.consume().clone();
                 let right = self.parse_term()?;
@@ -486,9 +487,9 @@ impl Parser {
 
     fn parse_factor(&mut self) -> Result<AstNode> {
         let left = self.parse_unary()?;
-        let curr = self.current_token().clone();
+        let current_tok = self.current_token().clone();
 
-        match &curr.kind {
+        match &current_tok.kind {
             TokenKind::Multiply | TokenKind::Divide | TokenKind::Mod => {
                 let operator = self.consume().clone();
                 let right = self.parse_factor()?;

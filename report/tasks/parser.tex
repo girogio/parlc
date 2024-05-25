@@ -1,3 +1,4 @@
+\newcommand{\bnfTerm}[1]{\langle\, \text{#1}\, \rangle}
 
 \section{Parsing the Token Stream}
 
@@ -52,5 +53,42 @@ a variable, we expect either an \code{int}, \code{float}, \code{colour} or
 \code{bool} token kind after the semicolon. The error outputted will be more
 informative, as it will list all the possible token kinds that were expected.
 
+
+
 The full list of the \code{AstNode} enum variants can be found in Appendix
 \ref{sec:parser-ast-node-enum}.
+
+\subsection{Syntax Modifications}
+
+It is worth noting that the original grammar for the parser was not perfect. The
+precedence of the operators was not correctly defined, leading to incorrect
+parsing of expressions.  For example, the
+expression $$\code{a < b and c >= d}$$ was being parsed as $$\code{a < (b and c)
+        >= d}$$ which is expected from a programming language that treats the
+\code{`and'} and \code{`or'} keywords as its bitwise operators.  After
+observing the behavior of these operators in the VM (they are indeed logical
+operators), the correct parsing should be $$\code{(a < b) and (c >= d)}$$ The
+\code{`and'} and \code{`or'} operators were being parsed with a higher
+precedence than the comparison operators. Whilst researching alternative
+expression grammars, I stumbled upon the Lox language \cite{nystrom2021crafting}, and
+decided to take inspiration from it use its production rules for expressions.
+
+The new production rules for expressions are as follows:
+\begin{align*}
+    \bnfTerm{Expression} & ::= \bnfTerm{Equality} \ \{ \ ( \ \text{`and'} \ |\  \text{`or'} \ )\ \bnfTerm{Equality} \ \}                                 \\
+    \bnfTerm{Equality}   & ::= \bnfTerm{Comparison} \ \{ \ ( \ \text{`!='} \ |\  \text{`=='} \ )\  \bnfTerm{Comparison} \ \}                             \\
+    \bnfTerm{Comparison} & ::= \bnfTerm{Term} \ \{ \ ( \ \text{`<='} \ |\  \text{`<'} \ |\  \text{`>='} \ |\  \text{`>'} \ )\  \bnfTerm{Term}  \ \}      \\
+    \bnfTerm{Term}       & ::= \bnfTerm{Factor} \ \{ \ ( \ \text{`+'} \ |\  \text{`-'} \ )\ \bnfTerm{Factor} \ \}                                        \\
+    \bnfTerm{Factor}     & ::= \bnfTerm{Unary} \ \{ \ ( \ \text{`*'} \ |\  \text{`/'} \ |\ \text{`\%'} \ )\ \bnfTerm{Unary} \ \}                         \\
+    \bnfTerm{Unary}      & ::=  ( \ \text{`!'} \ |\  \text{`-'} \ ) \ \bnfTerm{Unary} \ |\ \bnfTerm{Primary}                                             \\
+    \bnfTerm{Primary}    & ::= \bnfTerm{Literal} \ \ |\
+    \bnfTerm{Identifier} \ |\ \bnfTerm{FunctionCall} \ |\ \bnfTerm{SubExpr}
+    \                                                                                                                                                    \\
+                         & \quad | \ \bnfTerm{Unary} \ | \ \bnfTerm{PadRandI} \ | \ \bnfTerm{PadWidth} \ | \ \bnfTerm{PadHeight} \ | \ \bnfTerm{PadRead}
+\end{align*}
+
+One may also notice the addition of the $\code{\%}$ operator, known as the
+modulo.  Although this wasn't specified in the original grammar, it is present
+as an instruction in the VM, so I decided to include it. In the context of
+drawing pixels, it's useful for creating a wrap-around effect in loops.
+
