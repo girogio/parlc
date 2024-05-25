@@ -1,14 +1,6 @@
-fun test(x: int) -> bool {
-	let x: int = 23 ; 
-
-	if (x <= 50) {
-		return false;
-	} else {
-		return true;
-	}
-
-	return false;
-
+fun test() -> int[5] {
+	let a: int[5] = [1,2,3,4,5];
+	return a;
 }
 
-__print test(23);
+__print test();
