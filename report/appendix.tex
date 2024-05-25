@@ -1,0 +1,57 @@
+
+
+\appendix
+
+\section{Lexer DFSA}
+\label{sec:lexer-dfsa}
+
+\begin{mainbox}{}
+    \lstset{xleftmargin=0cm}
+    \begin{lstlisting}
+    pub fn new(input: &str, file: &Path, dfsa: Option<Dfsa>) -> Self {
+        let mut dfsa_builder = DfsaBuilder::new();
+
+        match dfsa {
+            Some(dfsa) => Lexer {
+                buffer: B::new(input, file),
+                dfsa,
+            },
+            None => {
+                let dfsa = dfsa_builder
+                    .add_category('a'..='f', Category::HexAndLetter)
+                    .add_category('A'..='F', Category::HexAndLetter)
+                    .add_category('g'..='z', Category::Letter)
+                    .add_category('G'..='Z', Category::Letter)
+                    .add_category('0'..='9', Category::Digit)
+                    .add_final_character_symbols(vec![
+                        ('\n', Category::Newline, TokenKind::Newline),
+                        ('{', Category::LBrace, TokenKind::LBrace),
+                        ('}', Category::RBrace, TokenKind::RBrace),
+                        ('(', Category::LParen, TokenKind::LParen),
+                        (')', Category::RParen, TokenKind::RParen),
+                        ('[', Category::LBracket, TokenKind::LBracket),
+                        (']', Category::RBracket, TokenKind::RBracket),
+                        (';', Category::Semicolon, TokenKind::Semicolon),
+                        (':', Category::Colon, TokenKind::Colon),
+                        ('+', Category::Plus, TokenKind::Plus),
+                        ('*', Category::Asterisk, TokenKind::Multiply),
+                        (',', Category::Comma, TokenKind::Comma),
+                        ('\0', Category::Eof, TokenKind::EndOfFile),
+                        ('%', Category::Percent, TokenKind::Mod),
+                    ])
+                    .add_whitespace_logic()
+                    .add_comment_functionality()
+                    .add_multi_char_rel_ops()
+                    .add_identifier_logic()
+                    .add_number_logic()
+                    .build();
+
+                Lexer {
+                    buffer: B::new(input, file),
+                    dfsa,
+                }
+            }
+        }
+    }
+    \end{lstlisting}
+\end{mainbox}

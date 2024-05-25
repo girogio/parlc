@@ -60,7 +60,6 @@
   sub={#1}
 }
 
-% warning mainbox
 \newtcolorbox{warningbox}[1]{
   colframe=red,
   base={#1}
@@ -121,7 +120,7 @@ compiler for the \code{ParL} programming language.}}
     the proprietary assembly-like language that is used to drive the
     programmable pixel art displays designed by the company \code{PArDis}. The
     \code{ParL} compiler was written in Rust, due to its strong type system and
-    performance characteristics. It nwas implemented incrementally, as
+    performance characteristics. It was implemented incrementally, as
     to ensure each component can be run in isolation, and is working correctly
     before moving on to the next one.
 \end{abstract}
@@ -158,7 +157,7 @@ pub struct Token {
 \end{mainbox}
 
 The \code{TextSpan} struct is mainly used to store the lexeme of the token, and
-its poosition in the source code, which is useful for error reporting. The
+its position in the source code, which is useful for error reporting. The
 \code{TokenKind} is just an enum, which represents the different types of tokens, such as \code{Identifier},
 \code{IntegerLiteral}, \code{If} and many more.
 
@@ -187,7 +186,7 @@ which is responsible for reading the next token from the input stream. Not much
 can be said, as it has been heavily inspired by the \code{next\_token} function
 in the textbook \textit{Engineering a Compiler} \cite{engineering-a-compiler}.
 We provide a wrapper around the \code{next\_token} function, called
-\code{lex()}, which filters out comments, whitespaces and newlines, and only
+\code{lex()}, which filters out comments, whitespace and newlines, and only
 returns the actual tokens, and if any, a list of errors that have been
 encountered.
 
@@ -525,7 +524,7 @@ Finally, we have the $\code{done()}$ method, which is used to append the transit
     \end{lstlisting}
 \end{mainbox}
 
-Would result in the followint DFSA, with the category table already filled in
+Would result in the following DFSA, with the category table already filled in
 with the whitespace characters.
 
 \begin{figure}[H]
@@ -550,64 +549,7 @@ Appendix \ref{sec:lexer-dfsa}.
 
 \newpage
 
-\appendix
-
-\section{Lexer DFSA}
-\label{sec:lexer-dfsa}
-
-\begin{mainbox}{}
-    \lstset{xleftmargin=0cm}
-    \begin{lstlisting}
-    pub fn new(input: &str, file: &Path, dfsa: Option<Dfsa>) -> Self {
-        let mut dfsa_builder = DfsaBuilder::new();
-
-        match dfsa {
-            Some(dfsa) => Lexer {
-                buffer: B::new(input, file),
-                dfsa,
-            },
-            None => {
-                let dfsa = dfsa_builder
-                    .add_category('a'..='f', Category::HexAndLetter)
-                    .add_category('A'..='F', Category::HexAndLetter)
-                    .add_category('g'..='z', Category::Letter)
-                    .add_category('G'..='Z', Category::Letter)
-                    .add_category('0'..='9', Category::Digit)
-                    .add_final_character_symbols(vec![
-                        ('\n', Category::Newline, TokenKind::Newline),
-                        ('{', Category::LBrace, TokenKind::LBrace),
-                        ('}', Category::RBrace, TokenKind::RBrace),
-                        ('(', Category::LParen, TokenKind::LParen),
-                        (')', Category::RParen, TokenKind::RParen),
-                        ('[', Category::LBracket, TokenKind::LBracket),
-                        (']', Category::RBracket, TokenKind::RBracket),
-                        (';', Category::Semicolon, TokenKind::Semicolon),
-                        (':', Category::Colon, TokenKind::Colon),
-                        ('+', Category::Plus, TokenKind::Plus),
-                        ('*', Category::Asterisk, TokenKind::Multiply),
-                        (',', Category::Comma, TokenKind::Comma),
-                        ('\0', Category::Eof, TokenKind::EndOfFile),
-                        ('%', Category::Percent, TokenKind::Mod),
-                    ])
-                    .add_whitespace_logic()
-                    .add_comment_functionality()
-                    .add_multi_char_rel_ops()
-                    .add_identifier_logic()
-                    .add_number_logic()
-                    .build();
-
-                Lexer {
-                    buffer: B::new(input, file),
-                    dfsa,
-                }
-            }
-        }
-    }
-    \end{lstlisting}
-\end{mainbox}
-
-
-
+\input{appendix.tex}
 
 \newpage
 
