@@ -2,13 +2,14 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     core::{TextSpan, Token, TokenKind},
+    semantics::utils::Type,
     utils::{
         errors::{Error, ParseError},
         Result,
     },
 };
 
-use super::ast::{Ast, AstNode};
+use super::ast::AstNode;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -163,6 +164,31 @@ impl Parser {
         let return_type = self.consume_if(TokenKind::Type)?.clone();
 
         // TODO: Add array like function array_list() -> int[] {}
+        let return_type = if let TokenKind::LBracket = self.current_token().kind {
+            self.consume_if(TokenKind::LBracket)?;
+            let size = self.consume_if(TokenKind::IntLiteral)?.clone();
+            self.consume_if(TokenKind::RBracket)?;
+            Type::Array(
+                Box::new(match return_type.span.lexeme.as_str() {
+                    "int" => Type::Int,
+                    "float" => Type::Float,
+                    "bool" => Type::Bool,
+                    "colour" => Type::Colour,
+                    _ => unreachable!(),
+                }),
+                size.span.lexeme.parse().unwrap(),
+            )
+        } else {
+            // token to type
+            match return_type.span.lexeme.as_str() {
+                "int" => Type::Int,
+                "float" => Type::Float,
+                "bool" => Type::Bool,
+                "colour" => Type::Colour,
+                _ => unreachable!(),
+            }
+        };
+
         let block = self.parse_block()?;
 
         Ok(AstNode::FunctionDecl {
@@ -760,8 +786,8 @@ impl Parser {
         })
     }
 
-    fn parse_actual_params(&mut self) -> Result<Vec<Ast>> {
-        let mut params = vec![Box::from(self.parse_expression()?)];
+    fn parse_actual_params(&mut self) -> Result<Vec<AstNode>> {
+        let mut params = vec![self.parse_expression()?];
 
         if let TokenKind::Comma = self.current_token().kind {
             self.consume();

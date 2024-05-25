@@ -1,6 +1,6 @@
-use crate::core::Token;
+use crate::{core::Token, semantics::utils::Type};
 
-pub type Ast = Box<AstNode>;
+pub type AstNodePtr = Box<AstNode>;
 
 #[derive(Debug)]
 pub enum AstNode {
@@ -10,35 +10,35 @@ pub enum AstNode {
     VarDec {
         identifier: Token,
         r#type: Token,
-        expression: Ast,
+        expression: AstNodePtr,
     },
     Block {
         statements: Vec<AstNode>,
     },
     Expression {
         casted_type: Option<Token>,
-        expr: Ast,
+        expr: AstNodePtr,
     },
     SubExpression {
-        bin_op: Ast,
+        bin_op: AstNodePtr,
     },
     UnaryOp {
         operator: Token,
-        expr: Ast,
+        expr: AstNodePtr,
     },
     BinOp {
-        left: Ast,
+        left: AstNodePtr,
         operator: Token,
-        right: Ast,
+        right: AstNodePtr,
     },
     PadWidth,
     PadRandI {
-        upper_bound: Ast,
+        upper_bound: AstNodePtr,
     },
     PadHeight,
     PadRead {
-        x: Ast,
-        y: Ast,
+        x: AstNodePtr,
+        y: AstNodePtr,
     },
     IntLiteral(Token),
     FloatLiteral(Token),
@@ -46,46 +46,46 @@ pub enum AstNode {
     ColourLiteral(Token),
     FunctionCall {
         identifier: Token,
-        args: Vec<Ast>,
+        args: Vec<AstNode>,
     },
     ActualParams {
-        params: Vec<Ast>,
+        params: Vec<AstNode>,
     },
     Delay {
-        expression: Ast,
+        expression: AstNodePtr,
     },
     Return {
-        expression: Ast,
+        expression: AstNodePtr,
     },
     PadWriteBox {
-        loc_x: Ast,
-        loc_y: Ast,
-        width: Ast,
-        height: Ast,
-        colour: Ast,
+        loc_x: AstNodePtr,
+        loc_y: AstNodePtr,
+        width: AstNodePtr,
+        height: AstNodePtr,
+        colour: AstNodePtr,
     },
     PadWrite {
-        loc_x: Ast,
-        loc_y: Ast,
-        colour: Ast,
+        loc_x: AstNodePtr,
+        loc_y: AstNodePtr,
+        colour: AstNodePtr,
     },
     Identifier {
         token: Token,
     },
     If {
-        condition: Ast,
-        if_true: Ast,
-        if_false: Option<Ast>,
+        condition: AstNodePtr,
+        if_true: AstNodePtr,
+        if_false: Option<AstNodePtr>,
     },
     For {
-        initializer: Option<Ast>,
-        condition: Ast,
-        increment: Option<Ast>,
-        body: Ast,
+        initializer: Option<AstNodePtr>,
+        condition: AstNodePtr,
+        increment: Option<AstNodePtr>,
+        body: AstNodePtr,
     },
     While {
-        condition: Ast,
-        body: Ast,
+        condition: AstNodePtr,
+        body: AstNodePtr,
     },
     FormalParam {
         identifier: Token,
@@ -95,20 +95,19 @@ pub enum AstNode {
     FunctionDecl {
         identifier: Token,
         params: Vec<AstNode>,
-        return_type: Token,
-        block: Ast,
+        return_type: Type,
+        block: AstNodePtr,
     },
     Print {
-        expression: Ast,
+        expression: AstNodePtr,
     },
     Assignment {
         identifier: Token,
-        expression: Ast,
-        index: Option<Ast>,
+        expression: AstNodePtr,
+        index: Option<AstNodePtr>,
     },
-    EndOfFile,
     PadClear {
-        expr: Ast,
+        expr: AstNodePtr,
     },
     VarDecArray {
         identifier: Token,
@@ -118,8 +117,9 @@ pub enum AstNode {
     },
     ArrayAccess {
         identifier: Token,
-        index: Ast,
+        index: AstNodePtr,
     },
+    EndOfFile,
 }
 
 pub trait Visitor<T> {

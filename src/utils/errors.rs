@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-
 use thiserror::Error;
 
 use crate::{
@@ -49,7 +48,7 @@ pub enum SemanticError {
     #[error("Variable '{}' is not defined.", .0.span.lexeme)]
     UndefinedVariable(Token),
     #[error("Variable '{}' is already defined.", .0.span.lexeme)]
-    VariableRedaclaration(Token),
+    VariableRedeclaration(Token),
     #[error("Function '{}' is not defined.", .0.span.lexeme)]
     UndefinedFunction(Token),
     #[error("Function '{}' is already defined.", .0.span.lexeme)]

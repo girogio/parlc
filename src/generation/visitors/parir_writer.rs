@@ -1,5 +1,8 @@
-use crate::generation::instructions::{Instruction, Program};
 use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType};
+use crate::{
+    generation::instructions::{Instruction, Program},
+    semantics::utils::Type,
+};
 
 use crate::{
     core::Token,
@@ -218,9 +221,7 @@ impl Visitor<usize> for PArIRWriter {
             } => {
                 self.add_symbol(
                     identifier,
-                    &SymbolType::Function(Signature::new(
-                        self.current_scope().token_to_type(&return_type.span.lexeme),
-                    )),
+                    &SymbolType::Function(Signature::new(return_type.clone())),
                     None,
                 );
 
@@ -235,11 +236,10 @@ impl Visitor<usize> for PArIRWriter {
 
                 // all the parameters are added to the symbol table
                 // now we add them to the function signature
-                let mut signature =
-                    Signature::new(self.current_scope().token_to_type(&return_type.span.lexeme));
+                let mut signature = Signature::new(return_type.clone());
 
                 for param in self.current_scope().all_symbols() {
-                    if let SymbolType::Variable(t) = param.symbol_type {
+                    if let SymbolType::Variable(t) = param.symbol_type.clone() {
                         signature.parameters.push((t, param.lexeme.clone()));
                     }
                 }
@@ -268,10 +268,10 @@ impl Visitor<usize> for PArIRWriter {
                 let mut len = 0;
 
                 for arg in args.iter().rev() {
-                    if let AstNode::Expression { expr, .. } = arg.as_ref() {
+                    if let AstNode::Expression { expr, .. } = arg {
                         if let AstNode::Identifier { token } = expr.as_ref() {
                             let symbol = self.find_symbol(token).unwrap();
-                            if let SymbolType::Array(_type, s) = symbol.symbol_type {
+                            if let SymbolType::Array(_type, s) = symbol.symbol_type.clone() {
                                 len += s;
                             }
                         } else {
@@ -645,20 +645,44 @@ impl Visitor<usize> for PArIRWriter {
                 self.visit(expression);
 
                 if let AstNode::Expression { expr, .. } = expression.as_ref() {
-                    if let AstNode::Identifier { token } = expr.as_ref() {
-                        let symbol = self.find_symbol(token).unwrap();
+                    match expr.as_ref() {
+                        AstNode::FunctionCall { identifier, .. } => {
+                            let return_type =
+                                self.find_symbol(identifier).unwrap().symbol_type.clone();
 
-                        match symbol.symbol_type {
-                            SymbolType::Array(_, s) => {
-                                self.add_instruction(Instruction::PushIntValue(s));
-                                self.add_instruction(Instruction::PrintArray);
-                            }
-                            _ => {
-                                self.add_instruction(Instruction::Print);
+                            match return_type {
+                                SymbolType::Function(signature) => match signature.return_type {
+                                    Type::Array(_, s) => {
+                                        self.add_instruction(Instruction::PushIntValue(s));
+                                        self.add_instruction(Instruction::PrintArray);
+                                    }
+                                    _ => {
+                                        self.add_instruction(Instruction::Print);
+                                    }
+                                },
+                                _ => {
+                                    self.add_instruction(Instruction::Print);
+                                }
                             }
                         }
-                    } else {
-                        self.add_instruction(Instruction::Print);
+
+                        AstNode::Identifier { token } => {
+                            let symbol = self.find_symbol(token).unwrap();
+
+                            match symbol.symbol_type {
+                                SymbolType::Array(_, s) => {
+                                    self.add_instruction(Instruction::PushIntValue(s));
+                                    self.add_instruction(Instruction::PrintArray);
+                                }
+                                _ => {
+                                    self.add_instruction(Instruction::Print);
+                                }
+                            }
+                        }
+
+                        _ => {
+                            self.add_instruction(Instruction::Print);
+                        }
                     }
                 }
             }

@@ -94,10 +94,10 @@ impl SemAnalyzer {
 
     fn get_symbol_type(&self, symbol: &Token) -> Type {
         self.find_symbol(symbol)
-            .map(|s| match &s.symbol_type {
-                SymbolType::Variable(t) => *t,
+            .map(|s| match s.symbol_type.clone() {
+                SymbolType::Variable(t) => t,
                 SymbolType::Function(signature) => signature.return_type,
-                SymbolType::Array(t, _) => *t,
+                SymbolType::Array(t, _) => t,
             })
             .unwrap_or(Type::Unknown)
     }
@@ -182,12 +182,12 @@ impl SemAnalyzer {
         if expected != found {
             self.results.add_error(SemanticError::TypeMismatch(
                 token.to_string(),
-                *found,
-                *expected,
+                found.clone(),
+                expected.clone(),
             ));
         }
 
-        *found
+        found.clone()
     }
 
     fn check_up_to_scope(&self, symbol: &Token) -> bool {
@@ -228,7 +228,7 @@ impl SemAnalyzer {
             return from;
         }
 
-        match (from, to) {
+        match (from.clone(), to.clone()) {
             (Type::Int, Type::Float) => Type::Float,   // 5 -> 5.0
             (Type::Colour, Type::Int) => Type::Int,    // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
             (Type::Bool, Type::Int) => Type::Int,      // false -> 0, true -> 1
@@ -313,8 +313,7 @@ impl Visitor<Type> for SemAnalyzer {
 
                 // all the parameters are added to the symbol table
                 // now we add them to the function signature
-                let mut signature =
-                    Signature::new(self.current_scope().token_to_type(&return_type.span.lexeme));
+                let mut signature = Signature::new(return_type.clone());
 
                 for param in params.iter().rev() {
                     let param_type = self.visit(param);
@@ -362,7 +361,13 @@ impl Visitor<Type> for SemAnalyzer {
                         .add_error(SemanticError::UndefinedVariable(token.clone()));
                 }
 
-                self.get_symbol_type(token)
+                self.find_symbol(token)
+                    .map(|s| match s.symbol_type.clone() {
+                        SymbolType::Variable(t) => t,
+                        SymbolType::Function(signature) => signature.return_type,
+                        SymbolType::Array(t, s) => Type::Array(Box::new(t), s),
+                    })
+                    .unwrap_or(Type::Unknown)
             }
 
             AstNode::VarDec {
@@ -380,11 +385,11 @@ impl Visitor<Type> for SemAnalyzer {
                         self.results.add_error(SemanticError::TypeMismatch(
                             identifier.span.lexeme.clone(),
                             old_type,
-                            expr_type,
+                            expr_type.clone(),
                         ));
                     } else {
                         self.results
-                            .add_warning(SemanticError::VariableRedaclaration(identifier.clone()));
+                            .add_warning(SemanticError::VariableRedeclaration(identifier.clone()));
                     }
                 } else {
                     self.add_symbol(
@@ -416,15 +421,15 @@ impl Visitor<Type> for SemAnalyzer {
 
                 if self.check_scope(identifier) {
                     self.results
-                        .add_error(SemanticError::VariableRedaclaration(identifier.clone()));
+                        .add_error(SemanticError::VariableRedeclaration(identifier.clone()));
                 } else {
-                    self.add_symbol(identifier, &SymbolType::Array(element_type, *size));
+                    self.add_symbol(identifier, &SymbolType::Array(element_type.clone(), *size));
                 }
 
                 if elements.len() > *size {
                     self.results.add_error(SemanticError::ArrayOverflow(
                         identifier.clone(),
-                        element_type,
+                        element_type.clone(),
                         *size,
                         elements.len(),
                     ));
@@ -436,8 +441,8 @@ impl Visitor<Type> for SemAnalyzer {
                     if element_type != current_element_type {
                         self.results.add_error(SemanticError::TypeMismatch(
                             "element".to_string(),
-                            element_type,
-                            element_type,
+                            element_type.clone(),
+                            element_type.clone(),
                         ));
                     }
                 }
@@ -487,30 +492,27 @@ impl Visitor<Type> for SemAnalyzer {
                 identifier,
                 param_type,
                 index,
-            } => {
-                match index {
-                    None => {
-                        self.add_symbol(
-                            identifier,
-                            &SymbolType::Variable(
-                                self.current_scope().token_to_type(&param_type.span.lexeme),
-                            ),
-                        );
-                    }
-                    Some(index) => {
-                        let size: usize = index.span.lexeme.parse().unwrap();
-                        self.add_symbol(
-                            identifier,
-                            &SymbolType::Array(
-                                self.current_scope().token_to_type(&param_type.span.lexeme),
-                                size,
-                            ),
-                        );
-                    }
+            } => match index {
+                None => {
+                    let param_type = self.current_scope().token_to_type(&param_type.span.lexeme);
+                    self.add_symbol(identifier, &SymbolType::Variable(param_type.clone()));
+                    param_type
                 }
-
-                self.current_scope().token_to_type(&param_type.span.lexeme)
-            }
+                Some(index) => {
+                    let size: usize = index.span.lexeme.parse().unwrap();
+                    self.add_symbol(
+                        identifier,
+                        &SymbolType::Array(
+                            self.current_scope().token_to_type(&param_type.span.lexeme),
+                            size,
+                        ),
+                    );
+                    Type::Array(
+                        Box::new(self.current_scope().token_to_type(&param_type.span.lexeme)),
+                        size,
+                    )
+                }
+            },
 
             AstNode::Expression { casted_type, expr } => {
                 let expr_type = self.visit(expr);
@@ -554,6 +556,7 @@ impl Visitor<Type> for SemAnalyzer {
                 let expression_type = self.visit(expression);
 
                 self.assert_type(&identifier.span.lexeme, &identifier_type, &expression_type)
+                    .clone()
             }
 
             AstNode::BinOp {
@@ -750,7 +753,7 @@ impl Visitor<Type> for SemAnalyzer {
                     if true_branch_return_type != false_branch_return_type {
                         self.results.add_error(SemanticError::TypeMismatch(
                             "if".to_string(),
-                            true_branch_return_type,
+                            true_branch_return_type.clone(),
                             false_branch_return_type,
                         ));
                     }

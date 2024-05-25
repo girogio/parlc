@@ -1,12 +1,13 @@
 use std::{collections::LinkedList, fmt::Display};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Type {
     Int,
     Float,
     Bool,
     Colour,
     Void,
+    Array(Box<Type>, usize),
     Unknown,
 }
 
@@ -17,6 +18,7 @@ impl Display for Type {
             Type::Float => write!(f, "float"),
             Type::Bool => write!(f, "bool"),
             Type::Colour => write!(f, "colour"),
+            Type::Array(t, size) => write!(f, "{}[{}]", t, size),
             Type::Void => write!(f, "void"),
             Type::Unknown => write!(f, "unknown"),
         }

@@ -220,7 +220,7 @@ impl Visitor<Result<()>> for Formatter {
                 write!(self.buff, "(")?;
 
                 if params.is_empty() {
-                    write!(self.buff, ") -> {}", return_type.span.lexeme)?;
+                    write!(self.buff, ") -> {}", return_type)?;
                     self.visit(block)?;
                     return Ok(());
                 } else {
@@ -234,7 +234,12 @@ impl Visitor<Result<()>> for Formatter {
                     }
                 }
 
-                write!(self.buff, ") -> {}", return_type.span.lexeme)?;
+                write!(self.buff, ") -> {}", return_type)?;
+
+                // if let Some(return_type_size) = return_type_size {
+                //     write!(self.buff, "[{}]", return_type_size)?;
+                // }
+
                 self.visit(block)?;
                 Ok(())
             }
