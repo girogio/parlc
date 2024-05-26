@@ -1,1 +1,202 @@
 \section{Semantic Analysis}
+
+Semantic analysis is the process of checking the program for semantic errors,
+such as type errors, and ensuring that the program is well-formed. This is done
+after the parsing stage, where the abstract syntax tree has been constructed.
+The semantic analysis stage is where the compiler ensures that the program is
+semantically correct, and can be translated to the target language. This is done
+by traversing the abstract syntax tree, and checking that the program adheres to
+the rules of the language.
+
+\subsection{Visitor Trait}
+
+The \code{Visitor} trait has been mentioned in the previous section, but it is
+now crucial to define it and describe it properly.
+
+\begin{mainbox}{}
+    \lstset{xleftmargin=0.2\textwidth, aboveskip=0pt, belowskip=0pt}
+    \begin{lstlisting}[language=Rust]
+pub trait Visitor<T> {
+    fn visit(&mut self, node: &AstNode) -> T;
+}
+\end{lstlisting}
+\end{mainbox}
+
+The \code{Visitor} trait is a generic trait that takes a type parameter \code{T}
+and defines a single method, \code{visit}, which takes a mutable reference to
+the struct that implements the trait, and a reference to an AST node. The method
+returns a value of type \code{T}.
+
+The generic type parameter \code{T} is central to the way we will be using, or
+rather, re-using the visitor trait in the code generation stage. It will allow
+us to control the return type of the \code{visit} method, and thus, the type of
+the value that is returned when visiting a node in the abstract syntax tree. In
+other words, we can access different properties of an AST node, depending on the
+struct that implements the \code{Visitor} trait.
+
+I have implemented the \code{Visitor} trait on a number of structs (here on referred to as Visitors), and these are:
+
+\begin{itemize}
+    \item \code{Formatter}: A visitor that parses, and then \textit{un-parses} the AST,
+          rewriting the source in an (un-configurable) opinionated style. Similar to running \code{cargo fmt}.
+    \item \code{TreePrinter}: A visitor mainly used for debugging the parsing
+          stage, which prints the AST in a vertical tree-like structure.
+    \item \code{SemanticAnalyser}: The visitor that performs the semantic analysis
+          on the AST, checking for type errors, and ensuring the program is well-formed.
+    \item \code{PArIRWriter}: The visitor that generates the PArIR code from the AST.
+\end{itemize}
+
+In this report I will describe the latter two, as they are part of the
+requirements for the project.
+
+\newpage
+
+\subsection{Type/Scope Checking}
+
+The \code{SemanticAnalyser}, other than being a visitor, also contains a number
+of structs inside of it, which are used to keep track of the current scope, and
+the types of variables that are in scope.
+
+\begin{mainbox}{}
+    \lstset{xleftmargin=3.5cm, aboveskip=0pt, belowskip=0pt}
+    \begin{lstlisting}[language=Rust]
+struct SemanticAnalyser {
+    symbol_table: Vec<SymbolTable>,
+    inside_function: bool,
+    scope_peek_limit: usize,
+    results: SemanticResult,
+}
+\end{lstlisting}
+\end{mainbox}
+
+The \code{SemanticAnalyser} struct contains a vector of \code{SymbolTable}s,
+which functions as a stack. Each \code{SymbolTable} contains a mapping of
+variable names (lexeme) to their types (\code{SymbolType}). My implementation of
+\code{SymbolType} also further differentiates between identifiers that belong to
+a function, array, or primitive type variable definitions. In the case of
+functions, I stored the entire signature, including the return type, and the
+types of the parameters.
+
+Additionally, the \code{SemanticAnalyser} struct keeps track of whether the
+visitor is currently is inside a function, through the \code{inside\_function}
+flag. Different behaviour is expected from the visitor when inside a function,
+for example, when checking for the existence of an identifier, we are only
+allowed to look for it in the current scope, and not in the global scope.
+
+The \code{scope\_peek\_limit} field is used to limit the number of scopes that
+the visitor can look up when checking for the existence of an identifier. Used
+in conjunction with the \code{inside\_function} flag, it allows the visitor to
+only look up to a certain number of scopes when inside a function, and all the
+way up to the global scope when outside of a function.
+
+Finally, we have the \code{results} field, of the type \code{SemanticResult}.
+This is simply a struct that contains two lists of possible errors that can be
+emitted during the semantic analysis stage. We categorize these errors as
+\code{Warnings}, i.e. possible involuntary mistakes performed by the user that
+do not necessarily disallow the compilation of the program, and \code{Errors},
+i.e. mistakes that must be fixed before the program can be compiled.
+
+\begin{warningbox}{Variable Shadowing}
+    This implementation of the \code{ParL} compiler allows for \textit{variable
+        shadowing}, like Rust \cite{rustlangScopeShadowing}.  This means that a variable
+    can be re-declared in an inner scope, and the latter will \textit{take over}
+    the former for the life-time of the inner scope. Variable shadowing will
+    produce a warning, as it can lead to confusion, but variable re-declaration
+    in the same scope will produce an error.
+\end{warningbox}
+
+Now that we know what tools the semantic analyser has at its disposal, we still
+have one more thing to discuss. How do we find out the types of arbitrary
+expressions, possibly with a mixture of literals, variables, function calls, and
+operations applied to them?
+
+To answer this question we must define the type inference of operations between
+types in the language.
+
+\begin{table}[H]
+    \centering
+    \begin{subtable}{.5\textwidth}
+        \begin{tabular}{c|cccc}
+            \begin{tabular}[c]{@{}c@{}} \code{+ -}\\ \code{* /}\end{tabular} & Int   & Float & Colour & Boolean \\ \hline
+            Int                                                              & Int   & Float & N/A    & N/A     \\
+            Float                                                            & Float & Float & N/A    & N/A     \\
+            Colour                                                           & N/A   & N/A   & Colour & N/A     \\
+            Bool                                                             & N/A   & N/A   & N/A    & N/A
+        \end{tabular}
+        \caption{Addition, subtraction, multiplication, and division operations between types.}
+    \end{subtable}%
+    \begin{subtable}{.5\textwidth}
+        \centering
+        \begin{tabular}{c|cccc}
+            \begin{tabular}[c]{@{}c@{}} \code{== != <}\\ \code{> <= >=}\end{tabular} & Int  & Float & Colour & Boolean \\ \hline
+            Int                                                                      & Bool & Bool  & N/A    & N/A     \\
+            Float                                                                    & Bool & Bool  & N/A    & N/A     \\
+            Colour                                                                   & N/A  & N/A   & Bool   & N/A     \\
+            Bool                                                                     & N/A  & N/A   & N/A    & Bool
+        \end{tabular}
+        \caption{Comparison operations between types.}
+    \end{subtable}
+\end{table}
+\label{tab:type-inference1}
+
+
+\begin{table}[H]
+    \centering
+    \begin{subtable}{.5\textwidth}
+        \centering
+        \begin{tabular}{c|cccc}
+            \code{\%} & Int & Float & Colour & Boolean \\ \hline
+            Int       & Int & N/A   & N/A    & N/A     \\
+            Float     & N/A & N/A   & N/A    & N/A     \\
+            Colour    & N/A & N/A   & N/A    & N/A     \\
+            Bool      & N/A & N/A   & N/A    & N/A
+        \end{tabular}
+        \caption{Modulo operation between types.}
+    \end{subtable}%
+    \begin{subtable}{.5\textwidth}
+        \centering
+        \begin{tabular}{c|cccc}
+            \code{and or} & Int & Float & Colour & Boolean \\ \hline
+            Int           & N/A & N/A   & N/A    & N/A     \\
+            Float         & N/A & N/A   & N/A    & N/A     \\
+            Colour        & N/A & N/A   & N/A    & N/A     \\
+            Bool          & N/A & N/A   & N/A    & Bool
+        \end{tabular}
+        \caption{Logical operations between types.}
+    \end{subtable}
+\end{table}
+\label{tab:type-inference2}
+
+Every time we encounter an operation between two types, we must thus check the
+tables above to see if the operation is valid. If it is, we can infer the type
+of the operation, and continue checking the rest of the expression. If it is
+not, the semantic analyser must emit an error, and stop the compilation process.
+
+\begin{warningbox}{Type Inference}
+    This type inference was only possible due to the flexibility between the
+    operations performed in the VM itself. Given the VM is implemented in
+    JavaScript, this flexibility is warranted, as JavaScript is a dynamically
+    typed language. Had it been done on actual hardware, the type inference would
+    have been much more rigid, and the checking must have been more strict,
+    possibly with more intricate conversions to achieve the desired result.
+\end{warningbox}
+
+Behind the scenes, the compiler actually assigns a type to unsupported
+operations, namely the \code{Unknown} type, which by default is incompatible
+with any operation.
+
+This is the general idea behind evaluating types of expressions in the
+\code{SemanticAnalyser} visitor. How do we determine however the true return
+type of a function declaration, or a \code{Block}? Well, we just traverse the
+\code{AST} until we hit a \code{Return} statement, and then we check the type of
+the expression that is being returned. Since we are not allowed to have
+functions that do not return anything, any \code{Block} is at first assigned the
+\code{Void} type, and if it remains so until the end of the block, an error is
+emitted.
+
+Now that we know how all the type information of the program and the statements
+therein is gathered, the semantic analyser will check this against the type
+provided by the user in the function signature, or variable declaration, and
+will emit a type mismatch error, stating what the type it expected is (the one
+the user defined) and what it found, the type of the returned expression. In the
+case of arrays, lengths must also match.

@@ -1,6 +1,8 @@
-fun test() -> int[5] {
-	let a: int[5] = [1,2,3,4,5];
-	return a;
+let a: int = 5;
+
+{
+	let a: int = 4;
+	__print a;
 }
 
-__print test();
+__print a;
