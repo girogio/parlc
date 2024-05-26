@@ -74,7 +74,7 @@ impl Visitor<Result<()>> for TreePrinter {
 
             AstNode::VarDec {
                 identifier,
-                r#type: var_type,
+                var_type,
                 expression,
             } => {
                 println!("VarDec");

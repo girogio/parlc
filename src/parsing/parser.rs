@@ -652,7 +652,7 @@ impl Parser {
                 self.consume_if(TokenKind::Semicolon)?;
                 Ok(AstNode::VarDec {
                     identifier: identifier.clone(),
-                    r#type: element_type,
+                    var_type: element_type,
                     expression: Box::new(expression),
                 })
             }

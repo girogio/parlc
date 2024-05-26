@@ -67,7 +67,7 @@ impl Visitor<Result<()>> for Formatter {
 
             AstNode::VarDec {
                 identifier,
-                r#type: var_type,
+                var_type,
                 expression,
             } => {
                 write!(self.buff, "let {}", identifier.span.lexeme)?;
@@ -141,7 +141,7 @@ impl Visitor<Result<()>> for Formatter {
                 if let Some(node) = initializer {
                     if let AstNode::VarDec {
                         identifier,
-                        r#type: var_type,
+                        var_type,
                         expression,
                     } = node.as_ref()
                     {

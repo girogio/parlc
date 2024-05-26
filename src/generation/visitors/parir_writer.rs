@@ -321,7 +321,7 @@ impl Visitor<usize> for PArIRWriter {
 
             AstNode::VarDec {
                 identifier,
-                r#type,
+                var_type: r#type,
                 expression,
             } => {
                 self.visit(expression);

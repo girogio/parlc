@@ -422,7 +422,7 @@ impl Visitor<Type> for SemanticAnalyser {
 
             AstNode::VarDec {
                 identifier,
-                r#type: var_type,
+                var_type,
                 expression,
             } => {
                 let expr_type = self.visit(expression);

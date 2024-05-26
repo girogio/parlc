@@ -9,7 +9,7 @@ pub enum AstNode {
     },
     VarDec {
         identifier: Token,
-        r#type: Token,
+        var_type: Token,
         expression: AstNodePtr,
     },
     Block {
