@@ -13,7 +13,7 @@ use utils::SimpleBuffer;
 use crate::{
     lexing::Lexer,
     parsing::{ast::Visitor, Parser},
-    semantics::visitors::{Formatter, SemAnalyzer, TreePrinter},
+    semantics::visitors::{Formatter, SemanticAnalyser, TreePrinter},
 };
 
 #[derive(ClapParser)]
@@ -155,7 +155,7 @@ fn main() {
 
             match ast {
                 Ok(ast) => {
-                    let mut sem_analyzer = SemAnalyzer::new();
+                    let mut sem_analyzer = SemanticAnalyser::new();
                     let result = sem_analyzer.analyze(ast);
 
                     if result.has_warnings() {
@@ -208,7 +208,7 @@ fn main() {
                 }
             };
 
-            let mut sem_analyzer = SemAnalyzer::new();
+            let mut sem_analyzer = SemanticAnalyser::new();
             let result = sem_analyzer.analyze(ast);
 
             // Print "warninngs" in yellow
@@ -216,10 +216,8 @@ fn main() {
             let errors_red = style("errors").red().bold();
 
             if result.has_warnings() {
-                println!("{}\n:", warnings_yellow);
-
                 for warn in &result.warnings {
-                    eprintln!("{}", warn);
+                    eprintln!("{}: {}", warnings_yellow, warn);
                 }
             }
 

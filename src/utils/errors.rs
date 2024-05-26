@@ -49,6 +49,8 @@ pub enum SemanticError {
     UndefinedVariable(Token),
     #[error("Variable '{}' is already defined.", .0.span.lexeme)]
     VariableRedeclaration(Token),
+    #[error("Variable '{}' was already defined in a parent scope. Are you trying to shadow it?", .0.span.lexeme)]
+    VariableShadowing(Token),
     #[error("Function '{}' is not defined.", .0.span.lexeme)]
     UndefinedFunction(Token),
     #[error("Function '{}' is already defined.", .0.span.lexeme)]

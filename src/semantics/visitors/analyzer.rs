@@ -38,7 +38,7 @@ impl SemanticResult {
 }
 
 #[derive(Debug)]
-pub struct SemAnalyzer {
+pub struct SemanticAnalyser {
     /// Stack of symbol tables, each representing a scope
     symbol_table: Vec<SymbolTable>,
     /// Flag to denote that the current scope lies within a function
@@ -50,9 +50,9 @@ pub struct SemAnalyzer {
     results: SemanticResult,
 }
 
-impl SemAnalyzer {
+impl SemanticAnalyser {
     pub fn new() -> Self {
-        SemAnalyzer {
+        SemanticAnalyser {
             symbol_table: Vec::new(),
             inside_function: false,
             scope_peek_limit: 0,
@@ -132,43 +132,93 @@ impl SemAnalyzer {
 
     fn get_bin_op_type(&mut self, op: &Token, left: &Type, right: &Type) -> Type {
         match (op.kind, left, right) {
-            (TokenKind::Plus, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Plus, Type::Float, Type::Int) => Type::Float,
-            (TokenKind::Plus, Type::Int, Type::Float) => Type::Float,
-            (TokenKind::Plus, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Plus, Type::Colour, Type::Colour) => Type::Colour,
-            (TokenKind::Minus, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Minus, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Minus, Type::Colour, Type::Colour) => Type::Colour,
-            (TokenKind::Multiply, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Multiply, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Multiply, Type::Colour, Type::Colour) => Type::Colour,
-            (TokenKind::Divide, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::Divide, Type::Float, Type::Float) => Type::Float,
-            (TokenKind::Divide, Type::Colour, Type::Colour) => Type::Colour,
             (TokenKind::Mod, Type::Int, Type::Int) => Type::Int,
-            (TokenKind::EqEq, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::EqEq, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::EqEq, Type::Bool, Type::Bool) => Type::Bool,
-            (TokenKind::EqEq, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::NotEqual, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::NotEqual, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::NotEqual, Type::Bool, Type::Bool) => Type::Bool,
-            (TokenKind::NotEqual, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::LessThan, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::LessThan, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::LessThan, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::LessThanEqual, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::LessThanEqual, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::LessThanEqual, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::GreaterThan, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::GreaterThan, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::GreaterThan, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::GreaterThanEqual, Type::Int, Type::Int) => Type::Bool,
-            (TokenKind::GreaterThanEqual, Type::Float, Type::Float) => Type::Bool,
-            (TokenKind::GreaterThanEqual, Type::Colour, Type::Colour) => Type::Bool,
-            (TokenKind::And, Type::Bool, Type::Bool) => Type::Bool,
-            (TokenKind::Or, Type::Bool, Type::Bool) => Type::Bool,
+            (
+                TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | TokenKind::Divide,
+                Type::Int,
+                Type::Int,
+            ) => Type::Int,
+            (
+                TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | TokenKind::Divide,
+                Type::Float,
+                Type::Int,
+            ) => Type::Float,
+            (
+                TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | TokenKind::Divide,
+                Type::Int,
+                Type::Float,
+            ) => Type::Float,
+            (
+                TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | TokenKind::Divide,
+                Type::Float,
+                Type::Float,
+            ) => Type::Float,
+            (
+                TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | TokenKind::Divide,
+                Type::Colour,
+                Type::Colour,
+            ) => Type::Colour,
+            (
+                TokenKind::EqEq
+                | TokenKind::NotEqual
+                | TokenKind::LessThan
+                | TokenKind::LessThanEqual
+                | TokenKind::GreaterThan
+                | TokenKind::GreaterThanEqual,
+                Type::Int,
+                Type::Int,
+            ) => Type::Bool,
+            (
+                TokenKind::EqEq
+                | TokenKind::NotEqual
+                | TokenKind::LessThan
+                | TokenKind::LessThanEqual
+                | TokenKind::GreaterThan
+                | TokenKind::GreaterThanEqual,
+                Type::Int,
+                Type::Float,
+            ) => Type::Bool,
+            (
+                TokenKind::EqEq
+                | TokenKind::NotEqual
+                | TokenKind::LessThan
+                | TokenKind::LessThanEqual
+                | TokenKind::GreaterThan
+                | TokenKind::GreaterThanEqual,
+                Type::Float,
+                Type::Int,
+            ) => Type::Bool,
+            (
+                TokenKind::EqEq
+                | TokenKind::NotEqual
+                | TokenKind::LessThan
+                | TokenKind::LessThanEqual
+                | TokenKind::GreaterThan
+                | TokenKind::GreaterThanEqual,
+                Type::Float,
+                Type::Float,
+            ) => Type::Bool,
+            (
+                TokenKind::EqEq
+                | TokenKind::NotEqual
+                | TokenKind::LessThan
+                | TokenKind::LessThanEqual
+                | TokenKind::GreaterThan
+                | TokenKind::GreaterThanEqual,
+                Type::Bool,
+                Type::Bool,
+            ) => Type::Bool,
+            (
+                TokenKind::EqEq
+                | TokenKind::NotEqual
+                | TokenKind::LessThan
+                | TokenKind::LessThanEqual
+                | TokenKind::GreaterThan
+                | TokenKind::GreaterThanEqual,
+                Type::Colour,
+                Type::Colour,
+            ) => Type::Bool,
+            (TokenKind::And | TokenKind::Or, Type::Bool, Type::Bool) => Type::Bool,
             _ => {
                 self.results
                     .add_error(SemanticError::InvalidOperation(op.clone()));
@@ -242,7 +292,7 @@ impl SemAnalyzer {
     }
 }
 
-impl Visitor<Type> for SemAnalyzer {
+impl Visitor<Type> for SemanticAnalyser {
     fn visit(&mut self, node: &AstNode) -> Type {
         match node {
             AstNode::Program { statements } => {
@@ -378,20 +428,15 @@ impl Visitor<Type> for SemAnalyzer {
                 let expr_type = self.visit(expression);
 
                 if self.check_scope(identifier) {
-                    // get old type of the variable
-                    let old_type = self.get_symbol_type(identifier);
-                    // if changing types, add error, if not add warning
-                    if old_type != expr_type {
-                        self.results.add_error(SemanticError::TypeMismatch(
-                            identifier.span.lexeme.clone(),
-                            old_type,
-                            expr_type.clone(),
-                        ));
-                    } else {
-                        self.results
-                            .add_warning(SemanticError::VariableRedeclaration(identifier.clone()));
-                    }
+                    self.results
+                        .add_error(SemanticError::VariableRedeclaration(identifier.clone()));
                 } else {
+                    // if the variable was not found in this scope, emit a shadowing warning
+                    if self.find_symbol(identifier).is_some() {
+                        self.results
+                            .add_warning(SemanticError::VariableShadowing(identifier.clone()));
+                    }
+
                     self.add_symbol(
                         identifier,
                         &SymbolType::Variable(
@@ -865,7 +910,7 @@ mod tests {
         let mut parser = Parser::new(&tokens, Path::new(""));
         let ast = parser.parse()?;
 
-        let mut scope_checker = SemAnalyzer::new();
+        let mut scope_checker = SemanticAnalyser::new();
         scope_checker.visit(ast);
 
         Ok(())
