@@ -1,10 +1,7 @@
 use crate::core::TokenKind;
+use crate::core::{AstNode, Token, Visitor};
 use crate::semantics::utils::{Signature, Symbol, SymbolTable, SymbolType, Type};
 use crate::utils::errors::SemanticError;
-use crate::{
-    core::Token,
-    parsing::ast::{AstNode, Visitor},
-};
 
 #[derive(Debug)]
 pub struct SemanticResult {

@@ -115,22 +115,25 @@ compiler for the \code{ParL} programming language.}}
 \maketitle
 \tableofcontents
 
+\vfill
+
+\thispagestyle{empty}
+
 \begin{abstract}
-    In this report, we discuss the implementation details of a
-    compiler for \code{ParL}, an expression-based strongly typed programming
-    langauge. Code written in \code{ParL} is compiled to \code{PArIR}, which is
-    the proprietary assembly-like language that is used to drive the
-    programmable pixel art displays designed by the company \code{PArDis}. The
-    \code{ParL} compiler was written in Rust, due to its strong type system and
-    performance characteristics. It was implemented incrementally, as
-    to ensure each component can be run in isolation, and is working correctly
-    before moving on to the next one.
+      In this report, we discuss the implementation details of a
+      compiler for \code{ParL}, an expression-based strongly typed programming
+      langauge. Code written in \code{ParL} is compiled to \code{PArIR}, which is
+      the proprietary assembly-like language that is used to drive the
+      programmable pixel art displays designed by the company \code{PArDis}. The
+      \code{ParL} compiler was written in Rust, due to its strong type system and
+      performance characteristics. It was implemented incrementally, as
+      to ensure each component can be run in isolation, and is working correctly
+      before moving on to the next one.
 \end{abstract}
 
+\vfill
 \newpage
-
-\section{Project Structure}
-
+\input{tasks/intro.tex}
 \newpage
 \input{tasks/lexer.tex}
 % \newpage
@@ -146,6 +149,5 @@ compiler for the \code{ParL} programming language.}}
 \newpage
 
 \printbibliography
-
 
 \end{document}

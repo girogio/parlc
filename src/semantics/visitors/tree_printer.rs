@@ -1,4 +1,4 @@
-use crate::parsing::ast::{AstNode, Visitor};
+use crate::core::{AstNode, Visitor};
 use crate::utils::Result;
 
 pub struct TreePrinter {

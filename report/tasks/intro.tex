@@ -1,0 +1,80 @@
+\section{Project Structure}
+
+The \code{ParL} compiler is implemented in Rust, and is structured as a Rust
+crate providing a CLI interface. Being built incrementally, the folder structure reflects this, and thus contains the core implementions for tasks one through five in a seperate folder for each task.
+
+\subsection{Dependencies}
+
+The use of external crate dependencies has been kept to a minimum throughout
+this assignment. Currently, the only external dependencies are:
+
+\begin{itemize}
+
+      \item \code{clap}: A crate that provides a convenient way to define
+            command-line interfaces.
+
+      \item \code{thiserror}: A crate that provides a convenient way to define
+            custom error types.
+
+      \item \code{console}: A crate that allows for coloured printing to \code{stdout}, for decoration purposes.
+\end{itemize}
+
+\subsection{Modules}
+
+The $\code{ParL}$ compiler is structured as a Rust crate, with the following
+modules:
+
+\begin{itemize}
+      \item \code{core}: Contains the core data structures, such as the
+            \code{Token} struct, the \code{TokenKind} enum and the \code{AstNode} enum,
+            which are used throughout the compiler, in the majority of the stages.
+      \item \code{lexing}: Contains the lexer implementation, together with its
+            requirements such as the \code{Dfsa} and the \code{Lexer} struct.
+      \item
+            \code{parsing}: Contains the parser implementation, together with the
+            \code{Parser} struct and the \code{TreePrinter} visitor.
+      \item \code{semantics}: Contains a \code{visitors} folder, which
+            in turn contains a number of visitors, namely the \code{SemanticAnalyser}, the \code{Formatter}, and the \code{TreePrinter}.
+      \item \code{generation}: Contains the \code{ParIR} code generator visitor,
+            as well as an abstraction of the \code{ParIR} language, instructions.
+\end{itemize}
+
+\newpage
+
+\subsection{Quick Start}
+
+The \code{ParL} compiler has a command-line tool interface, and these
+are the commands that can be used to interact with. The initial run for any of
+these commands will cause the Rust project to be built, so the first run might
+take a bit longer than usual.
+
+\textbf{Getting help:} $$\code{cargo run --\,-- --\,--help}$$
+
+\textbf{Formatting a \code{ParL} file:} $$\code{cargo run fmt path/to/file.parl}$$
+
+The above command will format the input file according to the a predetermined
+style guide, and directly modify the file in place.
+
+\textbf{Running the lexer:} $$\code{cargo run  lex path/to/file.parl}$$
+
+The above command will print to \code{stdout} the tokens that the lexer has extracted from the input file, one per line.
+
+\textbf{Running the parser:} $$\code{cargo run parse path/to/file.parl}$$
+
+The above command will print to \code{stdout} the abstract syntax tree (AST)
+that the parser has generated from the input file, in a pretty-printed format
+provided by the \code{TreePrinter} visitor.
+
+\textbf{Running the semantic analyser:} $$\code{cargo run sem path/to/file.parl}$$
+
+The above command will print to \code{stdout} any semantic errors and/or warnings that the semantic analyser has found in the input file.
+
+\textbf{Running the full compiler:} $$\code{cargo run  compile path/to/file.parl}$$
+
+The above command will compile the input file to \code{PArIR} and print the
+generated code to \code{stdout}. If the \code{-o output\_file.parir} flag is
+provided, the output will be written to the specified file.
+
+Note that all compilation related commands cause the previous steps to be run as
+well, although only the output of the requested step is printed to
+\code{stdout}.

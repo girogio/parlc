@@ -240,12 +240,12 @@ types, otherwise an error is emitted.
 \begin{table}[H]
     \centering
     \begin{tabular}{cc|cccc}
-        \code{as} & to & Int        & Float      & Colour     & Boolean    \\
-        from      &    &            &            &            &            \\ \hline
-        Int       &    & \checkmark & \checkmark & \checkmark & N/A        \\
-        Float     &    & $\times$   & \checkmark & N/A        & N/A        \\
-        Colour    &    & \checkmark & \checkmark & \checkmark & N/A        \\
-        Bool      &    & \checkmark & \checkmark & N/A        & \checkmark
+               & to & Int        & Float      & Colour     & Boolean    \\
+        from   &    &            &            &            &            \\ \hline
+        Int    &    & \checkmark & \checkmark & \checkmark & $\times$   \\
+        Float  &    & $\times$   & \checkmark & $\times$   & $\times$   \\
+        Colour &    & \checkmark & \checkmark & \checkmark & $\times$   \\
+        Bool   &    & \checkmark & \checkmark & $\times$   & \checkmark
     \end{tabular}
     \caption{Type-casting operations between types.}
     \label{tab:type-casting}

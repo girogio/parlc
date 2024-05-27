@@ -11,8 +11,9 @@ use std::{io::Write, path::PathBuf};
 use utils::SimpleBuffer;
 
 use crate::{
+    core::Visitor,
     lexing::Lexer,
-    parsing::{ast::Visitor, Parser},
+    parsing::Parser,
     semantics::visitors::{Formatter, SemanticAnalyser, TreePrinter},
 };
 

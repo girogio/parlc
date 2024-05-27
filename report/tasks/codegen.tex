@@ -1,3 +1,19 @@
 \section{Code Generation}
 
-The final step in the compilation process is the code generation phase. In this phase, the compiler takes the AST and generates the \code{PArIR} code that will be executed by the \code{PArDis} displays. The code generation phase is implemented in the \code{codegen} module, which is defined in the \code{src/codegen.rs} file.
+The final step in the compilation process is the code generation phase. In this phase, the compiler takes the AST and generates the \code{PArIR} code that will be executed by the \code{PArDis} displays.
+
+\subsection{Abstracting Instructions}
+
+The first step in the code generation phase was to abstract the \code{PArIR}
+instructions into a Rust enum. This enum, called \code{Instruction}, contains
+all the instructions that the \code{PArDis} displays can execute. The
+instruction variants containing arguments, are represented as part of the enum
+in an unnamed tuple struct. These instructions are all of the \code{Push}
+variants, and the function labels, which contain the memory location/value to
+push and the name of the function respectively.
+
+The \code{Instruction} enum has a \code{Display} trait implementation, which is
+equivalent to a \code{toString} method in other languages. We will set the
+string representation of the instruction to be the same as the \code{PArIR}
+instruction itself, with the arguments formatted accordingly, as it will be
+ouputted in the final \code{PArIR} code.

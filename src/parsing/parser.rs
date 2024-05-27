@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::ast::AstNode;
+use crate::core::AstNode;
 
 pub struct Parser {
     tokens: Vec<Token>,

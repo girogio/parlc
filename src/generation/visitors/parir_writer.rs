@@ -4,10 +4,7 @@ use crate::{
     semantics::utils::Type,
 };
 
-use crate::{
-    core::Token,
-    parsing::ast::{AstNode, Visitor},
-};
+use crate::core::{AstNode, Token, Visitor};
 use crate::{core::TokenKind, semantics::utils::MemLoc};
 
 #[derive(Debug)]
