@@ -108,10 +108,33 @@ i.e. mistakes that must be fixed before the program can be compiled.
 Now that we know what tools the semantic analyser has at its disposal, we still
 have one more thing to discuss. How do we find out the types of arbitrary
 expressions, possibly with a mixture of literals, variables, function calls, and
-operations applied to them?
+operations applied to them? To answer this question we must define the type inference of operations betweentypes in the language.
 
-To answer this question we must define the type inference of operations between
-types in the language.
+\begin{multicols}{3}
+    \begin{center}
+        \code{Int}
+    \end{center}
+
+    \begin{center}
+        \code{Float}
+    \end{center}
+
+    \begin{center}
+        \code{Colour}
+    \end{center}
+
+    \begin{center}
+        \code{Bool}
+    \end{center}
+
+    \begin{center}
+        \code{Array<T>}
+    \end{center}
+
+    \begin{center}
+        Void
+    \end{center}
+\end{multicols}
 
 \begin{table}[H]
     \centering
@@ -194,9 +217,62 @@ functions that do not return anything, any \code{Block} is at first assigned the
 \code{Void} type, and if it remains so until the end of the block, an error is
 emitted.
 
-Now that we know how all the type information of the program and the statements
-therein is gathered, the semantic analyser will check this against the type
-provided by the user in the function signature, or variable declaration, and
-will emit a type mismatch error, stating what the type it expected is (the one
-the user defined) and what it found, the type of the returned expression. In the
-case of arrays, lengths must also match.
+With all the type information of the symbols present in the program acquired,
+the semantic analyser will check this against the type provided by the user in
+the function signature, or variable declaration, and will emit a type mismatch
+error, stating what the type it expected is (the one the user defined) and what
+it found, the type of the returned expression. In the case of arrays, lengths
+must also match.
+
+\newpage
+
+Additionally, in the case of \code{For} loops, there is one additinoal thing to
+pay attention to. Even though the body of for loop is a block in its own right,
+we must actually start the scope of the for loop before the body, but then, we
+cannot visit the body with the normal rules. In fact, a new function called \code{visit\_unscoped\_block} was created to override the normal behaviour of visiting a block, and instead, visit it without creating a new scope. This is crucial for the for loop, as the variables declared in the for loop must be accessible in the body of the loop (and because we can't shadow the iterator variable).
+
+Lastly, type-casting is also supported in the language, and is done by using the
+\code{as} keyword. The type-casting operation is only allowed between specific
+types, otherwise an error is emitted.
+
+\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{cc|cccc}
+        \code{as} & to & Int        & Float      & Colour     & Boolean    \\
+        from      &    &            &            &            &            \\ \hline
+        Int       &    & \checkmark & \checkmark & \checkmark & N/A        \\
+        Float     &    & $\times$   & \checkmark & N/A        & N/A        \\
+        Colour    &    & \checkmark & \checkmark & \checkmark & N/A        \\
+        Bool      &    & \checkmark & \checkmark & N/A        & \checkmark
+    \end{tabular}
+    \caption{Type-casting operations between types.}
+    \label{tab:type-casting}
+\end{table}
+
+\begin{warningbox}{Limitation}
+    The type-casting operation is only supported
+    between the types listed in the table above. However, this may cause some
+    overflows, which are not check for in the compiler. A clear example is taking
+    the \code{Colour} \code{\#ffffff}, casting it to an \code{Int}, adding one, and casting it back to a \code{Colour}. Drawing this on the display will result in a black pixel, as the \code{Int} overflowed.\\
+
+    A further improvement could be an overflow check implemented on types with arbitrary values that have fixed ranges, such as \code{Int} and \code{Floats}.
+    In fact, whilst converting array indices from a lexeme to a Rust \code{usize}, we assume that the lexeme represents a valid \code{usize}. If it is too big, the compiler will crash due to an \code{unwrap()}.
+\end{warningbox}
+
+To summarize, the following are the rules we shall impose on the language:
+
+\begin{itemize}
+    \item Atomic variables, functions and arrays must be declared before they are used.
+    \item Atomic variables, functions and arrays cannot be re-declared in the same scope.
+    \item Atomic variable and array declaratinos can be shadowed in inner scopes.
+    \item When declaring arrays, the number of elements must match the length of
+          the array, so overallocation is not allowed.
+    \item Functions cannot be called with the wrong number of arguments.
+    \item Function parameters must match the types in the function signature.
+    \item Functions must return a value.
+    \item Functions must return the correct type.
+    \item Operations between types must be valid.
+    \item The type of the expression in a return statement must match the return type of the function.
+\end{itemize}

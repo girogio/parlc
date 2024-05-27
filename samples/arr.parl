@@ -1,8 +1,8 @@
-let a: int = 5;
+let a: colour = #ffffff;
 
-{
-	let a: int = 4;
-	__print a;
-}
+let b: int = (a as int) + 1;
+
+__write 0, 0, b as colour;
 
 __print a;
+__print b;

@@ -283,7 +283,7 @@ impl SemanticAnalyser {
             (Type::Colour, Type::Int) => Type::Int,    // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
             (Type::Bool, Type::Int) => Type::Int,      // false -> 0, true -> 1
             (Type::Int, Type::Colour) => Type::Colour, // 0xRR + 0xGG + 0xBB -> 0xRRGGBB
-            (Type::Bool, Type::Float) => Type::Float,  // false -> 0.0, true -> 1.0
+
             _ => {
                 self.results.add_error(SemanticError::InvalidCast(from, to));
                 Type::Unknown
