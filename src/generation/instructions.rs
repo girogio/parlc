@@ -4,8 +4,8 @@ use crate::{core::Token, semantics::utils::MemLoc};
 
 #[derive(Debug)]
 pub struct Program {
-    pub instructions: Vec<Instruction>,
     pub functions: Vec<Instruction>,
+    pub main: Vec<Instruction>,
 }
 
 impl Display for Program {
@@ -13,7 +13,7 @@ impl Display for Program {
         for instruction in &self.functions {
             write!(f, "{}", instruction)?;
         }
-        for instruction in &self.instructions {
+        for instruction in &self.main {
             write!(f, "{}", instruction)?;
         }
         Ok(())

@@ -1,7 +1,9 @@
 \section{Project Structure}
 
 The \code{ParL} compiler is implemented in Rust, and is structured as a Rust
-crate providing a CLI interface. Being built incrementally, the folder structure reflects this, and thus contains the core implementions for tasks one through five in a seperate folder for each task.
+crate providing a CLI interface. The folder structure of the project reflects
+the fact that the compiler was built incrementally, with each stage having the
+core implementation in its own module (folder).
 
 \subsection{Dependencies}
 

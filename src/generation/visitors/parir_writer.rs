@@ -11,13 +11,13 @@ use crate::{core::TokenKind, semantics::utils::MemLoc};
 pub struct PArIRWriter {
     /// Stack of symbol tables, each representing a scope
     symbol_table: Vec<SymbolTable>,
-    /// String containing the program's contents
+    /// The ParIR program container
     program: Program,
     /// Pointer to the current instruction
     instr_ptr: usize,
     /// The current stack level
     stack_level: usize,
-    /// The current stack offset
+    /// The current frame index
     frame_index: usize,
 }
 
@@ -26,7 +26,7 @@ impl PArIRWriter {
         PArIRWriter {
             symbol_table: Vec::new(),
             program: Program {
-                instructions: Vec::new(),
+                main: Vec::new(),
                 functions: Vec::new(),
             },
             instr_ptr: 0,
@@ -41,7 +41,7 @@ impl PArIRWriter {
     }
 
     fn add_instruction(&mut self, instruction: Instruction) -> usize {
-        self.program.instructions.push(instruction);
+        self.program.main.push(instruction);
         self.instr_ptr += 1;
         self.instr_ptr - 1
     }
@@ -129,7 +129,7 @@ impl Visitor<usize> for PArIRWriter {
                     self.visit(statement);
                 }
 
-                self.program.instructions[var_count_push] =
+                self.program.main[var_count_push] =
                     Instruction::PushIntValue(self.get_scope_var_count());
 
                 self.add_instruction(Instruction::PopFrame);
@@ -190,7 +190,7 @@ impl Visitor<usize> for PArIRWriter {
                     // check the rest of the block
                     if let AstNode::Return { expression } = statement {
                         self.visit(expression);
-                        self.program.instructions[var_dec_count] =
+                        self.program.main[var_dec_count] =
                             Instruction::PushIntValue(self.get_scope_var_count());
                         self.add_instruction(Instruction::Return);
                         self.add_instruction(Instruction::PopFrame);
@@ -202,7 +202,7 @@ impl Visitor<usize> for PArIRWriter {
                     }
                 }
 
-                self.program.instructions[var_dec_count] =
+                self.program.main[var_dec_count] =
                     Instruction::PushIntValue(self.get_scope_var_count());
 
                 self.add_instruction(Instruction::PopFrame);
@@ -253,7 +253,7 @@ impl Visitor<usize> for PArIRWriter {
 
                 self.program
                     .functions
-                    .extend(self.program.instructions.drain(start..end));
+                    .extend(self.program.main.drain(start..end));
 
                 self.pop_scope();
                 self.stack_level = 0;
@@ -555,12 +555,12 @@ impl Visitor<usize> for PArIRWriter {
 
                 self.add_instruction(Instruction::Jump);
 
-                self.program.instructions[jump_to_true] =
+                self.program.main[jump_to_true] =
                     Instruction::PushOffsetFromPC(self.instr_ptr as i32 - jump_to_true as i32);
 
                 self.visit_unscoped_block(if_true);
 
-                self.program.instructions[jump_to_end] =
+                self.program.main[jump_to_end] =
                     Instruction::PushOffsetFromPC(self.instr_ptr as i32 - jump_to_end as i32);
             }
 
@@ -597,11 +597,11 @@ impl Visitor<usize> for PArIRWriter {
                 ));
                 self.add_instruction(Instruction::Jump);
 
-                self.program.instructions[push_var_count_placeholder] =
+                self.program.main[push_var_count_placeholder] =
                     Instruction::PushIntValue(self.get_scope_var_count());
 
                 let pop = self.add_instruction(Instruction::PopFrame);
-                self.program.instructions[jump_to_end_placeholder] =
+                self.program.main[jump_to_end_placeholder] =
                     Instruction::PushOffsetFromPC(pop as i32 - jump_to_end_placeholder as i32);
                 self.pop_scope();
                 self.stack_level -= 1;
@@ -627,12 +627,12 @@ impl Visitor<usize> for PArIRWriter {
                 ));
                 self.add_instruction(Instruction::Jump);
 
-                self.program.instructions[var_count_push] =
+                self.program.main[var_count_push] =
                     Instruction::PushIntValue(self.get_scope_var_count());
 
                 self.stack_level -= 1;
                 let pop = self.add_instruction(Instruction::PopFrame);
-                self.program.instructions[jump_to_end] =
+                self.program.main[jump_to_end] =
                     Instruction::PushOffsetFromPC(pop as i32 - jump_to_end as i32);
 
                 self.pop_scope();
