@@ -59,7 +59,7 @@ know where to jump.
 
 Of course, other things need to be kept track of, like the current stack level,
 and the current frame index, which are used to generate the correct \code{Push}
-instructions, when referencing variables from the symbol table. Here is the full
+instructions when referencing variables from the symbol table. Here is the full
 definition of the \code{PArIRWriter} struct, upon which we implement the visitor
 trait.
 
@@ -91,4 +91,3 @@ Additionally, we also have some helper functions such as
           \code{pop\_scope()}, being common operations, we shall automate them, whilst
           resetting the frame index and incrementing the stack level.
 \end{itemize}
-
