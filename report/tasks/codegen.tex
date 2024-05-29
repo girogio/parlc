@@ -66,18 +66,18 @@ trait.
 \begin{mainbox}{}
     \lstset{xleftmargin=.1\textwidth, aboveskip=0pt, belowskip=0pt}
     \begin{lstlisting}
-pub struct PArIRWriter {
-        /// Stack of symbol tables, each representing a scope
-        symbol_table: Vec<SymbolTable>,
-        /// The ParIR program container
-        program: Program,
-        /// Pointer to the current instruction
-        instr_ptr: usize,
-        /// The current stack level
-        stack_level: usize,
-        /// The current frame index
-        frame_index: usize,
-    }
+struct PArIRWriter {
+    /// Stack of symbol tables, each representing a scope
+    symbol_table: Vec<SymbolTable>,
+    /// The ParIR program container
+    program: Program,
+    /// Pointer to the current instruction
+    instr_ptr: usize,
+    /// The current stack level
+    stack_level: usize,
+    /// The current frame index
+    frame_index: usize,
+}
 \end{lstlisting}
 \end{mainbox}
 
