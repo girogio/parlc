@@ -25,7 +25,10 @@ def test_variable_declaration():
     """
 
     runner = Runner(source=program)
+
     parir, result = runner.compile_and_run()
+
+    # print(runner.parse())
 
     # print(parir)
     # print(result)
@@ -41,18 +44,22 @@ def test_variable_assignment():
     let a: int = 5;
     let b: colour = #000000;
     let c: float  = 1.23;
+    let d: int[5] = [1, 2, 3, 4, 5];
 
     __print a;
     __print b;
     __print c;
+    __print d[1];
 
     a = 2;
     b = #FFFFFF;
     c = 3.45;
+    d[1] = 1;
 
     __print a;
     __print b;
     __print c;
+    __print d[0];
 
     """
 
@@ -62,7 +69,7 @@ def test_variable_assignment():
     # print(parir)
     # print(result)
 
-    assert result == ["5", "0", "1.23", "2", "16777215", "3.45"]
+    assert result == ["5", "0", "1.23", "2", "2", "16777215", "3.45", "1"]
 
     print("Variable assignment tests passed!")
 
@@ -74,6 +81,19 @@ def test_control_flows():
     for (let i: int = 0; i < loop_max; i = i + 1) {
         __print i;
     }
+
+    if (1 < 2) {
+        __print 1;
+    } else {
+        __print 0;
+    }
+
+    if (1 > 2) {
+        __print 1;
+    } else {
+        __print 0;
+    }
+
 
     let i: int = 0;
     while (i < loop_max) {
@@ -88,7 +108,7 @@ def test_control_flows():
     # print(parir)
     # print(result)
 
-    assert result == list(map(str, range(5))) + list(map(str, range(5)))
+    assert result == list(map(str, range(5))) + ["1", "0"] + list(map(str, range(5)))
     print("Control flow tests passed!")
 
 
@@ -101,6 +121,15 @@ def test_functions():
     let result: int = add(5, 10);
 
     __print result;
+
+    fun some_func(a: int[2]) -> int[2] {
+        let b: int[2] = [1,3];
+        return b;
+    }
+
+    let a: int[2] = [1, 2];
+
+    __print some_func(a);
 
 
     fun mixed_parameters(a: int, b: float, c: colour) -> bool {
@@ -137,6 +166,7 @@ def test_functions():
     # print(result)
 
     expected = ["15"]
+    expected += ["1", "3"]
     expected += ["5", "1.23", "0", "1"]
     expected += ["5", "1", "2", "3", "4"] + ["15"]
 

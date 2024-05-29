@@ -40,6 +40,7 @@ impl Visitor<Result<()>> for TreePrinter {
                 self.print_tab();
                 println!("Identifier: {}", identifier);
                 self.print_tab();
+                print!("Index: ");
                 self.visit(index)?;
                 self.tab_level -= 1;
                 Ok(())
@@ -62,10 +63,10 @@ impl Visitor<Result<()>> for TreePrinter {
                 self.print_tab();
                 println!("Elements: ");
                 self.tab_level += 1;
+                self.print_tab();
                 for element in elements {
-                    self.print_tab();
                     self.visit(element)?;
-                    println!();
+                    print!(", ");
                 }
                 self.tab_level -= 1;
                 self.tab_level -= 1;
@@ -206,7 +207,7 @@ impl Visitor<Result<()>> for TreePrinter {
             }
 
             AstNode::Block { statements } => {
-                println!();
+                println!("Block");
                 self.tab_level += 1;
                 for statement in statements {
                     self.print_tab();

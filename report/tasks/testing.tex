@@ -1,1 +1,591 @@
 \section{Testing Framework}
+
+\subsection{Unit Testing}
+
+During the early stages of development, such as the lexer and parser, most of
+the testing was done through unit tests, first with smaller cases, and then with
+larger cases.
+
+\subsection{Integration Testing}
+
+After the lexer and parser were completed, integration testing was done to
+ensure that the lexer and parser worked together correctly. This was done by
+running the CLI interfce, one stage at a time, on small, simple prorgrams.
+
+Nearing the end of the project, I decided that it would be useful to create a
+more robust testing framework to test the entire compiler, as well as the
+compiled code on the VM. Using the Python library
+\href{https://playwright.dev/python/}{Playwright} I created a script that opens
+the VM website in a browser (in headless mode) and runs the compiled code. The
+script then gets the output of the log, transforms it into an array of its
+lines, and removes the three \code{`>'} symbols at the beginning of each log
+entry.
+
+In Python then, we are free to use this array to check against the expected
+values, through assertions, and we print out the results of the tests.
+
+
+
+\subsection{Results}
+
+\subsubsection{Variable declarations}
+
+\textbf{ParL Program:}
+
+\begin{lstlisting}
+    let a: int = 5;
+    let b: colour = #000000;
+    let c: float  = 1.23;
+
+    let d: int[5] = [1, 2, 3, 4, 5];
+
+    __print a;
+    __print b;
+    __print c;
+    __print d;
+
+    {
+        let a: int = 1;
+        __print a;
+    }
+
+    __print a;
+\end{lstlisting}
+
+\newpage
+
+\textbf{AST:}
+
+\begin{lstlisting}
+Program
+  VarDec
+    Identifier: a
+    Type: int
+    Expression: 5
+  VarDec
+    Identifier: b
+    Type: colour
+    Expression: #000000
+  VarDec
+    Identifier: c
+    Type: float
+    Expression: 1.23
+  VarDecArray
+    Identifier: d
+    Element Type: int
+    Size: 5
+    Elements: 1, 2, 3, 4, 5
+  Print
+    Expression: a
+  Print
+    Expression: b
+  Print
+    Expression: c
+  Print
+    Expression: d
+  Block
+    VarDec
+      Identifier: a
+      Type: int
+      Expression: 1
+    Print
+      Expression: a
+  Print
+    Expression: a
+\end{lstlisting}
+
+\textbf{Result:}
+Output successfuly matched with $$\code{['5', '0', '1.23', '1', '2', '3', '4',
+                '5', '1', '5']}$$
+
+\newpage
+
+\subsubsection{Variable Assignment}
+
+\textbf{ParL Program:}
+
+\vfill
+
+\begin{lstlisting}
+    let a: int = 5;
+    let b: colour = #000000;
+    let c: float  = 1.23;
+    let d: int[5] = [1, 2, 3, 4, 5];
+
+    __print a;
+    __print b;
+    __print c;
+    __print d[1];
+
+    a = 2;
+    b = #FFFFFF;
+    c = 3.45;
+    d[1] = 1;
+
+    __print a;
+    __print b;
+    __print c;
+    __print d[0];
+\end{lstlisting}
+\vfill
+
+\newpage
+
+\textbf{AST:}
+
+
+\begin{lstlisting}[language=]
+Program
+  VarDec
+    Identifier: a
+    Type: int
+    Expression: 5
+  VarDec
+    Identifier: b
+    Type: colour
+    Expression: #000000
+  VarDec
+    Identifier: c
+    Type: float
+    Expression: 1.23
+  VarDecArray
+    Identifier: d
+    Element Type: int
+    Size: 5
+    Elements: 1, 2, 3, 4, 5
+  Print
+    Expression: a
+  Print
+    Expression: b
+  Print
+    Expression: c
+  Print
+    Expression: ArrayAccess
+        Identifier: d
+        Index: 1
+  Assignment
+    Identifier: a
+    Expression: 2
+  Assignment
+    Identifier: b
+    Expression: #FFFFFF
+  Assignment
+    Identifier: c
+    Expression: 3.45
+  Assignment
+    Identifier: d
+    Expression: 1
+    Index: 1
+  Print
+    Expression: a
+  Print
+    Expression: b
+  Print
+    Expression: c
+  Print
+    Expression: ArrayAccess
+        Identifier: d
+        Index: 0
+\end{lstlisting}
+
+
+\textbf{Result:}
+
+Output successfuly matched with $$\code{["5", "0", "1.23", "2", "2", "16777215",
+                "3.45", "1"]}$$
+
+
+\subsubsection{Control Flows}
+
+\textbf{ParL Program:}
+
+{
+
+    \lstset{xleftmargin=0.2\textwidth}
+
+    \begin{lstlisting}
+    let loop_max: int = 5;
+
+    for (let i: int = 0; i < loop_max; i = i + 1) {
+        __print i;
+    }
+
+    if (1 < 2) {
+        __print 1;
+    } else {
+        __print 0;
+    }
+
+    if (1 > 2) {
+        __print 1;
+    } else {
+        __print 0;
+    }
+
+
+    let i: int = 0;
+    while (i < loop_max) {
+        __print i;
+        i = i + 1;
+    }
+\end{lstlisting}
+
+}
+
+\newpage
+
+\textbf{AST:}
+
+
+\begin{lstlisting}
+Program
+  VarDec
+    Identifier: a
+    Type: int
+    Expression: 5
+  VarDec
+    Identifier: b
+    Type: colour
+    Expression: #000000
+  VarDec
+    Identifier: c
+    Type: float
+    Expression: 1.23
+  VarDecArray
+    Identifier: d
+    Element Type: int
+    Size: 5
+    Elements:
+      1, 2, 3, 4, 5,
+  Print
+    Expression: a
+  Print
+    Expression: b
+  Print
+    Expression: c
+  Print
+    Expression: ArrayAccess
+        Identifier: d
+        Index: 1
+  Assignment
+    Identifier: a
+    Expression: 2
+  Assignment
+    Identifier: b
+    Expression: #FFFFFF
+  Assignment
+    Identifier: c
+    Expression: 3.45
+  Assignment
+    Identifier: d
+    Expression: 1
+    Index: 1
+  Print
+    Expression: a
+  Print
+    Expression: b
+  Print
+    Expression: c
+  Print
+    Expression: ArrayAccess
+        Identifier: d
+        Index: 0
+\end{lstlisting}
+
+\textbf{Result:}
+
+Output successfuly matched with $$\code{["0", "1", "2", "3", "4", "1", "0", "0", "1", "2", "3", "4"]}$$
+
+\newpage
+
+\subsubsection{Functions}
+
+\textbf{ParL Program:}
+{
+    \lstset{xleftmargin=0.2\textwidth}
+
+    \begin{lstlisting}
+fun add(a: int, b: int) -> int {
+    return a + b;
+}
+
+let result: int = add(5, 10);
+
+__print result;
+
+fun some_func(a: int[2]) -> int[2] {
+    let b: int[2] = [1,3];
+    return b;
+}
+
+let a: int[2] = [1, 2];
+
+__print some_func(a);
+
+
+fun mixed_parameters(a: int, b: float, c: colour) -> bool {
+    __print a;
+    __print b;
+    __print c;
+
+    return true;
+}
+
+__print mixed_parameters(5, 1.23, #000000);
+
+fun array_parameters(a: int[5]) -> int {
+
+    let sum: int = 0;
+
+    for (let i: int = 0; i < 5; i = i + 1) {
+        __print a[i];
+        sum = sum + a[i];
+    }
+
+    return sum;
+}
+
+let arr: int[5] = [5, 1, 2, 3, 4];
+
+__print array_parameters(arr);
+
+\end{lstlisting}
+}
+
+\newpage
+
+\textbf{AST:}
+
+{
+
+    \lstset{xleftmargin=0.25\textwidth}
+
+    \begin{lstlisting}
+Program
+  FunctionDecl
+    Identifier: add
+    Params: a: int, b: int,
+    Return Type: int
+    Block: Block
+      Return
+        Expression: (a + b)
+  VarDec
+    Identifier: result
+    Type: int
+    Expression: add(5, 10)
+  Print
+    Expression: result
+  FunctionDecl
+    Identifier: some_func
+    Params: a: int[2],
+    Return Type: int[2]
+    Block: Block
+      VarDecArray
+        Identifier: b
+        Element Type: int
+        Size: 2
+        Elements:
+          1, 3,
+      Return
+        Expression: b
+  VarDecArray
+    Identifier: a
+    Element Type: int
+    Size: 2
+    Elements:
+      1, 2,
+  Print
+    Expression: some_func(a)
+  FunctionDecl
+    Identifier: mixed_parameters
+    Params: a: int, b: float, c: colour,
+    Return Type: bool
+    Block: Block
+      Print
+        Expression: a
+      Print
+        Expression: b
+      Print
+        Expression: c
+      Return
+        Expression: true
+  Print
+    Expression: mixed_parameters(5, 1.23, #000000)
+  FunctionDecl
+    Identifier: array_parameters
+    Params: a: int[5],
+    Return Type: int
+    Block: Block
+      VarDec
+        Identifier: sum
+        Type: int
+        Expression: 0
+      For
+        Initializer: VarDec
+          Identifier: i
+          Type: int
+          Expression: 0
+        Condition: (i < 5)
+        Increment:
+          Assignment
+            Identifier: i
+            Expression: (i + 1)
+
+        Body: Block
+          Print
+            Expression: ArrayAccess
+                Identifier: a
+                Index: i
+          Assignment
+            Identifier: sum
+            Expression: (sum + ArrayAccess
+                Identifier: a
+                Index: i)
+      Return
+        Expression: sum
+  VarDecArray
+    Identifier: arr
+    Element Type: int
+    Size: 5
+    Elements:
+      5, 1, 2, 3, 4,
+  Print
+    Expression: array_parameters(arr)
+\end{lstlisting}
+
+}
+
+\textbf{Result:}
+
+Output successfuly matched with $$\code{["15", "1", "3", "5", "1.23", "0", "1",
+                "5", "1", "2", "3", "4", "15"]}$$
+
+\newpage
+
+\subsubsection{Expressions}
+
+\textbf{ParL Program:}
+
+{
+    \lstset{xleftmargin=0.1\textwidth}
+
+    \begin{lstlisting}
+let a: int = 5;
+let b: int = 10;
+
+__print (a + b) == 20;
+__print ((((a + b) * 2) / 3) - 1) == 9;
+__print (a + b) <= 20 and a - b <= 0;
+__print ((12 + 5) * (8 - 3) + (18 / 2)) - ((25 - 5) / (4 + 1));
+\end{lstlisting}
+
+}
+
+\textbf{AST:}
+
+{
+
+    \lstset{xleftmargin=0\textwidth}
+
+    \begin{lstlisting}
+Program
+  VarDec
+    Identifier: a
+    Type: int
+    Expression: 5
+  VarDec
+    Identifier: b
+    Type: int
+    Expression: 10
+  Print
+    Expression: (((a + b)) == 20)
+  Print
+    Expression: (((((((((a + b)) * 2)) / 3)) - 1)) == 9)
+  Print
+    Expression: ((((a + b)) <= 20) and ((a - b) <= 0))
+  Print
+    Expression: ((((((12 + 5)) * ((8 - 3))) + ((18 / 2)))) - ((((25 - 5)) / ((4 + 1)))))
+\end{lstlisting}
+
+}
+
+\textbf{Result:}
+
+Output successfuly matched with $$\code{["0", "1", "1", "90"]}$$
+
+\newpage
+
+\subsubsection{Pad Read/Write}
+
+\textbf{ParL Program:}
+
+{
+    \lstset{xleftmargin=0.2\textwidth}
+
+    \begin{lstlisting}
+let c1: colour = #213B5F;
+let c2: colour = #FFA400;
+
+let x1: int = 5;
+let y1: int = 10;
+
+let x2: int = 20;
+let y2: int = 30;
+
+__write x1, y1, c1;
+
+__print __read x1, y1;
+
+__write_box x1, y1, x2, y2, c2;
+
+__print __read x1 + 3, y1 + 3;
+\end{lstlisting}
+
+}
+
+\textbf{AST:}
+
+{
+    \lstset{xleftmargin=0.2\textwidth}
+
+    \begin{lstlisting}
+Program
+    VarDec
+      Identifier: c1
+      Type: colour
+      Expression: #213B5F
+    VarDec
+      Identifier: c2
+      Type: colour
+      Expression: #FFA400
+    VarDec
+      Identifier: x1
+      Type: int
+      Expression: 5
+    VarDec
+      Identifier: y1
+      Type: int
+      Expression: 10
+    VarDec
+      Identifier: x2
+      Type: int
+      Expression: 20
+    VarDec
+      Identifier: y2
+      Type: int
+      Expression: 30
+    __write x1, y1, c1;
+    Print
+      Expression: __read x1, y1
+    __write_box x1, y1, x2, y2, c2;
+    Print
+      Expression: __read (x1 + 3), (y1 + 3)
+\end{lstlisting}
+
+}
+
+\textbf{Result:}
+
+Output successfuly matched with $$\code{["2177887", "16753664"]}$$
+
+\newpage

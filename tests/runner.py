@@ -2,9 +2,7 @@
 
 import os
 import subprocess
-import tempfile as tmp
 from time import sleep
-from typing import Optional
 
 from playwright.sync_api import sync_playwright
 
@@ -17,6 +15,38 @@ class Runner:
     def __init__(self, source, source_path: str = ""):
         self.source_path = source_path
         self.source = source.replace("\n", " ")
+
+    def parse(self) -> str:
+        """Gets the pretty printed version of the AST of the program."""
+
+        if not self.source and not self.source_path:
+            raise ValueError("Either source or source_path must be provided.")
+
+        if self.source and not self.source_path:
+            self.source_path = "/tmp/program.parl"
+
+            with open(self.source_path, "w") as f:
+                f.write(self.source)
+
+        sleep(1)
+
+        compiler = subprocess.run(
+            ["cargo", "run", "parse", self.source_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        sleep(1)
+
+        if self.source and os.path.exists(self.source_path):
+            os.remove(self.source_path)
+            self.source_path = ""
+
+        if compiler.returncode != 0:
+            print(compiler.stderr.decode())
+            raise ValueError("Compilation failed.")
+
+        return compiler.stdout.decode()
 
     def compile(self) -> str:
         """
@@ -53,7 +83,7 @@ class Runner:
             raise ValueError("Only one of source or source_path must be provided.")
 
         if compiler.returncode != 0:
-            print(compiler.stdout.decode())
+            print(compiler.stderr.decode())
             raise ValueError("Compilation failed.")
 
         return compiler.stdout.decode()
