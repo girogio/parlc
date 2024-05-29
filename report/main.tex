@@ -19,6 +19,8 @@
 \usepackage{tikz}
 \usepackage{adjustbox}
 \usepackage{float}
+\usepackage{pdfpages}
+
 
 \addbibresource{ref}
 
@@ -112,23 +114,40 @@ compiler for the \code{ParL} programming language.}}
 
 \begin{document}
 
-\maketitle
-\tableofcontents
-
 \vfill
 
 \thispagestyle{empty}
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\newpage
+
+
+\thispagestyle{empty}
+\includepdf[pages=-]{plagg.pdf}
+
+\newpage
+
+\tableofcontents
+
+
+% \thispagestyle{empty}
+
+\vfill
 
 \begin{abstract}
+  \centering
   In this report, we discuss the implementation details of a
   compiler for \code{ParL}, an expression-based strongly typed programming
   langauge. Code written in \code{ParL} is compiled to \code{PArIR}, which is
   the proprietary assembly-like language that is used to drive the
   programmable pixel art displays designed by the company \code{PArDis}. The
   \code{ParL} compiler was written in Rust, due to its strong type system and
-  performance characteristics. It was implemented incrementally, as
-  to ensure each component can be run in isolation, and is working correctly
-  before moving on to the next one.
+  performance characteristics. This assignment was part of the course CPS2000 -
+  Compiler Theory and Practcie and was submitted in partial fulfilment of the
+  requirements for the degree of B.Sc (Hons.) in Computer Science and
+  Mathematics at the University of Malta.
 \end{abstract}
 
 \vfill
@@ -152,11 +171,14 @@ compiler for the \code{ParL} programming language.}}
 
 \input{tasks/testing.tex}
 
+\newpage
+\printbibliography
+
+\newpage
 
 \input{appendix.tex}
 
 \newpage
 
-\printbibliography
 
 \end{document}

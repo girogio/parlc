@@ -50,7 +50,7 @@ impl Signature {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct MemLoc {
+pub struct MemoryLocation {
     pub stack_level: usize,
     pub frame_index: usize,
 }
@@ -59,7 +59,7 @@ pub struct MemLoc {
 pub struct Symbol {
     pub lexeme: String,
     pub symbol_type: SymbolType,
-    pub memory_location: Option<MemLoc>,
+    pub memory_location: Option<MemoryLocation>,
 }
 
 impl PartialEq for Symbol {
@@ -83,7 +83,7 @@ impl Ord for Symbol {
 }
 
 impl Symbol {
-    pub fn new(lexeme: &str, symbol_type: SymbolType, mem_loc: Option<MemLoc>) -> Self {
+    pub fn new(lexeme: &str, symbol_type: SymbolType, mem_loc: Option<MemoryLocation>) -> Self {
         Symbol {
             lexeme: lexeme.to_string(),
             symbol_type,
@@ -114,7 +114,12 @@ impl SymbolTable {
         }
     }
 
-    pub fn add_symbol(&mut self, lexeme: &str, symbol_type: &SymbolType, mem_loc: Option<MemLoc>) {
+    pub fn add_symbol(
+        &mut self,
+        lexeme: &str,
+        symbol_type: &SymbolType,
+        mem_loc: Option<MemoryLocation>,
+    ) {
         let mut index = 0;
         let symbol = Symbol::new(lexeme, symbol_type.clone(), mem_loc);
         for s in &self.symbols {

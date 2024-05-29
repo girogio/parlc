@@ -5,7 +5,7 @@ use crate::{
 };
 
 use crate::core::{AstNode, Token, Visitor};
-use crate::{core::TokenKind, semantics::utils::MemLoc};
+use crate::{core::TokenKind, semantics::utils::MemoryLocation};
 
 #[derive(Debug)]
 pub struct PArIRWriter {
@@ -73,7 +73,7 @@ impl PArIRWriter {
         self.symbol_table.last_mut().unwrap()
     }
 
-    fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType, mem_loc: Option<MemLoc>) {
+    fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType, mem_loc: Option<MemoryLocation>) {
         self.mut_current_scope()
             .add_symbol(&symbol.span.lexeme, symbol_type, mem_loc);
     }
@@ -84,10 +84,10 @@ impl PArIRWriter {
             .is_some()
     }
 
-    fn get_memory_location(&self, symbol: &Token) -> Option<MemLoc> {
+    fn get_memory_location(&self, symbol: &Token) -> Option<MemoryLocation> {
         self.find_symbol(symbol).and_then(|s| {
             let relative_mem_loc = s.memory_location;
-            relative_mem_loc.map(|mem_loc| MemLoc {
+            relative_mem_loc.map(|mem_loc| MemoryLocation {
                 stack_level: self.stack_level - mem_loc.stack_level,
                 frame_index: mem_loc.frame_index,
             })
@@ -165,7 +165,7 @@ impl Visitor<usize> for PArIRWriter {
                     self.add_symbol(
                         identifier,
                         &SymbolType::Array(element_type, *size),
-                        Some(MemLoc {
+                        Some(MemoryLocation {
                             stack_level: self.stack_level,
                             frame_index: self.frame_index,
                         }),
@@ -300,7 +300,7 @@ impl Visitor<usize> for PArIRWriter {
                             self.add_instruction(Instruction::PushIntValue(0)); // push 0
                             self.add_instruction(Instruction::StoreArray);
                             self.add_instruction(Instruction::PushIntValue(s));
-                            self.add_instruction(Instruction::PushArray(MemLoc {
+                            self.add_instruction(Instruction::PushArray(MemoryLocation {
                                 stack_level: 0,
                                 frame_index: 0,
                             }));
@@ -329,7 +329,7 @@ impl Visitor<usize> for PArIRWriter {
                         &SymbolType::Variable(
                             self.current_scope().token_to_type(&r#type.span.lexeme),
                         ),
-                        Some(MemLoc {
+                        Some(MemoryLocation {
                             stack_level: self.stack_level,
                             frame_index: self.frame_index,
                         }),
@@ -353,7 +353,7 @@ impl Visitor<usize> for PArIRWriter {
                         &SymbolType::Variable(
                             self.current_scope().token_to_type(&param_type.span.lexeme),
                         ),
-                        Some(MemLoc {
+                        Some(MemoryLocation {
                             stack_level: self.stack_level,
                             frame_index: self.frame_index,
                         }),
@@ -369,7 +369,7 @@ impl Visitor<usize> for PArIRWriter {
                             self.current_scope().token_to_type(&param_type.span.lexeme),
                             size,
                         ),
-                        Some(MemLoc {
+                        Some(MemoryLocation {
                             stack_level: self.stack_level,
                             frame_index: self.frame_index,
                         }),

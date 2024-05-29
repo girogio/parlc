@@ -28,7 +28,7 @@ values, through assertions, and we print out the results of the tests.
 
 \subsection{Results}
 
-\subsubsection{Variable declarations}
+\subsubsection*{Variable declarations}
 
 \textbf{ParL Program:}
 
@@ -96,11 +96,11 @@ Program
 
 \textbf{Result:}
 Output successfuly matched with $$\code{['5', '0', '1.23', '1', '2', '3', '4',
-                '5', '1', '5']}$$
+        '5', '1', '5']}$$
 
 \newpage
 
-\subsubsection{Variable Assignment}
+\subsubsection*{Variable Assignment}
 
 \textbf{ParL Program:}
 
@@ -192,18 +192,18 @@ Program
 \textbf{Result:}
 
 Output successfuly matched with $$\code{["5", "0", "1.23", "2", "2", "16777215",
-                "3.45", "1"]}$$
+        "3.45", "1"]}$$
 
 
-\subsubsection{Control Flows}
+\subsubsection*{Control Flows}
 
 \textbf{ParL Program:}
 
 {
 
-    \lstset{xleftmargin=0.2\textwidth}
+  \lstset{xleftmargin=0.2\textwidth}
 
-    \begin{lstlisting}
+  \begin{lstlisting}
     let loop_max: int = 5;
 
     for (let i: int = 0; i < loop_max; i = i + 1) {
@@ -298,13 +298,13 @@ Output successfuly matched with $$\code{["0", "1", "2", "3", "4", "1", "0", "0",
 
 \newpage
 
-\subsubsection{Functions}
+\subsubsection*{Functions}
 
 \textbf{ParL Program:}
 {
-    \lstset{xleftmargin=0.2\textwidth}
+  \lstset{xleftmargin=0.2\textwidth}
 
-    \begin{lstlisting}
+  \begin{lstlisting}
 fun add(a: int, b: int) -> int {
     return a + b;
 }
@@ -358,9 +358,9 @@ __print array_parameters(arr);
 
 {
 
-    \lstset{xleftmargin=0.25\textwidth}
+  \lstset{xleftmargin=0.25\textwidth}
 
-    \begin{lstlisting}
+  \begin{lstlisting}
 Program
   FunctionDecl
     Identifier: add
@@ -458,18 +458,18 @@ Program
 \textbf{Result:}
 
 Output successfuly matched with $$\code{["15", "1", "3", "5", "1.23", "0", "1",
-                "5", "1", "2", "3", "4", "15"]}$$
+        "5", "1", "2", "3", "4", "15"]}$$
 
 \newpage
 
-\subsubsection{Expressions}
+\subsubsection*{Expressions}
 
 \textbf{ParL Program:}
 
 {
-    \lstset{xleftmargin=0.1\textwidth}
+  \lstset{xleftmargin=0.1\textwidth}
 
-    \begin{lstlisting}
+  \begin{lstlisting}
 let a: int = 5;
 let b: int = 10;
 
@@ -485,9 +485,9 @@ __print ((12 + 5) * (8 - 3) + (18 / 2)) - ((25 - 5) / (4 + 1));
 
 {
 
-    \lstset{xleftmargin=0\textwidth}
+  \lstset{xleftmargin=0\textwidth}
 
-    \begin{lstlisting}
+  \begin{lstlisting}
 Program
   VarDec
     Identifier: a
@@ -515,14 +515,14 @@ Output successfuly matched with $$\code{["0", "1", "1", "90"]}$$
 
 \newpage
 
-\subsubsection{Pad Read/Write}
+\subsubsection*{Pad Read/Write}
 
 \textbf{ParL Program:}
 
 {
-    \lstset{xleftmargin=0.2\textwidth}
+  \lstset{xleftmargin=0.2\textwidth}
 
-    \begin{lstlisting}
+  \begin{lstlisting}
 let c1: colour = #213B5F;
 let c2: colour = #FFA400;
 
@@ -546,9 +546,9 @@ __print __read x1 + 3, y1 + 3;
 \textbf{AST:}
 
 {
-    \lstset{xleftmargin=0.2\textwidth}
+  \lstset{xleftmargin=0.2\textwidth}
 
-    \begin{lstlisting}
+  \begin{lstlisting}
 Program
     VarDec
       Identifier: c1

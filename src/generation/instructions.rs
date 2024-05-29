@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{core::Token, semantics::utils::MemLoc};
+use crate::{core::Token, semantics::utils::MemoryLocation};
 
 #[derive(Debug)]
 pub struct Program {
@@ -23,11 +23,11 @@ impl Display for Program {
 #[derive(Debug, Clone)]
 pub enum Instruction {
     FunctionLabel(String),
-    PushArray(MemLoc),
-    PushFromStack(MemLoc),
+    PushArray(MemoryLocation),
+    PushFromStack(MemoryLocation),
     PushFunction(Token),
     PushOffsetFromPC(i32),
-    PushOffsetFromOpS(MemLoc),
+    PushOffsetFromOpS(MemoryLocation),
     PushIntValue(usize),
     PushFloatValue(f64),
     Store,

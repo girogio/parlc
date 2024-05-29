@@ -2,7 +2,6 @@ use crate::{core::Token, semantics::utils::Type};
 
 pub type AstNodePtr = Box<AstNode>;
 
-#[derive(Debug)]
 pub enum AstNode {
     Program {
         statements: Vec<AstNode>,

@@ -44,6 +44,9 @@ function section, followed by the main section. Due to the fact that the only
 thing we need to call a function, is its name, not the line number where it has
 been defined, we can successfully divide the program into these two sections.
 
+
+
+
 \newpage
 
 \subsection{Code Generation Visitor}
@@ -86,8 +89,31 @@ Additionally, we also have some helper functions such as
 \begin{itemize}
     \item \code{get\_scope\_var\_count}, which returns the number of slots in
           the that we need to allocate in the stack frame for the current scope.
-    \item \code{get\_memory\_location(token: Token)}, which returns the memory
-          location of a variable, given its name.  \item \code{push\_scope()} and
-          \code{pop\_scope()}, being common operations, we shall automate them, whilst
+    \item \code{push\_scope()} and \code{pop\_scope()}, being common operations, we shall automate them, whilst
           resetting the frame index and incrementing the stack level.
+    \item     \code{get\_memory\_location(token: Token)}, which returns the memory
+          location of a variable, given its name, explained in the next section.
 \end{itemize}
+
+\subsection{Memory Access}
+
+Even though we keep track of how many frames have been created in the
+\code{stack\_level} field, the most recent one is always at index 0. Thus, we
+must calculate the relative memory location of a variable by subtracting the
+stack level of the variable from the current stack level. This is the corresponding function.
+
+
+    {
+
+        \lstset{xleftmargin=0\textwidth,aboveskip=0pt,belowskip=0pt}
+
+        \begin{lstlisting}
+fun get_memory_location(&self, symbol: &Token) -> Option<MemoryLocation> {
+    self.find_symbol(symbol).and_then(|s| {
+        let relative_mem_loc = s.memory_location;
+        relative_mem_loc.map(|mem_loc| MemoryLocation {
+            stack_level: self.stack_level - mem_loc.stack_level,
+            frame_index: mem_loc.frame_index }) }) }
+\end{lstlisting}
+
+    }
