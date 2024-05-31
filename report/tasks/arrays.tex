@@ -1,13 +1,13 @@
 \section{Arrays}
 
-Implementing arrays was definetely a challenge that required a lot of thought,
+Implementing arrays was definitely a challenge that required a lot of thought,
 and changes in previous parts of the codebase. Some of the AST nodes needed to
 store some extra information, and thus the parser had to be partially revisited.
 
 \subsection{Parser Changes}
 
 Although functional, array usage is quite restricted. For example, due to the
-definition of the grammar, expressions arent't allowed to be used as array elements. In other words, the following
+definition of the grammar, expressions aren't allowed to be used as array elements. In other words, the following
 variable declaration would be syntactically incorrect:
 
 $$ \code{let a: int[4] = [1+2, 3, 4, 5];} $$
@@ -49,16 +49,16 @@ The code generation was also updated to support arrays. The main changes
 consisted of adding the new instructions, namely \code{StoreArray},
 \code{PushArray(MemoryLocation)}, \code{PushOffsetFromOpS(MemoryLocation)},
 \code{PrintArray} and \code{ReturnArray}. The latter however, although available
-as instruction in the VM, was not used. Even though clearly, we have seen that
-functions can return arrays (although they have to be declared temporarily
-inside and mutated only through direct array accesses), a slight workaround has
-been implemented to achieve \textbf{properly ordered} that happens to fix other
-issues that arise when referencing arrays. It was noted that some VM
+as instruction in the VM, was not used. Even though we have seen that functions
+can return arrays (although they have to be declared temporarily inside and
+mutated only through direct array accesses), it was noted that some VM
 instructions are inconsistent with the ordering in the storage and loading of
-arrays from the operand stack.
+arrays from the operand stack. Due to this a workaround was implemented to
+ensure that arrays are pushed in the correct order, and this fixes the issue.
+Here is a description of the new instructions:
 
-Thus, when traversing the AST and finding an identifier which points to an
-array, the following workaround occurs.
+When traversing the AST and finding an identifier which points to an
+array, the following instructions are inserted:
 \graphicspath{figures}
 
 \begin{figure}[H]

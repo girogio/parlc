@@ -212,8 +212,9 @@ not, the semantic analyser must emit an error, and stop the compilation process.
     operations performed in the VM itself. Given the VM is implemented in
     JavaScript, this flexibility is warranted, as JavaScript is a dynamically
     typed language. Had it been done on actual hardware, the type inference would
-    have been much more rigid, and the checking must have been more strict,
-    possibly with more intricate conversions to achieve the desired result.
+    have been much more complicated to implement. It would have required padding
+    bits to the correct size, and maybe even more code generation cases to convert
+    between types.
 \end{warningbox}
 
 Behind the scenes, the compiler actually assigns a type to unsupported
@@ -236,9 +237,9 @@ error, stating what the type it expected is (the one the user defined) and what
 it found, the type of the returned expression. In the case of arrays, lengths
 must also match.
 
-\newpage
+% \newpage
 
-Additionally, in the case of \code{For} loops, there is one additinoal thing to
+Additionally, in the case of \code{For} loops, there is one additional thing to
 pay attention to. Even though the body of for loop is a block in its own right,
 we must actually start the scope of the for loop before the body, but then, we
 cannot visit the body with the normal rules. In fact, a new function called \code{visit\_unscoped\_block} was created to override the normal behaviour of visiting a block, and instead, visit it without creating a new scope. This is crucial for the for loop, as the variables declared in the for loop must be accessible in the body of the loop (and because we can't shadow the iterator variable).
@@ -255,7 +256,7 @@ types, otherwise an error is emitted.
                & to & Int        & Float      & Colour     & Boolean    \\
         from   &    &            &            &            &            \\ \hline
         Int    &    & \checkmark & \checkmark & \checkmark & $\times$   \\
-        Float  &    & $\times$   & \checkmark & $\times$   & $\times$   \\
+        Float  &    & \checkmark & \checkmark & $\times$   & $\times$   \\
         Colour &    & \checkmark & \checkmark & \checkmark & $\times$   \\
         Bool   &    & \checkmark & \checkmark & $\times$   & \checkmark
     \end{tabular}
@@ -267,8 +268,7 @@ types, otherwise an error is emitted.
     The type-casting operation is only supported
     between the types listed in the table above. However, this may cause some
     overflows, which are not check for in the compiler. A clear example is taking
-    the \code{Colour} \code{\#ffffff}, casting it to an \code{Int}, adding one, and casting it back to a \code{Colour}. Drawing this on the display will result in a black pixel, as the \code{Int} overflowed.\\
-
+    the \code{Colour} \code{\#ffffff}, casting it to an \code{Int}, adding one, and casting it back to a \code{Colour}. Drawing this on the display will result in a black pixel, as the \code{Int} overflowed.
     A further improvement could be an overflow check implemented on types with arbitrary values that have fixed ranges, such as \code{Int} and \code{Floats}.
     In fact, whilst converting array indices from a lexeme to a Rust \code{usize}, we assume that the lexeme represents a valid \code{usize}. If it is too big, the compiler will crash due to an \code{unwrap()}.
 \end{warningbox}
@@ -278,13 +278,11 @@ To summarize, the following are the rules we shall impose on the language:
 \begin{itemize}
     \item Atomic variables, functions and arrays must be declared before they are used.
     \item Atomic variables, functions and arrays cannot be re-declared in the same scope.
-    \item Atomic variable and array declaratinos can be shadowed in inner scopes.
+    \item Atomic variable and array declarations can be shadowed in inner scopes.
     \item When declaring arrays, the number of elements must match the length of
-          the array, so overallocation is not allowed.
+          the array, so over-allocation is not allowed.
     \item Functions cannot be called with the wrong number of arguments.
     \item Function parameters must match the types in the function signature.
-    \item Functions must return a value.
-    \item Functions must return the correct type.
-    \item Operations between types must be valid.
-    \item The type of the expression in a return statement must match the return type of the function.
+    \item Functions must return a value, and its type must match the one in the function signature.
+    \item Operations between types must be valid, as per the tables \ref{tab:type-inference1} and \ref{tab:type-inference2}.
 \end{itemize}

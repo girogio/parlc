@@ -1,12 +1,44 @@
-fun max(a: int, b: int) -> int {
-    __print a;
-    __print b;
-
-    return 0;
+fun add(a: int, b: int) -> int {
+    return a + b;
 }
 
-let a: int = 1;
-let b: int = 2;
+let result: int = add(5, 10);
 
-let c: int = max(a, b);
-__print c;
+
+fun some_func(a: int[2]) -> int[2] {
+    let b: int[2] = [1,3];
+    return b;
+}
+
+let a: int[2] = [1, 2];
+
+__print some_func(a);
+
+
+fun mixed_parameters(a: int, b: float, c: colour) -> bool {
+    __print a;
+    __print b;
+    __print c;
+
+    return true;
+}
+
+__print mixed_parameters(5, 1.23, #000000);
+
+fun array_parameters(a: int[5]) -> int {
+
+    let sum: int = 0;
+
+    for (let i: int = 0; i < 5; i = i + 1) {
+        __print a[i];
+        sum = sum + a[i];
+    }
+
+    return sum;
+}
+
+    let arr: int[5] = [5, 1, 2, 3, 4];
+
+    let sum: int = array_parameters(arr);
+
+    __print sum;

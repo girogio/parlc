@@ -1,4 +1,4 @@
-#!/usr/bin/env python3  
+#!/usr/bin/env python3
 
 from runner import Runner
 
@@ -165,7 +165,7 @@ def test_functions():
     parir, result = runner.compile_and_run()
 
     # print(parir)
-    # print(result)
+    print(result)
 
     expected = ["15"]
     expected += ["1", "3"]
@@ -259,7 +259,20 @@ def if_statement_test():
     print("If statement tests passed!")
 
 
+def test_max_in_array():
+    path = "samples/max_in_array.parl"
+    runner = Runner(source_path=path)
+
+    print("Testing max in array...")
+    parir, result = runner.compile_and_run()
+
+    assert result == ["120"]
+
+    print("Max in array tests passed!")
+
+
 if __name__ == "__main__":
+    test_max_in_array()
     test_variable_declaration()
     test_variable_assignment()
     test_control_flows()

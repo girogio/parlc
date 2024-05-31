@@ -130,11 +130,10 @@ impl SemanticAnalyser {
     fn get_bin_op_type(&mut self, op: &Token, left: &Type, right: &Type) -> Type {
         match (op.kind, left, right) {
             (TokenKind::Mod, Type::Int, Type::Int) => Type::Int,
-            (
-                TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | TokenKind::Divide,
-                Type::Int,
-                Type::Int,
-            ) => Type::Int,
+            (TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply, Type::Int, Type::Int) => {
+                Type::Int
+            }
+            (TokenKind::Divide, Type::Int, Type::Int) => Type::Float,
             (
                 TokenKind::Plus | TokenKind::Minus | TokenKind::Multiply | TokenKind::Divide,
                 Type::Float,
@@ -277,6 +276,7 @@ impl SemanticAnalyser {
 
         match (from.clone(), to.clone()) {
             (Type::Int, Type::Float) => Type::Float,   // 5 -> 5.0
+            (Type::Float, Type::Int) => Type::Int,     // 5.2 -> 5
             (Type::Colour, Type::Int) => Type::Int,    // 0xRRGGBB -> 0xRR + 0xGG + 0xBB
             (Type::Bool, Type::Int) => Type::Int,      // false -> 0, true -> 1
             (Type::Int, Type::Colour) => Type::Colour, // 0xRR + 0xGG + 0xBB -> 0xRRGGBB

@@ -12,7 +12,7 @@ class Runner:
     source_path: str
     source: str
 
-    def __init__(self, source, source_path: str = ""):
+    def __init__(self, source: str = "", source_path: str = ""):
         self.source_path = source_path
         self.source = source.replace("\n", " ")
 

@@ -1,0 +1,20 @@
+fun add(a: int, b: int) -> int {
+
+    __print a;
+    __print b;
+
+
+   while (a < b) {
+
+        __print a;
+        __print b;
+
+        a = a + 1;
+
+    }
+
+    return a;
+
+}
+
+__print add(19,20);

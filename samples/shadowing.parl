@@ -1,0 +1,11 @@
+let a: int = 5;
+
+__print a; // should be 5
+
+// We have variable scope-shadowing here!
+{
+    let a: int = 1;
+    __print a; // should be 1
+}
+
+__print a; // should be 5 again

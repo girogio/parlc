@@ -1,0 +1,32 @@
+// Set the width and height of the canvas to 240,132 to view the flags best.
+// Write box on the VM doesn't like floating point numbers (we want h and w to
+// be divisible by 2 and 3)
+
+
+fun draw_polish_flag(w: int, h: int) -> bool {
+    let red: colour = #ff0000;
+    let white: colour = #ffffff;
+
+    __write_box 0, 0, w, (h / 2) as int, red;
+    __write_box 0, (h / 2) as int, w, (h / 2) as int, white;
+
+    return true;
+}
+
+fun draw_italian_flag(w: int, h: int) -> bool {
+    let green: colour = #009246;
+    let white: colour = #ffffff;
+    let red: colour = #ce2b37;
+
+    __write_box 0, 0, (w / 3) as int, h, green;
+    __write_box (w / 3) as int, 0, (w / 3) as int, h, white;
+    __write_box (2 * w / 3) as int, 0, (w / 3) as int, h, red;
+
+    return true;
+}
+
+__print draw_polish_flag(__width, __height);
+
+__delay 2000;
+
+__print draw_italian_flag(__width, __height);

@@ -33,16 +33,20 @@ fun Max(x: int, y: int) -> int {
     return m;
 }
 
-__write 10, 14, #ffff00;
+__write 10, 14, #00ff00;
 __delay 100;
-__clear #00ffaa;
 __write_box 10, 14, 2, 2, #0000ff;
 
+/* This function takes two colours (players) and a max score.
+A while loop is used to iteratively draw random numbers for the two
+players and advance (along the y-axis) the player that gets the
+highest score. Returns the winner (either 1 or 2) when max score is
+reached by any of the players. Winner printed on console. */
 fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
     let p1score: int = 0;
     let p2score: int = 0;
-    // while (Max(p1score, p2score) < scoremax) // Alternative loop
-    while (p1score < scoremax and p2score < scoremax) {
+     while (Max(p1score, p2score) < scoremax) { // Alternative loop
+    //while (p1score < scoremax and p2score < scoremax) {
         let p1toss: int = __randi 1000;
         let p2toss: int = __randi 1000;
         if (p1toss > p2toss) {
@@ -63,7 +67,7 @@ fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
 // Execution (program entry point) starts at the first statement
 // that is not a function declaration. This should go in the .main
 // function of ParIR.
-let c1: colour = #ff0000; // green
+let c1: colour = #00ff00; // green
 let c2: colour = #0000ff; // blue
 let m: int = __height; // the height (y-values) of the pad
 let w: int = Race(c1, c2, m); // call function Race

@@ -1,0 +1,64 @@
+// Set the width and height of the canvas to 240,132 for the best viewing
+// experience. Since w and h are 
+
+fun draw_polish_flag(w: int, h: int) -> bool {
+    let red: colour = #ff0000;
+    let white: colour = #ffffff;
+
+    
+    __write_box 0, 0, w, h / 2, red;
+    __write_box 0, h / 2, w, h / 2, white;
+
+    return true;
+}
+
+fun draw_italian_flag(w: int, h: int) -> bool {
+    let green: colour = #009246;
+    let white: colour = #ffffff;
+    let red: colour = #ce2b37;
+
+    __write_box 0, 0, w / 3, h, green;
+    __write_box w / 3, 0, w / 3, h, white;
+    __write_box 2 * w / 3, 0, w / 3, h, red;
+
+    return true;
+}
+
+fun draw_french_flag(w: int, h: int) -> bool {
+    let blue: colour = #0055a4;
+    let white: colour = #ffffff;
+    let red: colour = #ef4135;
+
+    __write_box 0, 0, w / 3, h, blue;
+    __write_box w / 3, 0, w / 3, h, white;
+    __write_box 2 * w / 3, 0, w / 3, h, red;
+
+    return true;
+}
+
+fun draw_german_flag(w: int, h: int) -> bool {
+    let black: colour = #111111;
+    let red: colour = #ff0000;
+    let yellow: colour = #ffcc00;
+
+    __write_box 0, 0, w, h / 3, yellow;
+    __write_box 0, h / 3, w, h / 3, red;
+    __write_box 0, 2 * h / 3, w, h / 3, black;
+
+    return true;
+}
+
+
+__print draw_german_flag(__width, __height);
+
+__delay 2000;
+
+__print draw_polish_flag(__width, __height);
+
+__delay 2000;
+
+__print draw_italian_flag(__width, __height);
+
+__delay 2000;
+
+__print draw_french_flag(__width, __height);
