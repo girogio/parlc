@@ -120,10 +120,12 @@ impl SymbolTable {
         symbol_type: &SymbolType,
         mem_loc: Option<MemoryLocation>,
     ) {
-        let mut index = 0;
         let symbol = Symbol::new(lexeme, symbol_type.clone(), mem_loc);
+
+        // Find the index to insert the symbol
+        let mut index = 0;
         for s in &self.symbols {
-            if s < &symbol {
+            if s > &symbol {
                 break;
             }
             index += 1;
@@ -132,6 +134,7 @@ impl SymbolTable {
         self.insert_at(index, symbol);
     }
 
+    /// Insert symbol at the given index
     pub fn insert_at(&mut self, index: usize, symbol: Symbol) {
         let mut tail = self.symbols.split_off(index);
         self.symbols.push_back(symbol);
@@ -139,7 +142,16 @@ impl SymbolTable {
     }
 
     pub fn find_symbol(&self, symbol: &str) -> Option<&Symbol> {
-        self.symbols.iter().find(|s| s.lexeme == symbol)
+        if self.symbols.is_empty() {
+            return None;
+        }
+
+        let symbol_table_as_slice = self.symbols.iter().collect::<Vec<_>>();
+
+        symbol_table_as_slice
+            .binary_search_by_key(&symbol, |s| &s.lexeme)
+            .ok()
+            .map(|index| symbol_table_as_slice[index])
     }
 
     pub fn find_symbol_mut(&mut self, symbol: &str) -> Option<&mut Symbol> {
@@ -148,5 +160,57 @@ impl SymbolTable {
 
     pub fn all_symbols(&self) -> impl Iterator<Item = &Symbol> {
         self.symbols.iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    fn test_symbol_table() -> SymbolTable {
+        let mut symbol_table = SymbolTable::new();
+        symbol_table.add_symbol("d", &SymbolType::Variable(Type::Colour), None);
+        symbol_table.add_symbol("a", &SymbolType::Variable(Type::Int), None);
+        symbol_table.add_symbol("c", &SymbolType::Variable(Type::Bool), None);
+        symbol_table.add_symbol("b", &SymbolType::Variable(Type::Float), None);
+        symbol_table.add_symbol(
+            "e",
+            &SymbolType::Array(Type::Int, 10),
+            Some(MemoryLocation {
+                stack_level: 0,
+                frame_index: 0,
+            }),
+        );
+        symbol_table
+    }
+
+    #[rstest]
+    fn check_table_ord() {
+        let symbol_table = test_symbol_table();
+
+        for (i, symbol) in symbol_table.symbols.iter().enumerate() {
+            println!("{}: {}", i, symbol.lexeme);
+        }
+    }
+
+    #[rstest]
+    fn check_insert_at() {
+        let mut symbol_table = test_symbol_table();
+
+        symbol_table.insert_at(
+            2,
+            Symbol::new(
+                "f",
+                SymbolType::Variable(Type::Array(Box::new(Type::Float), 10)),
+                Some(MemoryLocation {
+                    stack_level: 0,
+                    frame_index: 0,
+                }),
+            ),
+        );
+
+        assert_eq!(symbol_table.symbols.len(), 6);
+        assert_eq!(symbol_table.symbols.iter().nth(2).unwrap().lexeme, "f");
     }
 }

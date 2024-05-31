@@ -61,7 +61,7 @@ encountered.
 
 We note that the \code{next\_token} returns \code{Result<Token, LexicalError>}
 instead of just a \code{Token}, which is caught by the wrapper \code{lex()}.
-This feature, known as \textit{synchronization} allows the lexer to return an
+This feature, known as \textit{synchronization}, allows the lexer to return an
 error, instead of crashing. This enables the lexer to recover after an error has
 been encountered, such as reading a character that is not in the character table
 of the DFSA. It will continue reading from the next token, and find other
@@ -77,10 +77,10 @@ invalid characters.
 
 \subsection{DFSA Builder}
 
-Of course, the \code{Lexer} that was implemented in the project, was required to
+The \code{Lexer} that was implemented in the project, was required to
 be a based on a finite state automaton, with a character table. Initially, the
 DFSA was implemented manually, but as the number of tokens (and hence states)
-grew it was getting harder to keep track of the transitions.
+gre, it was getting harder to keep track of the transitions.
 
 To solve this problem, together with the \code{Dfsa} struct, a
 \code{DfsaBuilder} struct was implemented, which is responsible for dynamically

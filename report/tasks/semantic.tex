@@ -31,8 +31,8 @@ The generic type parameter \code{T} is central to the way we will be using, or
 rather, re-using the visitor trait in the code generation stage. It will allow
 us to control the return type of the \code{visit} method, and thus, the type of
 the value that is returned when visiting a node in the abstract syntax tree. In
-other words, we can access different properties of an AST node, depending on the
-struct that implements the \code{Visitor} trait.
+other words, we can access, or evaluate, information about an AST node,
+depending on the struct that implements the \code{Visitor} trait.
 
 I have implemented the \code{Visitor} trait on a number of structs (here on referred to as Visitors), and these are:
 
@@ -77,6 +77,12 @@ a function, array, or primitive type variable definitions. In the case of
 functions, I stored the entire signature, including the return type, and the
 types of the parameters.
 
+An implementation detail of the \code{SymbolTable} is that it is a sorted
+\code{LinkedList}, which allows for faster lookups. We ensure the list is
+ordered at the moment of insertion, where we lexicographically compare the
+lexemes of the identifiers we are storing in the symbol table.
+
+
 Additionally, the \code{SemanticAnalyser} struct keeps track of whether the
 visitor is currently is inside a function, through the \code{inside\_function}
 flag. Different behaviour is expected from the visitor when inside a function,
@@ -96,19 +102,25 @@ emitted during the semantic analysis stage. We categorize these errors as
 do not necessarily disallow the compilation of the program, and \code{Errors},
 i.e. mistakes that must be fixed before the program can be compiled.
 
+\vfill
+
 \begin{warningbox}{Variable Shadowing}
     This implementation of the \code{ParL} compiler allows for \textit{variable
-        shadowing}, like Rust \cite{rustlangScopeShadowing}.  This means that a variable
+        shadowing}, in a similar fashion to Rust \cite{rustlangScopeShadowing}.  This means that a variable
     can be re-declared in an inner scope, and the latter will \textit{take over}
     the former for the life-time of the inner scope. Variable shadowing will
     produce a warning, as it can lead to confusion, but variable re-declaration
-    in the same scope will produce an error.
+    in the same scope will always produce an error.
 \end{warningbox}
+
+\vfill
+\newpage
 
 Now that we know what tools the semantic analyser has at its disposal, we still
 have one more thing to discuss. How do we find out the types of arbitrary
 expressions, possibly with a mixture of literals, variables, function calls, and
-operations applied to them? To answer this question we must define the type inference of operations betweentypes in the language.
+operations applied to them? To answer this question we must define the type
+inference of operations between types in the language. These are the types available.
 
 \begin{multicols}{3}
     \begin{center}

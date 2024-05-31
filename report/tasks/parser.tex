@@ -94,3 +94,12 @@ modulo.  Although this wasn't specified in the original grammar, it is present
 as an instruction in the VM, so I decided to include it. In the context of
 drawing pixels, it's useful for creating a wrap-around effect in loops.
 
+Additionally, it was also noted that in the VM's source code, the \code{inc} and
+\code{dec} instructions were present, although undocumented. These could've been
+well coupled with the \code{++} and \code{--} operators, also absent in the
+grammar. Alternatively, the following operators could've been defined, \code{+=}
+and \code{-=}, for more Pythonic code. Although unimplemented, various
+ideas came to mind for the latter two operations, such as looping $x$ times over
+the \code{inc} and \code{dec} instructions, where $x$ is the evaluated
+expression on the right hand side of the operator. This allows for more compiler
+optimizations when generating the \code{ParIR} code.

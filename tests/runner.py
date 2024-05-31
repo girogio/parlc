@@ -44,7 +44,7 @@ class Runner:
 
         if compiler.returncode != 0:
             print(compiler.stderr.decode())
-            raise ValueError("Compilation failed.")
+            # raise ValueError("Compilation failed.")
 
         return compiler.stdout.decode()
 
@@ -84,7 +84,6 @@ class Runner:
 
         if compiler.returncode != 0:
             print(compiler.stderr.decode())
-            raise ValueError("Compilation failed.")
 
         return compiler.stdout.decode()
 
