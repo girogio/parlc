@@ -73,7 +73,12 @@ impl PArIRWriter {
         self.symbol_table.last_mut().unwrap()
     }
 
-    fn add_symbol(&mut self, symbol: &Token, symbol_type: &SymbolType, mem_loc: Option<MemoryLocation>) {
+    fn add_symbol(
+        &mut self,
+        symbol: &Token,
+        symbol_type: &SymbolType,
+        mem_loc: Option<MemoryLocation>,
+    ) {
         self.mut_current_scope()
             .add_symbol(&symbol.span.lexeme, symbol_type, mem_loc);
     }
@@ -242,7 +247,9 @@ impl Visitor<usize> for PArIRWriter {
                 }
 
                 let start = self.instr_ptr;
+                self.stack_level += 1;
                 let end = self.visit_unscoped_block(block);
+                self.stack_level -= 1;
                 let var_count = self.get_scope_var_count();
 
                 self.program.functions.extend([
@@ -286,6 +293,8 @@ impl Visitor<usize> for PArIRWriter {
 
             AstNode::Identifier { token } => {
                 let symbol = self.find_symbol(token).unwrap();
+
+                dbg!(symbol);
 
                 match symbol.symbol_type {
                     SymbolType::Array(_, s) => {

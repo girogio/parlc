@@ -125,7 +125,7 @@ impl SymbolTable {
         // Find the index to insert the symbol
         let mut index = 0;
         for s in &self.symbols {
-            if s > &symbol {
+            if s >= &symbol {
                 break;
             }
             index += 1;
@@ -142,16 +142,17 @@ impl SymbolTable {
     }
 
     pub fn find_symbol(&self, symbol: &str) -> Option<&Symbol> {
-        if self.symbols.is_empty() {
-            return None;
-        }
+        // if self.symbols.is_empty() {
+        //     return None;
+        // }
 
-        let symbol_table_as_slice = self.symbols.iter().collect::<Vec<_>>();
+        // let symbol_table_as_slice = self.symbols.iter().collect::<Vec<_>>();
 
-        symbol_table_as_slice
-            .binary_search_by_key(&symbol, |s| &s.lexeme)
-            .ok()
-            .map(|index| symbol_table_as_slice[index])
+        // symbol_table_as_slice
+        //     .binary_search_by_key(&symbol, |s| &s.lexeme)
+        //     .ok()
+        //     .map(|index| symbol_table_as_slice[index])
+        self.symbols.iter().find(|s| s.lexeme == symbol)
     }
 
     pub fn find_symbol_mut(&mut self, symbol: &str) -> Option<&mut Symbol> {
