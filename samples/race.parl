@@ -38,11 +38,6 @@ __delay 100;
 __clear #00ffaa;
 __write_box 10, 14, 2, 2, #0000ff;
 
-/* This function takes two colours (players) and a max score.
-A while loop is used to iteratively draw random numbers for the two
-players and advance (along the y-axis) the player that gets the
-highest score. Returns the winner (either 1 or 2) when max score is
-reached by any of the players. Winner printed on console. */
 fun Race(p1c: colour, p2c: colour, scoremax: int) -> int {
     let p1score: int = 0;
     let p2score: int = 0;

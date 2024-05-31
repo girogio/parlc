@@ -1,3 +1,12 @@
-let a: int[5] = [1, 2, 3, 4, 5];
+fun max(a: int, b: int) -> int {
+    __print a;
+    __print b;
 
-__print a;
+    return 0;
+}
+
+let a: int = 1;
+let b: int = 2;
+
+let c: int = max(a, b);
+__print c;
