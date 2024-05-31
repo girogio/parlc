@@ -239,10 +239,15 @@ fn main() {
                     .unwrap();
             } else {
                 println!("{}", par_ir_instr);
+                eprintln!(
+                    "{} compiled {}.",
+                    style(in_file.display()).cyan(),
+                    style("successfully").green()
+                );
             }
 
             if let Some(output) = output {
-                println!(
+                print!(
                     "{} compiled successfully. Output written to `{}`.",
                     style(in_file.display()).cyan(),
                     style(output.display()).cyan()
