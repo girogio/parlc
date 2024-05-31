@@ -233,7 +233,7 @@ impl Parser {
         Ok(AstNode::FormalParam {
             identifier: identifier.clone(),
             param_type,
-            index,
+            length: index,
         })
     }
 

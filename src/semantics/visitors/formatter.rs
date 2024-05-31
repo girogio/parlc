@@ -329,7 +329,7 @@ impl Visitor<Result<()>> for Formatter {
             AstNode::FormalParam {
                 identifier,
                 param_type,
-                index,
+                length: index,
             } => {
                 write!(
                     self.buff,
@@ -401,7 +401,7 @@ impl Visitor<Result<()>> for Formatter {
                 write!(self.buff, "__height")?;
                 Ok(())
             }
-            AstNode::ActualParams { params: _ } => Ok(()),
+
             AstNode::EndOfFile => Ok(()),
         }
     }

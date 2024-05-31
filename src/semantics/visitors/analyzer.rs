@@ -533,7 +533,7 @@ impl Visitor<Type> for SemanticAnalyser {
             AstNode::FormalParam {
                 identifier,
                 param_type,
-                index,
+                length: index,
             } => match index {
                 None => {
                     let param_type = self.current_scope().token_to_type(&param_type.span.lexeme);
@@ -667,13 +667,6 @@ impl Visitor<Type> for SemanticAnalyser {
 
             AstNode::ColourLiteral(_) => Type::Colour,
 
-            AstNode::ActualParams { params } => {
-                for param in params {
-                    self.visit(param);
-                }
-
-                Type::Void
-            }
             AstNode::Delay { expression } => {
                 let delay_ms_type = self.visit(expression);
 

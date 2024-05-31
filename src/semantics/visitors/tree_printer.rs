@@ -351,7 +351,7 @@ impl Visitor<Result<()>> for TreePrinter {
             AstNode::FormalParam {
                 identifier,
                 param_type,
-                index,
+                length: index,
             } => {
                 print!("{}: {}", identifier.span.lexeme, param_type.span.lexeme);
                 if let Some(index) = index {
@@ -418,8 +418,6 @@ impl Visitor<Result<()>> for TreePrinter {
                 print!("__height");
                 Ok(())
             }
-
-            AstNode::ActualParams { params: _ } => Ok(()),
 
             AstNode::EndOfFile => Ok(()),
         }

@@ -247,9 +247,7 @@ impl Visitor<usize> for PArIRWriter {
                 }
 
                 let start = self.instr_ptr;
-                self.stack_level += 1;
                 let end = self.visit_unscoped_block(block);
-                self.stack_level -= 1;
                 let var_count = self.get_scope_var_count();
 
                 self.program.functions.extend([
@@ -277,6 +275,8 @@ impl Visitor<usize> for PArIRWriter {
                             let symbol = self.find_symbol(token).unwrap();
                             if let SymbolType::Array(_type, s) = symbol.symbol_type.clone() {
                                 len += s;
+                            } else {
+                                len += 1;
                             }
                         } else {
                             len += 1;
@@ -293,8 +293,6 @@ impl Visitor<usize> for PArIRWriter {
 
             AstNode::Identifier { token } => {
                 let symbol = self.find_symbol(token).unwrap();
-
-                dbg!(symbol);
 
                 match symbol.symbol_type {
                     SymbolType::Array(_, s) => {
@@ -354,8 +352,8 @@ impl Visitor<usize> for PArIRWriter {
             AstNode::FormalParam {
                 identifier,
                 param_type,
-                index,
-            } => match index {
+                length,
+            } => match length {
                 None => {
                     self.add_symbol(
                         identifier,
@@ -497,12 +495,6 @@ impl Visitor<usize> for PArIRWriter {
                 let colour = u32::from_str_radix(&l.span.lexeme[1..], 16).unwrap();
 
                 self.add_instruction(Instruction::PushIntValue(colour as usize));
-            }
-
-            AstNode::ActualParams { params } => {
-                for param in params {
-                    self.visit(param);
-                }
             }
 
             AstNode::Delay { expression } => {

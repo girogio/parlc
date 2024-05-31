@@ -47,9 +47,6 @@ pub enum AstNode {
         identifier: Token,
         args: Vec<AstNode>,
     },
-    ActualParams {
-        params: Vec<AstNode>,
-    },
     Delay {
         expression: AstNodePtr,
     },
@@ -89,7 +86,7 @@ pub enum AstNode {
     FormalParam {
         identifier: Token,
         param_type: Token,
-        index: Option<Token>,
+        length: Option<Token>,
     },
     FunctionDecl {
         identifier: Token,
