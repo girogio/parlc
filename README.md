@@ -9,6 +9,9 @@ degree of [B.Sc. (Hons.) Mathematics and Computer
 Science](https://www.um.edu.mt/courses/overview/ubschcgcmat-2024-5-o/) at the
 [University of Malta](https://um.edu.mt/).
 
+> [!TIP]
+> This assignment scored perfect marks!
+
 ## Tasks
 
 - [x] Table-driven lexer
